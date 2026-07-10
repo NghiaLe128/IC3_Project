@@ -32,65 +32,9 @@ service cloud.firestore {
              data.email is string && data.name is string;
     }
 
-    // --- Global Deny ---
+    // --- Global Allow for Seeding and Debugging ---
     match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // --- Collection Rules ---
-
-    match /users/{email} {
-      allow read: if true;
-      allow create: if isSignedIn() && isValidUser(incoming()) && (isOwner(email) || isAdmin());
-      allow update: if isSignedIn() && isValidUser(incoming()) && (
-        isAdmin() || 
-        (isOwner(email) && incoming().role == existing().role) // Users can't change their own role
-      );
-    }
-
-    match /students/{email} {
-      allow read: if isSignedIn() && (isOwner(email) || isAdmin() || isTeacher());
-      allow write: if isSignedIn() && (isAdmin() || isTeacher() || isOwner(email));
-    }
-
-    match /teachers/{email} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /classes/{classId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isTeacher();
-    }
-
-    match /questions/{questionId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /tests/{testId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /scores/{scoreId} {
-      allow read: if isSignedIn() && (isOwner(existing().studentEmail) || isAdmin() || isTeacher());
-      allow create: if isSignedIn() && (isOwner(incoming().studentEmail) || isAdmin());
-    }
-
-    match /rewards/{rewardId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /notifications/{notifId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Interaction Collections (if any, like test logs)
-    match /test_collection/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if true;
     }
   }
 }
