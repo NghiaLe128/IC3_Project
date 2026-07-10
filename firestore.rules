@@ -40,7 +40,7 @@ service cloud.firestore {
     // --- Collection Rules ---
 
     match /users/{email} {
-      allow read: if isSignedIn() && (isOwner(email) || isAdmin());
+      allow read: if true;
       allow create: if isSignedIn() && isValidUser(incoming()) && (isOwner(email) || isAdmin());
       allow update: if isSignedIn() && isValidUser(incoming()) && (
         isAdmin() || 
