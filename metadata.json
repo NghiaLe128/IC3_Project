@@ -1,0 +1,6 @@
+{
+  "name": "IC3 LMS",
+  "description": "Hệ thống quản lý học tập (LMS) luyện thi chứng chỉ tin học quốc tế IC3 cho học sinh cấp 1, 2, 3 với thiết kế trò chơi hóa sinh động.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

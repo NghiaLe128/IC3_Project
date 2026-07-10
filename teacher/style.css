@@ -1,0 +1,139 @@
+/* Custom Styles for IC3 LMS Teacher Portal - Frosted Glass Theme */
+
+body {
+  background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%) !important;
+  font-family: 'Nunito', sans-serif;
+  color: #f8fafc !important;
+}
+
+/* Override standard Tailwind classes for a dark glassmorphic layout */
+.bg-white {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.bg-slate-50 {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+.bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.border-slate-100, .border-slate-200, .border-slate-300 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.text-slate-800, .text-slate-700, .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+
+.text-slate-600, .text-slate-500, .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Sidebar Navigation Button */
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.15);
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Modal Overlay & Styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 16px;
+}
+
+.modal-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #ffffff !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #10b981; /* emerald-500 */
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* Form inputs & controls override */
+select, input, textarea {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: #10b981 !important;
+}
+
+/* Tables styling */
+tr:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+thead th {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

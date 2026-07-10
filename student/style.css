@@ -1,0 +1,427 @@
+/* Custom Styles for IC3 LMS Student Gamified UI - Frosted Glass Theme */
+
+body {
+  background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%) !important;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Nav Tab Buttons */
+.student-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.student-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.student-tab-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+}
+
+/* World Map Zone Cards with Frosted Glass */
+.world-zone-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.world-zone-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.1);
+}
+
+/* Style specific zones with colored frost borders as in design HTML */
+#zone-level_1 {
+  border-color: rgba(16, 185, 129, 0.2);
+}
+#zone-level_1:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 12px 40px 0 rgba(16, 185, 129, 0.1);
+}
+
+#zone-level_2 {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+#zone-level_2:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.15);
+}
+
+#zone-level_3 {
+  border-color: rgba(139, 92, 246, 0.15);
+}
+#zone-level_3:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 12px 40px 0 rgba(139, 92, 246, 0.15);
+}
+
+.world-zone-card.locked {
+  opacity: 0.55;
+  filter: grayscale(60%);
+}
+
+.world-zone-card.locked:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  cursor: not-allowed;
+}
+
+.world-zone-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Quiz Item inside Zone */
+.quiz-item-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.quiz-item-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: scale(1.02);
+}
+
+/* Game Playing Mode: Option Cards */
+.option-card-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 16px 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.option-card-btn:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.option-card-btn.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+}
+
+.option-card-btn.correct {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+}
+
+.option-card-btn.wrong {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+}
+
+/* Store Cards and General Grids */
+.bg-game-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 24px;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ==================== LIGHT MODE OVERRIDES ==================== */
+html.light-mode,
+.light-mode body {
+  background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .text-white,
+.light-mode h1,
+.light-mode h2,
+.light-mode h3,
+.light-mode h4,
+.light-mode h5,
+.light-mode h6 {
+  color: #0f172a !important;
+}
+
+.light-mode .text-slate-300,
+.light-mode .text-slate-400,
+.light-mode .text-slate-200 {
+  color: #334155 !important;
+}
+
+.light-mode .text-indigo-300,
+.light-mode .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+
+.light-mode .bg-white\/5,
+.light-mode .bg-game-card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.light-mode .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+/* Header styled cleanly for light mode */
+.light-mode header {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Tabs */
+.light-mode .student-tab-btn {
+  color: #475569 !important;
+}
+
+.light-mode .student-tab-btn:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .student-tab-btn.active {
+  background: #ffffff !important;
+  color: #3b82f6 !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08) !important;
+}
+
+/* Battle Card and list views */
+.light-mode .bg-slate-950,
+.light-mode .bg-slate-900,
+.light-mode .bg-slate-900\/40,
+.light-mode .bg-slate-950\/80,
+.light-mode .bg-slate-950\/60,
+.light-mode .bg-slate-950\/20,
+.light-mode .bg-indigo-950\/20,
+.light-mode .bg-slate-900\/50,
+.light-mode .bg-slate-900\/60,
+.light-mode .bg-indigo-950 {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+/* Boss cards gradient background light mode adapt */
+.light-mode .bg-gradient-to-r.from-emerald-950\/40,
+.light-mode .bg-gradient-to-r.from-blue-950\/40,
+.light-mode .bg-gradient-to-r.from-purple-950\/40 {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03) !important;
+}
+
+.light-mode .quiz-item-btn {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .quiz-item-btn:hover {
+  background: rgba(15, 23, 42, 0.02) !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Forms and selects */
+.light-mode select {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+.light-mode option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.light-mode input[type="text"],
+.light-mode #blank-input {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Leaderboard */
+.light-mode tr:hover {
+  background-color: rgba(15, 23, 42, 0.02) !important;
+}
+
+.light-mode table thead tr {
+  background-color: #f1f5f9 !important;
+}
+
+.light-mode table th {
+  color: #475569 !important;
+}
+
+.light-mode .border-y {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Badges */
+.light-mode .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+.light-mode .bg-white\/2 {
+  background-color: rgba(15, 23, 42, 0.02) !important;
+}
+
+/* Gameplay / Test Overlay */
+.light-mode #game-playing-screen,
+.light-mode #game-victory-screen,
+.light-mode #pokemonSelectorModal {
+  background-color: #f1f5f9 !important;
+}
+
+.light-mode #game-playing-screen header {
+  background-color: #ffffff !important;
+}
+
+/* Timer, Progress text and statuses */
+.light-mode #game-timer,
+.light-mode .text-yellow-400 {
+  color: #d97706 !important; /* amber-600 */
+}
+
+.light-mode .text-emerald-400 {
+  color: #059669 !important; /* emerald-600 */
+}
+
+.light-mode .text-red-400 {
+  color: #dc2626 !important; /* red-600 */
+}
+
+.light-mode #battle-scene-log {
+  background-color: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #1e293b !important;
+}
+
+/* Option gameplay button overrides */
+.light-mode .option-card-btn {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .option-card-btn:hover {
+  background-color: rgba(59, 130, 246, 0.04) !important;
+  border-color: #3b82f6 !important;
+}
+
+.light-mode .option-card-btn.selected {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  border-color: #3b82f6 !important;
+  color: #1d4ed8 !important;
+}
+
+.light-mode .option-card-btn.correct {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border-color: #10b981 !important;
+  color: #047857 !important;
+}
+
+.light-mode .option-card-btn.wrong {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  border-color: #ef4444 !important;
+  color: #b91c1c !important;
+}
+
+/* Drag & Drop spots */
+.light-mode .border-dashed {
+  border-color: rgba(15, 23, 42, 0.2) !important;
+}
+
+.light-mode #drag-text-pool button {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+/* Explanations */
+.light-mode #game-explanation-box {
+  background-color: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Scrollbar */
+.light-mode ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.light-mode ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.1);
+}
+
+.light-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.2);
+}
+

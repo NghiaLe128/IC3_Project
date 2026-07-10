@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IC3 Sparks LMS - Pokémon Luyện Thi IC3</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Nunito', 'sans-serif'],
+              poppins: ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              game: {
+                bg: '#0f172a', // Deep slate dark
+                dark: '#090d16',
+                light: '#1e293b',
+                primary: '#3b82f6',
+                accent: '#3b82f6',
+                card: 'rgba(255, 255, 255, 0.03)',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body class="bg-game-bg text-white min-h-screen flex flex-col justify-between overflow-x-hidden font-sans">
+    
+    <!-- Top Player Status Bar (Gamified Duolingo Header) -->
+    <header class="w-full bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 py-3.5 px-4 sm:px-6 shadow-lg shadow-blue-950/10">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        
+        <!-- Player Level & Pokemon Avatar -->
+        <div class="flex items-center gap-3">
+          <!-- Pokemon Avatar Selector / Circle Frame -->
+          <div class="relative group cursor-pointer" onclick="openPokemonSelectorModal()">
+            <div id="playerAvatarFrame" class="w-12 h-12 rounded-full bg-indigo-950 border-2 border-yellow-400 flex items-center justify-center text-2xl shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95">
+              <!-- Dynamically rendered Avatar Emoji/Image -->
+              ⚡
+            </div>
+            <!-- Edit overlay badge -->
+            <div class="absolute -bottom-1 -right-1 bg-yellow-500 text-slate-950 text-[9px] font-extrabold w-4 border border-white h-4 rounded-full flex items-center justify-center shadow-md">
+              <i class="fa-solid fa-arrows-rotate"></i>
+            </div>
+          </div>
+
+          <div>
+            <!-- Name & Rank -->
+            <div class="flex items-center gap-2">
+              <h2 id="playerName" class="font-poppins font-black text-sm text-white tracking-wide">Nguyễn Minh Anh</h2>
+              <span id="playerRankBadge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-500/20 border border-blue-400/30 text-blue-300">🥈 Silver</span>
+            </div>
+            <!-- EXP level slider -->
+            <div class="flex items-center gap-2 mt-1">
+              <span id="playerLevelTitle" class="text-[10px] font-black text-yellow-400 uppercase tracking-wider">Explorer</span>
+              <div class="w-32 sm:w-40 h-2.5 bg-slate-800 rounded-full border border-slate-700/50 overflow-hidden relative shadow-inner">
+                <div id="playerExpBar" class="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full transition-all duration-500" style="width: 85%"></div>
+              </div>
+              <span id="playerExpText" class="text-[9px] font-mono text-slate-400 font-bold">850/1000 EXP</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation tabs & Coins, badges stats -->
+        <div class="flex items-center justify-between w-full md:w-auto gap-6">
+          
+          <!-- Tab selector -->
+          <div class="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/10 overflow-x-auto max-w-full scrollbar-none">
+            <button onclick="switchStudentTab('worldmap')" id="btn-tab-worldmap" class="student-tab-btn hidden"><i class="fa-solid fa-map"></i> Bản đồ</button>
+            <button onclick="switchStudentTab('battle')" id="btn-tab-battle" class="student-tab-btn active"><i class="fa-solid fa-shield-halved"></i> Kiểm tra</button>
+            <button onclick="switchStudentTab('review')" id="btn-tab-review" class="student-tab-btn"><i class="fa-solid fa-book"></i> Ôn tập</button>
+            <button onclick="switchStudentTab('leaderboard')" id="btn-tab-leaderboard" class="student-tab-btn"><i class="fa-solid fa-trophy"></i> Xếp hạng</button>
+            <button onclick="switchStudentTab('badges')" id="btn-tab-badges" class="student-tab-btn"><i class="fa-solid fa-award"></i> Huy hiệu</button>
+            <button onclick="switchStudentTab('inventory')" id="btn-tab-inventory" class="student-tab-btn"><i class="fa-solid fa-briefcase"></i> Túi đồ</button>
+            <button onclick="switchStudentTab('rewards')" id="btn-tab-rewards" class="student-tab-btn"><i class="fa-solid fa-store"></i> Cửa hàng</button>
+          </div>
+
+          <!-- Currency/Coins Wallet -->
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/15 px-3 py-1.5 rounded-xl shadow-inner">
+              <span class="text-lg">🪙</span>
+              <span id="playerCoinsCount" class="font-mono text-sm font-black text-yellow-400">250</span>
+            </div>
+            <!-- Light/Dark Mode Switch -->
+            <button id="theme-toggle-btn" onclick="toggleTheme()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer" title="Chuyển chế độ Sáng/Tối">
+              <i id="theme-toggle-icon" class="fa-solid fa-sun text-sm text-yellow-400"></i>
+            </button>
+            <!-- Logout -->
+            <button onclick="logoutStudent()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer" title="Đăng xuất">
+              <i class="fa-solid fa-power-off text-sm"></i>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Game Window -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 z-10">
+      
+      <!-- ==================== VIEW: 1. WORLD MAP (ADVENTURE MODE) ==================== -->
+      <section id="student-tab-worldmap" class="student-view-content space-y-8">
+        
+        <!-- Welcome banner -->
+        <div class="p-6 rounded-3xl bg-gradient-to-r from-blue-950/80 via-indigo-950/60 to-slate-900 border border-indigo-500/20 shadow-xl relative overflow-hidden">
+          <div class="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl"></div>
+          <div class="relative flex flex-col sm:flex-row items-center gap-5">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-400/20 flex items-center justify-center text-3xl animate-bounce shrink-0">🗺️</div>
+            <div>
+              <h3 class="font-poppins font-black text-lg text-white mb-1 uppercase tracking-wider">Bản đồ thám hiểm IC3</h3>
+              <p class="text-xs text-indigo-200 max-w-xl leading-relaxed">Vượt qua các vùng đất tri thức để huấn luyện và tiến hóa siêu thú Pokémon của bạn! Hãy thi đấu cùng Boss ở mỗi vùng đất để mở khóa các khu vực tiếp theo.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pokémon World Map Zones (Levels 1, 2, 3) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          <!-- 🌱 LEVEL 1 ZONE: Computing Forest -->
+          <div class="world-zone-card group relative overflow-hidden border-2 border-emerald-500/20" id="zone-level_1">
+            <div class="world-zone-header bg-gradient-to-r from-emerald-950 to-teal-900 border-b border-emerald-500/10 relative p-5">
+              <div class="absolute top-2 right-3 text-[10px] font-black text-emerald-400 uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full">Zone 01</div>
+              <span class="text-xl">🌱</span>
+              <h3 class="font-poppins font-extrabold text-base text-white mt-1">Computing Forest</h3>
+              <p class="text-[10px] text-emerald-300">Học phần: Máy tính Căn bản (Computing Fundamentals)</p>
+            </div>
+            <div class="p-5 space-y-4">
+              <!-- Progress bar -->
+              <div class="space-y-1">
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-slate-400 font-semibold">Tiến độ thám hiểm:</span>
+                  <span id="zone-progress-text-level_1" class="text-emerald-400 font-black">0%</span>
+                </div>
+                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div id="zone-progress-bar-level_1" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Boss info -->
+              <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
+                <span class="text-2xl animate-pulse">🌳</span>
+                <div>
+                  <h4 class="text-xs font-black text-white">Boss: Data Tree Guardian</h4>
+                  <p class="text-[9px] text-slate-400">Canh giữ kho báu Level 1. Điểm đạt yêu cầu: 50/100</p>
+                </div>
+              </div>
+
+              <!-- Available Quizzes in Zone 1 -->
+              <div class="space-y-2 pt-1">
+                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cửa thi đấu thám hiểm:</h5>
+                <div class="space-y-2" id="quizzes-zone-level_1">
+                  <!-- Loaded dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 🔥 LEVEL 2 ZONE: Application City -->
+          <div class="world-zone-card group relative overflow-hidden border-2 border-orange-500/20 locked" id="zone-level_2">
+            <div class="world-zone-header bg-gradient-to-r from-orange-950 to-red-900 border-b border-orange-500/10 relative p-5">
+              <div class="absolute top-2 right-3 text-[10px] font-black text-orange-400 uppercase bg-orange-500/10 px-2 py-0.5 rounded-full">Zone 02</div>
+              <span class="text-xl">🔥</span>
+              <h3 class="font-poppins font-extrabold text-base text-white mt-1">Application City</h3>
+              <p class="text-[10px] text-orange-300">Học phần: Các ứng dụng chủ chốt (Key Applications)</p>
+            </div>
+            <div class="p-5 space-y-4">
+              <!-- Progress bar -->
+              <div class="space-y-1">
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-slate-400 font-semibold">Tiến độ thám hiểm:</span>
+                  <span id="zone-progress-text-level_2" class="text-orange-400 font-black">0%</span>
+                </div>
+                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div id="zone-progress-bar-level_2" class="h-full bg-orange-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Boss info -->
+              <div class="p-3 rounded-xl bg-orange-500/5 border border-orange-500/10 flex items-center gap-3">
+                <span class="text-2xl animate-pulse">🤖</span>
+                <div>
+                  <h4 class="text-xs font-black text-white">Boss: Office Mega Robot</h4>
+                  <p class="text-[9px] text-slate-400">Thống trị Word, Excel & PPT. Cần thăng cấp Explorer!</p>
+                </div>
+              </div>
+
+              <!-- Available Quizzes in Zone 2 -->
+              <div class="space-y-2 pt-1">
+                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cửa thi đấu thám hiểm:</h5>
+                <div class="space-y-2" id="quizzes-zone-level_2">
+                  <!-- Loaded dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ⚡ LEVEL 3 ZONE: Online Kingdom -->
+          <div class="world-zone-card group relative overflow-hidden border-2 border-purple-500/20 locked" id="zone-level_3">
+            <div class="world-zone-header bg-gradient-to-r from-purple-950 to-indigo-900 border-b border-purple-500/10 relative p-5">
+              <div class="absolute top-2 right-3 text-[10px] font-black text-purple-400 uppercase bg-purple-500/10 px-2 py-0.5 rounded-full">Zone 03</div>
+              <span class="text-xl">⚡</span>
+              <h3 class="font-poppins font-extrabold text-base text-white mt-1">Online Kingdom</h3>
+              <p class="text-[10px] text-purple-300">Học phần: Cuộc sống trực tuyến (Living Online)</p>
+            </div>
+            <div class="p-5 space-y-4">
+              <!-- Progress bar -->
+              <div class="space-y-1">
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-slate-400 font-semibold">Tiến độ thám hiểm:</span>
+                  <span id="zone-progress-text-level_3" class="text-purple-400 font-black">0%</span>
+                </div>
+                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div id="zone-progress-bar-level_3" class="h-full bg-purple-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Boss info -->
+              <div class="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10 flex items-center gap-3">
+                <span class="text-2xl animate-pulse">👾</span>
+                <div>
+                  <h4 class="text-xs font-black text-white">Boss: Cyber Security Dragon</h4>
+                  <p class="text-[9px] text-slate-400">Rồng bảo mật tối thượng. Cần thăng cấp Expert!</p>
+                </div>
+              </div>
+
+              <!-- Available Quizzes in Zone 3 -->
+              <div class="space-y-2 pt-1">
+                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cửa thi đấu thám hiểm:</h5>
+                <div class="space-y-2" id="quizzes-zone-level_3">
+                  <!-- Loaded dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: 2. IC3 BATTLE (BOSS BATTLES) ==================== -->
+      <section id="student-tab-battle" class="student-view-content space-y-6 hidden">
+        <div>
+          <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-shield-halved text-red-500 mr-2"></i>Đấu Trường IC3 BATTLE</h3>
+          <p class="text-xs text-slate-400 font-medium">Đối đầu trực tiếp với Boss Vùng Đất bằng sức mạnh kiến thức tin học IC3 để giành lấy vinh quang!</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Left: Player Pokémon Info Card -->
+          <div class="lg:col-span-5 space-y-6">
+            <div class="bg-gradient-to-b from-slate-900 to-slate-950 border border-indigo-500/30 rounded-3xl p-6 relative shadow-2xl overflow-hidden group">
+              <!-- Radiant top lighting -->
+              <div class="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+              
+              <!-- Card Header -->
+              <div class="flex justify-between items-center mb-6">
+                <div>
+                  <span class="text-[9px] font-black uppercase text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 tracking-widest">Pokémon Đồng Hành</span>
+                  <h4 id="battle-poke-name" class="font-poppins font-black text-base text-white mt-1">Cyber Explorer</h4>
+                </div>
+                <span id="battle-poke-element" class="text-xs font-bold text-yellow-400 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">⚡ Technology</span>
+              </div>
+
+              <!-- Avatar Render -->
+              <div class="w-full h-44 rounded-2xl bg-slate-950 flex items-center justify-center border border-white/5 mb-6 relative group-hover:border-indigo-500/30 transition-all shadow-inner overflow-hidden">
+                <div id="battle-poke-avatar" class="text-7xl drop-shadow-[0_10px_15px_rgba(59,130,246,0.3)] animate-pulse">⚡</div>
+                <!-- Status badge overlay -->
+                <div id="battle-poke-stage" class="absolute bottom-3 right-3 text-[10px] font-extrabold bg-blue-500 text-white px-2.5 py-1 rounded-lg">Stage 2: Cyber Explorer</div>
+              </div>
+
+              <!-- Stats Section -->
+              <div class="space-y-3.5 mb-6">
+                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chỉ số thuộc tính:</h5>
+                
+                <!-- HP Bar -->
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-300 font-bold">HP (Sinh lực)</span>
+                    <span id="battle-stat-val-hp" class="text-emerald-400 font-black">120 / 120</span>
+                  </div>
+                  <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                    <div id="battle-stat-bar-hp" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+                  </div>
+                </div>
+
+                <!-- ATK Bar -->
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-300 font-bold">ATK (Tấn công)</span>
+                    <span id="battle-stat-val-atk" class="text-red-400 font-black">85</span>
+                  </div>
+                  <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                    <div id="battle-stat-bar-atk" class="h-full bg-red-500 rounded-full transition-all duration-300" style="width: 85%"></div>
+                  </div>
+                </div>
+
+                <!-- DEF Bar -->
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-300 font-bold">DEF (Phòng thủ)</span>
+                    <span id="battle-stat-val-def" class="text-blue-400 font-black">70</span>
+                  </div>
+                  <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                    <div id="battle-stat-bar-def" class="h-full bg-blue-500 rounded-full transition-all duration-300" style="width: 70%"></div>
+                  </div>
+                </div>
+
+                <!-- INT Bar -->
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-300 font-bold">INT (Trí tuệ tin học)</span>
+                    <span id="battle-stat-val-int" class="text-purple-400 font-black">95</span>
+                  </div>
+                  <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                    <div id="battle-stat-bar-int" class="h-full bg-purple-500 rounded-full transition-all duration-300" style="width: 95%"></div>
+                  </div>
+                </div>
+
+                <!-- SPD Bar -->
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-300 font-bold">SPD (Tốc độ làm bài)</span>
+                    <span id="battle-stat-val-spd" class="text-amber-400 font-black">90</span>
+                  </div>
+                  <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                    <div id="battle-stat-bar-spd" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 90%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Skills List -->
+              <div class="space-y-2">
+                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kỹ năng Pokémon đã học:</h5>
+                <div class="grid grid-cols-1 gap-2">
+                  <div class="flex items-center gap-2 bg-white/5 p-2 rounded-xl border border-white/5 text-[11px]">
+                    <span class="text-lg">🛡️</span>
+                    <div>
+                      <span class="font-bold text-white block">Firewall Shield</span>
+                      <span class="text-slate-400">Tự động kích hoạt khi chọn sai đáp án (+30 DEF giảm sát thương)</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 bg-white/5 p-2 rounded-xl border border-white/5 text-[11px]">
+                    <span class="text-lg">⚡</span>
+                    <div>
+                      <span class="font-bold text-white block">Coding Thunder</span>
+                      <span class="text-slate-400">Gây sát thương cực lớn lên Boss khi trả lời đúng liên tiếp (+ATK)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Boss selection and battle launcher -->
+          <div class="lg:col-span-7 space-y-6">
+            <h4 class="font-poppins font-bold text-sm text-slate-300 uppercase tracking-wider">Danh sách Thủ Lĩnh Boss Thách Đấu:</h4>
+            
+            <div class="grid grid-cols-1 gap-4" id="battle-boss-selector-container">
+              <!-- Dynamically rendered Boss cards list with Start Battle buttons -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: 3. ÔN TẬP (SKILL TREE PRACTICE) ==================== -->
+      <section id="student-tab-review" class="student-view-content space-y-6 hidden">
+        <div class="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Cây Kỹ Năng Tri Thức (Skill Tree)</h3>
+            <p class="text-xs text-slate-400">Mở rộng cây tri thức của bạn bằng cách ôn luyện từng mốc bài học để mở khóa Video, Flashcards và nhận +15 EXP thám hiểm!</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Left: Cây kỹ năng SVG/CSS Nodes -->
+          <div class="lg:col-span-5 bg-slate-900/60 border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[450px] shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-12 -left-12 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl"></div>
+            
+            <div class="text-center mb-6 z-10">
+              <span class="text-2xl">🌳</span>
+              <h4 class="font-poppins font-bold text-xs text-white mt-1 uppercase tracking-widest">Hành trình kỹ năng</h4>
+              <p class="text-[9px] text-slate-400">Nhấp chọn các mốc dưới đây để ôn tập nhanh</p>
+            </div>
+
+            <!-- Vertical Skill Tree Layout -->
+            <div class="flex flex-col items-center gap-10 relative w-full z-10">
+              
+              <!-- Line Connector helper background -->
+              <div class="absolute top-8 bottom-8 w-1 bg-gradient-to-b from-emerald-500 via-blue-500 to-purple-500 rounded-full"></div>
+
+              <!-- Node 1: Computer Basics -->
+              <button onclick="selectSkillTreeNode('basics')" id="skill-node-basics" class="skill-node-btn active z-10 bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)] text-slate-950 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
+                💻
+                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-black text-white">Computer Basics <span class="block text-[9px] text-emerald-400">Đang học • Mở khóa</span></span>
+              </button>
+
+              <!-- Node 2: Hardware -->
+              <button onclick="selectSkillTreeNode('hardware')" id="skill-node-hardware" class="skill-node-btn z-10 bg-slate-850 hover:bg-slate-800 text-slate-400 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
+                ⚙️
+                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-bold text-slate-400">Hardware Parts <span class="block text-[9px] text-slate-500">Mở khóa</span></span>
+              </button>
+
+              <!-- Node 3: Operating System -->
+              <button onclick="selectSkillTreeNode('os')" id="skill-node-os" class="skill-node-btn z-10 bg-slate-850 hover:bg-slate-800 text-slate-400 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
+                💿
+                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-bold text-slate-400">Operating System <span class="block text-[9px] text-slate-500">Mở khóa</span></span>
+              </button>
+
+              <!-- Node 4: Cybersecurity -->
+              <button onclick="selectSkillTreeNode('security')" id="skill-node-security" class="skill-node-btn z-10 bg-slate-850 hover:bg-slate-800 text-slate-400 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
+                🛡️
+                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-bold text-slate-400">Cyber Security <span class="block text-[9px] text-slate-500">Mở khóa</span></span>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- Right: Interactive Learning Content panel -->
+          <div class="lg:col-span-7 space-y-6" id="skill-details-panel">
+            <!-- Populated dynamically based on selected skill tree node -->
+            <div class="bg-game-card border border-white/10 rounded-3xl p-6 text-center py-20 text-slate-400">
+              <span class="text-4xl">🎯</span>
+              <h4 class="font-poppins font-black text-white mt-4">Chọn Một Nhánh Tri Thức để ôn tập</h4>
+              <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Mỗi nhánh chứa video bài giảng hoạt họa mô phỏng, Flashcard ghi nhớ nhanh lật mặt 3D và Quiz mini rinh quà!</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: 4. LEADERBOARD TAB ==================== -->
+      <section id="student-tab-leaderboard" class="student-view-content space-y-6 hidden">
+        <div class="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-trophy text-yellow-400 mr-2"></i>Bảng Anh Hùng Sparks</h3>
+            <p class="text-xs text-slate-400">Thi đua tích lũy EXP thám hiểm đề thi cùng tất cả các học sĩ luyện thi khác!</p>
+          </div>
+          <!-- Current User Stats snippet -->
+          <div class="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl">
+            <span class="text-xs text-slate-300">Thứ hạng của bạn:</span>
+            <span id="player-leaderboard-rank" class="font-poppins font-black text-sm text-yellow-400">#...</span>
+          </div>
+        </div>
+
+        <div class="bg-game-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs sm:text-sm text-slate-300">
+              <thead class="text-xs text-slate-400 uppercase bg-white/5">
+                <tr>
+                  <th class="px-5 py-3.5 text-center w-16">Hạng</th>
+                  <th class="px-5 py-3.5">Học sinh</th>
+                  <th class="px-5 py-3.5">Lớp học</th>
+                  <th class="px-5 py-3.5 text-center">Cấp độ</th>
+                  <th class="px-5 py-3.5 text-right">Tổng EXP</th>
+                  <th class="px-5 py-3.5 text-right">Coin vàng 🪙</th>
+                </tr>
+              </thead>
+              <tbody id="student-leaderboard-table-body" class="divide-y divide-white/5">
+                <!-- Loaded dynamically by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: 5. BADGES / ACHIEVEMENTS TAB ==================== -->
+      <section id="student-tab-badges" class="student-view-content space-y-6 hidden">
+        <div>
+          <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-award text-purple-400 mr-2"></i>Bộ Sưu Tập Huy Hiệu Danh Dự</h3>
+          <p class="text-xs text-slate-400">Hoàn thành các mốc nhiệm vụ thám hiểm khác nhau để mở khóa các huy hiệu quý giá dưới đây.</p>
+        </div>
+
+        <!-- Badges Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="student-badges-container">
+          <!-- Loaded dynamically by JS to reflect unlocked status -->
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: 6. TÚI ĐỒ (INVENTORY) ==================== -->
+      <section id="student-tab-inventory" class="student-view-content space-y-8 hidden">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-briefcase text-blue-400 mr-2"></i>Túi Đồ Nhà Thám Hiểm</h3>
+            <p class="text-xs text-slate-400">Quản lý đội ngũ siêu thú Pokémon đồng hành, vật phẩm quà tặng và lịch sử chiến đấu thám hiểm.</p>
+          </div>
+        </div>
+
+        <!-- Inventory Layout Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Left Column: Owned Companions list -->
+          <div class="lg:col-span-4 space-y-5">
+            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-paw mr-2 text-indigo-400"></i>Pokémon của bạn:</h4>
+            <div id="inventory-unlocked-pokemons" class="grid grid-cols-1 gap-3">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Middle Column: Useable Items Backpack -->
+          <div class="lg:col-span-4 space-y-5">
+            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-gift mr-2 text-pink-400"></i>Vật phẩm quà tặng:</h4>
+            <div id="inventory-items" class="grid grid-cols-1 gap-3">
+              <!-- Rendered dynamically. Shows physical vouchers or neon frame status -->
+              <div class="bg-game-card border border-white/5 p-4 rounded-2xl text-center py-10 text-slate-500 text-xs">
+                🎁 Chưa có vật phẩm nào trong ba lô. Hãy mua sắm thêm tại Cửa Hàng!
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Evolution Tracker & Quick Actions -->
+          <div class="lg:col-span-4 space-y-5">
+            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-arrows-spin mr-2 text-yellow-400"></i>Điều kiện Tiến Hóa:</h4>
+            <div class="bg-game-card border border-white/10 p-5 rounded-2xl space-y-4">
+              <div class="text-center py-2">
+                <span class="text-4xl animate-bounce inline-block mb-2" id="evolution-target-avatar">🐲</span>
+                <h5 id="evolution-target-title" class="font-black text-xs text-white">IC3 Mega Master Dragon</h5>
+                <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Stage 3 - Tiến hóa tối thượng</span>
+              </div>
+
+              <div class="space-y-2 border-t border-white/5 pt-3 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Yêu cầu EXP:</span>
+                  <span id="evolution-req-exp" class="font-mono font-bold text-slate-200">1500 EXP</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                  <div id="evolution-bar-exp" class="h-full bg-yellow-400" style="width: 50%"></div>
+                </div>
+
+                <div class="flex justify-between mt-2">
+                  <span class="text-slate-400">Chiến thắng Boss Level 1:</span>
+                  <span id="evolution-req-boss1" class="font-black text-emerald-400 uppercase text-[9px]"><i class="fa-solid fa-circle-check"></i> Đạt</span>
+                </div>
+
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Chiến thắng Boss Level 2:</span>
+                  <span id="evolution-req-boss2" class="font-black text-slate-500 uppercase text-[9px]">Chưa đạt</span>
+                </div>
+              </div>
+              
+              <button onclick="triggerEvolvePokemon()" id="evolve-poke-btn" class="w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-600 hover:to-amber-700 transition-all text-center">
+                🔮 KIỂM TRA TIẾN HÓA
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Combat Logs table section -->
+        <div class="space-y-4 pt-4 border-t border-white/5">
+          <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-clock-rotate-left mr-2 text-blue-400"></i>Nhật Ký Chiến Đấu Chi Tiết:</h4>
+          <div class="bg-game-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs sm:text-sm text-slate-300">
+                <thead class="text-xs text-slate-400 uppercase bg-white/5">
+                  <tr>
+                    <th class="px-5 py-3">Bài thám hiểm (Boss)</th>
+                    <th class="px-5 py-3 text-center">Điểm số</th>
+                    <th class="px-5 py-3 text-center">Thời gian đấu</th>
+                    <th class="px-5 py-3">Ngày đấu</th>
+                    <th class="px-5 py-3">Phần thưởng đã nhận</th>
+                    <th class="px-5 py-3 text-center">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody id="student-scores-table-body" class="divide-y divide-white/5">
+                  <!-- JS dynamic injection -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ==================== VIEW: 7. REWARDS / STORE TAB ==================== -->
+      <section id="student-tab-rewards" class="student-view-content space-y-6 hidden">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-store text-yellow-500 mr-2"></i>Cửa Hàng Pokémon Sparks</h3>
+            <p class="text-xs text-slate-400">Dùng số Coins vàng tích lũy được từ các bài thi để rước Thần thú Pokémon mới hoặc đổi quà xịn!</p>
+          </div>
+          <!-- Live Balance display -->
+          <div class="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 text-sm font-bold text-yellow-400 rounded-xl">
+            🪙 Balance: <span id="store-coins-balance">250</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="student-rewards-store-grid">
+          <!-- Injected dynamically by JS -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ==================== SCREEN: GAME PLAYING TEST MODE (FULL SCREEN OVERLAY) ==================== -->
+    <section id="game-playing-screen" class="fixed inset-0 bg-game-dark z-50 overflow-y-auto hidden flex flex-col justify-between p-4 sm:p-6">
+      
+      <!-- Test Header / Progress indicators -->
+      <header class="w-full max-w-4xl mx-auto flex justify-between items-center gap-4 py-3 border-b border-indigo-900/40">
+        <div>
+          <h3 id="game-test-title" class="font-poppins font-extrabold text-sm sm:text-base text-white">Bài ôn tập Level 1</h3>
+          <span id="game-test-level-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 uppercase">Level 1</span>
+        </div>
+        
+        <!-- Timer -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-sm font-black shadow-inner">
+          <i class="fa-solid fa-hourglass-half text-xs animate-spin" style="animation-duration: 3s"></i>
+          <span id="game-timer">15:00</span>
+        </div>
+      </header>
+
+      <!-- RPG Battle Arena Visual Scene -->
+      <div class="w-full max-w-2xl mx-auto mt-4 p-4 rounded-3xl bg-slate-950/80 border border-indigo-500/15 shadow-2xl relative overflow-hidden">
+        <!-- Arena Background Effect -->
+        <div class="absolute inset-0 bg-radial-gradient from-indigo-500/10 to-transparent pointer-events-none"></div>
+        
+        <div class="grid grid-cols-2 gap-4 relative z-10">
+          
+          <!-- Player's side -->
+          <div class="flex flex-col items-center p-3 rounded-2xl bg-white/2 border border-white/5 relative">
+            <div class="absolute top-2 left-2 text-[8px] font-bold text-slate-400 tracking-wider">BẠN</div>
+            <!-- Combatant Avatar -->
+            <div id="battle-scene-player-avatar" class="text-5xl h-16 w-16 flex items-center justify-center transition-all duration-300 drop-shadow-[0_4px_10px_rgba(59,130,246,0.5)]">⚡</div>
+            <h4 id="battle-scene-player-name" class="font-poppins font-extrabold text-xs text-white mt-2">Pikachu</h4>
+            <!-- HP container -->
+            <div class="w-full mt-2.5">
+              <div class="flex justify-between text-[9px] font-mono mb-1">
+                <span class="text-slate-400">HP</span>
+                <span id="battle-scene-player-hp-val" class="text-emerald-400 font-bold">100/100</span>
+              </div>
+              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                <div id="battle-scene-player-hp-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+              </div>
+            </div>
+            <!-- Action feedback bubble -->
+            <span id="battle-scene-player-status" class="text-[9px] font-black text-indigo-400 mt-2 uppercase tracking-wide">Sẵn sàng!</span>
+          </div>
+
+          <!-- Boss's side -->
+          <div class="flex flex-col items-center p-3 rounded-2xl bg-white/2 border border-white/5 relative">
+            <div class="absolute top-2 right-2 text-[8px] font-bold text-red-400 tracking-wider">BOSS</div>
+            <!-- Combatant Avatar -->
+            <div id="battle-scene-boss-avatar" class="text-5xl h-16 w-16 flex items-center justify-center transition-all duration-300 drop-shadow-[0_4px_10px_rgba(239,68,68,0.5)]">🌳</div>
+            <h4 id="battle-scene-boss-name" class="font-poppins font-extrabold text-xs text-white mt-2">Guardian</h4>
+            <!-- HP container -->
+            <div class="w-full mt-2.5">
+              <div class="flex justify-between text-[9px] font-mono mb-1">
+                <span class="text-slate-400">HP BOSS</span>
+                <span id="battle-scene-boss-hp-val" class="text-red-400 font-bold">1000/1000</span>
+              </div>
+              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                <div id="battle-scene-boss-hp-bar" class="h-full bg-red-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+              </div>
+            </div>
+            <!-- Action feedback bubble -->
+            <span id="battle-scene-boss-status" class="text-[9px] font-black text-red-400 mt-2 uppercase tracking-wide">Gừ rừ...</span>
+          </div>
+
+        </div>
+
+        <!-- Combat log line -->
+        <div class="mt-3 text-center border-t border-white/5 pt-2 text-[10px] font-bold text-slate-300" id="battle-scene-log">
+          Đao binh đã sẵn, hãy khởi binh bằng cách chọn đáp án đúng!
+        </div>
+      </div>
+
+      <!-- Question Content Area (Bento Duolingo Style Card) -->
+      <div class="flex-grow w-full max-w-2xl mx-auto flex flex-col justify-center py-6">
+        
+        <!-- Progress bar indicator -->
+        <div class="w-full mb-6 flex items-center gap-3">
+          <span id="game-progress-text" class="text-xs font-black text-slate-400 font-mono shrink-0">Câu 1/5</span>
+          <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden relative shadow-inner">
+            <div id="game-progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300" style="width: 20%"></div>
+          </div>
+        </div>
+
+        <!-- Question Card -->
+        <div id="game-question-card" class="bg-game-card border border-indigo-500/20 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden transition-all duration-300">
+          <!-- Pokémon Encouragement overlay (Cute absolute element) -->
+          <div class="absolute top-4 right-4 text-xs font-bold text-yellow-400 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20 animate-pulse">
+            <span id="pokemon-encourager-text">Pikachu cổ vũ bạn!</span> ⚡
+          </div>
+
+          <!-- Question Text -->
+          <h3 id="game-question-text" class="font-poppins font-black text-base sm:text-lg text-white leading-relaxed mt-4 mb-6">
+            Thiết bị nào sau đây dùng để nhập dữ liệu?
+          </h3>
+
+          <!-- Options Render Area -->
+          <div id="game-options-container" class="space-y-3">
+            <!-- Loaded dynamically by JS -->
+          </div>
+
+          <!-- Explanations Box (Hidden during test, shown in review or victory) -->
+          <div id="game-explanation-box" class="hidden mt-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 text-indigo-200 text-xs leading-relaxed">
+            <h4 class="font-bold text-yellow-400 mb-1"><i class="fa-solid fa-lightbulb mr-1"></i> Kiến thức bổ trợ IC3:</h4>
+            <p id="game-explanation-text">Bàn phím gửi dữ liệu vào máy tính để xử lý, đây là thiết bị ngoại vi đầu vào quan trọng hàng đầu.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Buttons -->
+      <footer class="w-full max-w-2xl mx-auto flex justify-between items-center gap-4 py-4 border-t border-indigo-900/30">
+        <button onclick="confirmExitGamePlaying()" class="px-4 py-2.5 rounded-xl border border-slate-700 hover:border-red-500 hover:text-red-200 text-xs font-bold bg-slate-900 text-slate-400 transition-all cursor-pointer">
+          <i class="fa-solid fa-circle-xmark mr-1"></i> Thoát
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="game-prev-btn" onclick="prevGameQuestion()" class="px-4 py-2.5 rounded-xl border border-slate-700 hover:border-indigo-500 hover:text-indigo-200 text-xs font-bold bg-slate-900 text-slate-400 transition-all cursor-pointer hidden">
+            <i class="fa-solid fa-chevron-left mr-1"></i> Câu trước đó
+          </button>
+          <button id="game-next-btn" onclick="nextGameQuestion()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-xs font-extrabold shadow-lg shadow-blue-500/20 transform active:scale-95 transition-all cursor-pointer">
+            Kiểm tra đáp án <i class="fa-solid fa-angle-right ml-1"></i>
+          </button>
+        </div>
+      </footer>
+
+    </section>
+
+    <!-- ==================== SCREEN: 🎉 VICTORY / RESULTS SCREEN (OVERLAY) ==================== -->
+    <div id="game-victory-screen" class="fixed inset-0 bg-game-dark/95 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto hidden">
+      <div class="bg-game-card border border-indigo-500/30 max-w-md w-full p-8 rounded-3xl shadow-2xl text-center relative overflow-hidden">
+        
+        <!-- Animated Golden Light Rays background simulation -->
+        <div class="absolute -top-12 -left-12 w-48 h-48 bg-yellow-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl"></div>
+
+        <!-- Trophy / Victory Big Icon -->
+        <div class="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-yellow-400 via-orange-500 to-pink-500 p-0.5 shadow-xl shadow-yellow-500/30 animate-bounce mb-6">
+          <div class="w-full h-full bg-game-dark rounded-full flex items-center justify-center text-4xl">
+            🏆
+          </div>
+        </div>
+
+        <h2 class="font-poppins font-black text-2xl text-yellow-400 tracking-wide uppercase mb-1">🎉 VICTORY SCREEN 🎉</h2>
+        <p id="victory-test-title" class="text-xs text-slate-300 font-bold max-w-xs mx-auto mb-6">Đề kiểm tra Computing Fundamentals</p>
+
+        <!-- Score Badge circles -->
+        <div class="inline-block px-6 py-4 bg-indigo-950/60 rounded-2xl border border-indigo-800/40 mb-6 shadow-inner">
+          <span class="text-[10px] text-slate-400 font-bold block uppercase tracking-wider mb-1">Tổng điểm số của bạn</span>
+          <span id="victory-score" class="font-poppins font-black text-3xl text-emerald-400 tracking-tight">95/100</span>
+        </div>
+
+        <!-- Rewards Details section with coin and exp animations -->
+        <div class="bg-indigo-950/30 rounded-2xl p-4 border border-indigo-900/20 max-w-xs mx-auto space-y-3 mb-8">
+          <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-widest border-b border-indigo-900/30 pb-2 mb-1">Chiến lợi phẩm thu hoạch</h4>
+          
+          <div class="flex items-center justify-between text-xs px-2">
+            <span class="text-slate-400 font-semibold">Điểm EXP Pokémon:</span>
+            <span id="victory-exp" class="font-mono font-black text-yellow-400">+200 EXP</span>
+          </div>
+
+          <div class="flex items-center justify-between text-xs px-2">
+            <span class="text-slate-400 font-semibold">Tiền vàng Coins:</span>
+            <span id="victory-coins" class="font-mono font-black text-yellow-400">+50 🪙</span>
+          </div>
+
+          <!-- Level/Rank Up notification (Shown optionally) -->
+          <div id="victory-lvl-up-badge" class="hidden p-2 rounded bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 font-bold text-[10px] animate-pulse">
+            ⭐ CHÚC MỪNG: BẠN ĐÃ ĐỦ EXP ĐỂ THĂNG CẤP! ⭐
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col gap-3">
+          <button id="victory-review-btn" onclick="reviewExamAnswers()" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
+            Xem lại đáp án giải thích <i class="fa-solid fa-eye text-xs"></i>
+          </button>
+          <button onclick="closeVictoryScreen()" class="w-full py-3 px-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95 cursor-pointer">
+            Trở về Trang kiểm tra thám hiểm <i class="fa-solid fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ==================== POPUP MODAL: CHOOSE POKEMON AVATAR ==================== -->
+    <div id="pokemonSelectorModal" class="fixed inset-0 bg-game-dark/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-game-card border border-indigo-500/30 max-w-md w-full p-6 rounded-3xl shadow-2xl relative">
+        <button onclick="closePokemonSelectorModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="font-poppins font-black text-lg text-white mb-2 text-center">Chọn Pokémon Bạn Đồng Hành</h3>
+        <p class="text-[11px] text-slate-400 text-center mb-6">Mở khóa thêm thật nhiều Pokémon đáng yêu bằng cách tích lũy và đổi Coins trong Cửa hàng nhé!</p>
+
+        <!-- Unlocked Pokemon selection list -->
+        <div class="grid grid-cols-2 gap-3" id="pokemon-avatar-selector-grid">
+          <!-- Populated by script based on unlocked status -->
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-indigo-950 flex justify-end">
+          <button onclick="closePokemonSelectorModal()" class="px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer">Đóng lại</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== POPUP MODAL: CHOOSE TEST MODE ==================== -->
+    <div id="testModeSelectionModal" class="fixed inset-0 bg-game-dark/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-game-card border border-indigo-500/30 max-w-md w-full p-6 rounded-3xl shadow-2xl relative">
+        <button onclick="closeTestModeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 id="test-mode-modal-title" class="font-poppins font-black text-base text-white mb-1 text-center">Chọn chế độ thám hiểm</h3>
+        <p class="text-[11px] text-slate-400 text-center mb-6">Chọn cách thức bạn muốn chinh phục các câu hỏi</p>
+
+        <div class="grid grid-cols-1 gap-4">
+          <!-- Mode 1: Practice / Ôn tập -->
+          <button onclick="selectTestMode('practice')" class="group p-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500 rounded-2xl transition-all text-left flex items-start gap-4 cursor-pointer">
+            <span class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-105 transition-transform">🎯</span>
+            <div>
+              <span class="text-white font-black text-xs block group-hover:text-emerald-300 transition-colors">Chế độ Ôn tập</span>
+              <span class="text-[10px] text-slate-400 mt-1 block leading-relaxed">Làm từng câu, kiểm tra và xem đáp án giải thích chi tiết ngay tại chỗ. Phù hợp để ôn luyện vững kiến thức.</span>
+            </div>
+          </button>
+
+          <!-- Mode 2: Test / Kiểm tra -->
+          <button onclick="selectTestMode('exam')" class="group p-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-blue-500 rounded-2xl transition-all text-left flex items-start gap-4 cursor-pointer">
+            <span class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-105 transition-transform">🏆</span>
+            <div>
+              <span class="text-white font-black text-xs block group-hover:text-blue-300 transition-colors">Chế độ Kiểm tra</span>
+              <span class="text-[10px] text-slate-400 mt-1 block leading-relaxed">Làm toàn bộ bài rồi nộp bài để biết điểm số. Không tiết lộ đáp án, gợi ý trong lúc thi. Xem lại giải thích khi hoàn thành.</span>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-indigo-950 flex justify-end">
+          <button onclick="closeTestModeModal()" class="px-4 py-2 border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white rounded-xl text-xs font-bold cursor-pointer transition-all">Hủy bỏ</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== POPUP MODAL: CONFIRM EXIT TEST ==================== -->
+    <div id="exitConfirmationModal" class="fixed inset-0 bg-game-dark/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
+      <div class="bg-game-card border border-red-500/30 max-w-sm w-full p-6 rounded-3xl shadow-2xl text-center relative">
+        <div class="w-14 h-14 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl mb-4 text-red-500">
+          ⚠️
+        </div>
+        <h3 class="font-poppins font-black text-sm text-white mb-2">Thoát cuộc thám hiểm?</h3>
+        <p class="text-[11px] text-slate-400 mb-6 leading-relaxed">
+          Bạn có chắc chắn muốn bỏ dở cuộc thám hiểm ôn thi này không? Mọi kết quả và tiến trình của trận đấu hiện tại sẽ không được ghi nhận.
+        </p>
+
+        <div class="flex gap-3">
+          <button onclick="closeExitConfirmationModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer transition-all">
+            Tiếp tục thi đấu
+          </button>
+          <button onclick="confirmExitGamePlayingDirectly()" class="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl text-xs font-black cursor-pointer transition-all">
+            Xác nhận thoát
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== POPUP MODAL: CONFIRM SUBMIT EXAM ==================== -->
+    <div id="submitConfirmationModal" class="fixed inset-0 bg-game-dark/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
+      <div class="bg-game-card border border-indigo-500/30 max-w-sm w-full p-6 rounded-3xl shadow-2xl text-center relative">
+        <div class="w-14 h-14 mx-auto rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-2xl mb-4 text-indigo-400">
+          📨
+        </div>
+        <h3 class="font-poppins font-black text-sm text-white mb-2">Nộp bài thi thám hiểm?</h3>
+        <p id="submit-confirm-modal-msg" class="text-[11px] text-slate-400 mb-6 leading-relaxed">
+          Bạn có chắc chắn muốn nộp bài thi thám hiểm và xem kết quả không?
+        </p>
+
+        <div class="flex gap-3">
+          <button onclick="closeSubmitConfirmationModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer transition-all">
+            Quay lại làm tiếp
+          </button>
+          <button onclick="confirmSubmitExamDirectly()" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 rounded-xl text-xs font-black cursor-pointer transition-all">
+            Xác nhận nộp
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Footer copyright info -->
+    <footer class="w-full text-center py-5 text-[10px] text-slate-500 border-t border-indigo-950/30 mt-8 z-10">
+      <p>© 2026 IC3 Sparks LMS. Nền tảng học tập luyện thi thông minh với thiết kế RPG Game đầu tiên tại Việt Nam.</p>
+    </footer>
+
+    <!-- Database Script Initializer -->
+    <script type="module" src="/assets/js/db-init.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

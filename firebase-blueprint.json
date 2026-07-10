@@ -1,0 +1,144 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System users for authentication and roles",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Primary identifier" },
+        "role": { "type": "string", "description": "admin, teacher, or student" },
+        "name": { "type": "string", "description": "Display name" }
+      },
+      "required": ["email", "role", "name"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student gamification and progress data",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "classId": { "type": "string" },
+        "pokemon": { "type": "string" },
+        "level": { "type": "string" },
+        "exp": { "type": "number" },
+        "maxExp": { "type": "number" },
+        "coins": { "type": "number" },
+        "rank": { "type": "string" },
+        "badges": { "type": "array" },
+        "unlockedLessons": { "type": "array" },
+        "unlockedZones": { "type": "array" }
+      },
+      "required": ["email", "name"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Teacher profile data",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "subjects": { "type": "array" },
+        "classes": { "type": "array" }
+      },
+      "required": ["email", "name"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "Class information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "teacherEmail": { "type": "string" },
+        "studentCount": { "type": "number" }
+      },
+      "required": ["id", "name"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "IC3 Question bank",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "level": { "type": "string" },
+        "type": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { "type": "array" },
+        "answer": { "type": "any" },
+        "explanation": { "type": "string" }
+      },
+      "required": ["id", "question"]
+    },
+    "Test": {
+      "title": "Test",
+      "description": "Test configurations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "level": { "type": "string" },
+        "duration": { "type": "number" },
+        "questionCount": { "type": "number" },
+        "questions": { "type": "array" },
+        "scoreVal": { "type": "number" },
+        "createdBY": { "type": "string" }
+      },
+      "required": ["id", "title"]
+    },
+    "Score": {
+      "title": "Score",
+      "description": "Test results and history",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "testId": { "type": "string" },
+        "score": { "type": "number" },
+        "timeSpent": { "type": "string" },
+        "date": { "type": "string" },
+        "expGained": { "type": "number" },
+        "coinsGained": { "type": "number" }
+      },
+      "required": ["id", "studentEmail", "testId", "score"]
+    },
+    "Reward": {
+      "title": "Reward",
+      "description": "Gamification rewards store",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "cost": { "type": "number" },
+        "image": { "type": "string" },
+        "desc": { "type": "string" }
+      },
+      "required": ["id", "name", "cost"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "to": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "title", "message"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": { "schema": "User", "description": "Users" },
+    "students/{studentId}": { "schema": "Student", "description": "Students" },
+    "teachers/{teacherId}": { "schema": "Teacher", "description": "Teachers" },
+    "classes/{classId}": { "schema": "Class", "description": "Classes" },
+    "questions/{questionId}": { "schema": "Question", "description": "Questions" },
+    "tests/{testId}": { "schema": "Test", "description": "Tests" },
+    "scores/{scoreId}": { "schema": "Score", "description": "Scores" },
+    "rewards/{rewardId}": { "schema": "Reward", "description": "Rewards" },
+    "notifications/{notifId}": { "schema": "Notification", "description": "Notifications" }
+  }
+}

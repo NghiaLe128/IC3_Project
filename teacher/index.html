@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IC3 LMS - Teacher Portal</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Nunito', 'sans-serif'],
+              poppins: ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              teacher: {
+                primary: '#10b981', // emerald-500
+                primaryDark: '#059669', // emerald-600
+                bg: '#0f172a', // deep slate
+                sidebar: 'rgba(255, 255, 255, 0.02)',
+                text: '#f8fafc',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body class="bg-[#0B0D17] text-indigo-50 min-h-screen flex overflow-hidden">
+    
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#1a1c2e]/5 border-r border-white/10 flex flex-col justify-between shrink-0 h-screen z-20 shadow-xl backdrop-blur-md">
+      <div>
+        <!-- Logo Header -->
+        <div class="px-6 py-5 border-b border-indigo-500/30 flex items-center gap-3">
+          <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-emerald-500/20">
+            T
+          </div>
+          <div>
+            <h1 class="font-poppins font-bold text-base tracking-tight text-indigo-50 leading-none">IC3 TEACHER</h1>
+            <span class="text-[10px] text-emerald-600 font-semibold tracking-wider uppercase">Cổng giáo viên</span>
+          </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="px-3 py-4 space-y-1">
+          <button onclick="switchTab('overview')" id="nav-overview" class="nav-btn active">
+            <i class="fa-solid fa-house-chimney w-5"></i> Tổng quan
+          </button>
+          <button onclick="switchTab('students-list')" id="nav-students-list" class="nav-btn">
+            <i class="fa-solid fa-graduation-cap w-5"></i> Danh sách học sinh
+          </button>
+          <button onclick="switchTab('manage-tests')" id="nav-manage-tests" class="nav-btn">
+            <i class="fa-solid fa-file-signature w-5"></i> Quản lý Đề thi & Câu hỏi
+          </button>
+          <button onclick="switchTab('results')" id="nav-results" class="nav-btn">
+            <i class="fa-solid fa-square-poll-vertical w-5"></i> Kết quả học tập
+          </button>
+          <button onclick="switchTab('ranking')" id="nav-ranking" class="nav-btn">
+            <i class="fa-solid fa-trophy w-5"></i> Xếp hạng lớp
+          </button>
+        </nav>
+      </div>
+
+      <!-- User Profile / Logout -->
+      <div class="p-4 border-t border-indigo-500/30 bg-[#131424]/80">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold">
+            GV
+          </div>
+          <div class="overflow-hidden">
+            <h4 id="teacherName" class="font-bold text-sm text-indigo-50 truncate">Cô Mai Hoa</h4>
+            <p id="teacherEmail" class="text-xs text-indigo-300 truncate">teacher@gmail.com</p>
+          </div>
+        </div>
+        <button onclick="logoutTeacher()" class="w-full py-2 px-3 rounded-lg text-xs font-bold bg-[#1a1c2e] border border-indigo-500/30 hover:bg-red-500/20 text-indigo-200 hover:text-red-600 transition-all flex items-center justify-center gap-2 shadow-sm">
+          <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Layout -->
+    <div class="flex-grow flex flex-col h-screen overflow-hidden">
+      
+      <!-- Top Navbar -->
+      <header class="h-16 bg-[#1a1c2e] border-b border-indigo-500/30 px-6 flex items-center justify-between shrink-0">
+        <h2 id="currentTabTitle" class="font-poppins font-bold text-lg text-indigo-50">Tổng quan tình hình học tập</h2>
+        <div class="flex items-center gap-4">
+          <!-- Active Class Dropdown Selection -->
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-indigo-300 uppercase">Lớp:</label>
+            <select id="classSelector" onchange="changeActiveSelectedClass()" class="bg-[#131424]/80 border border-indigo-500/30 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none">
+              <!-- Injected by JS -->
+            </select>
+          </div>
+          <!-- Live Clock -->
+          <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#131424]/80 border border-indigo-500/30 text-xs text-indigo-200">
+            <i class="fa-regular fa-clock text-emerald-500"></i>
+            <span id="liveClock">2026-07-09 17:36</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Container -->
+      <main class="flex-grow p-6 overflow-y-auto">
+        
+        <!-- ==================== TAB: OVERVIEW ==================== -->
+        <section id="tab-overview" class="tab-content space-y-6">
+          
+          <!-- Class Management Card -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-users"></i></div>
+              <div>
+                <span class="text-xs text-indigo-300 font-bold block uppercase">Học sinh trong lớp</span>
+                <h3 id="overview-students-count" class="font-poppins font-bold text-2xl text-indigo-50">3 học sinh</h3>
+              </div>
+            </div>
+
+            <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-list-check"></i></div>
+              <div>
+                <span class="text-xs text-indigo-300 font-bold block uppercase">Bài ôn tập & thi</span>
+                <h3 id="overview-tests-count" class="font-poppins font-bold text-2xl text-indigo-50">3 bài kiểm tra</h3>
+              </div>
+            </div>
+
+            <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-chart-line"></i></div>
+              <div>
+                <span class="text-xs text-indigo-300 font-bold block uppercase">Tỷ lệ hoàn thành</span>
+                <h3 id="overview-completion-rate" class="font-poppins font-bold text-2xl text-indigo-50">85%</h3>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Fast Classroom Management section -->
+          <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm">
+            <div class="flex justify-between items-center border-b border-indigo-500/30 pb-4 mb-4">
+              <h3 class="font-poppins font-bold text-base text-indigo-50"><i class="fa-solid fa-school text-emerald-500 mr-2"></i>Quản lý lớp học của tôi</h3>
+              <button onclick="openClassModal()" class="px-3.5 py-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all shadow-sm shadow-emerald-500/10">
+                <i class="fa-solid fa-plus mr-1"></i> Tạo lớp mới
+              </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="teacher-classes-grid">
+              <!-- Injected by script -->
+            </div>
+          </div>
+
+          <!-- Live Progress Tracker Table -->
+          <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm">
+            <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4"><i class="fa-solid fa-person-running text-emerald-500 mr-2"></i>Tiến độ học tập và thăng cấp Pokémon thời gian thực</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-indigo-100">
+                <thead class="text-xs text-indigo-300 uppercase bg-[#131424]/80">
+                  <tr>
+                    <th class="px-4 py-3">Học sinh</th>
+                    <th class="px-4 py-3">Level luyện thi</th>
+                    <th class="px-4 py-3">Pokémon đại diện</th>
+                    <th class="px-4 py-3">Điểm số tích lũy (EXP)</th>
+                    <th class="px-4 py-3">Bậc hạng (Rank)</th>
+                    <th class="px-4 py-3">Huy hiệu đã đạt</th>
+                  </tr>
+                </thead>
+                <tbody id="teacher-overview-progress-body" class="divide-y divide-indigo-500/30">
+                  <!-- JS Injected table rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- ==================== TAB: STUDENTS LIST ==================== -->
+        <section id="tab-students-list" class="tab-content space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#1a1c2e]/5 p-4 rounded-2xl border border-white/5">
+            <div class="space-y-1">
+              <h3 class="font-poppins font-bold text-base text-indigo-50">Danh sách học sinh lớp hiện tại</h3>
+              <p class="text-[11px] text-indigo-300">Xem tiến trình, trường học và điểm số của từng thám hiểm giả trong lớp.</p>
+            </div>
+            
+            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <!-- Filter by School/Class -->
+              <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
+                <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">Lọc Trường lớp:</span>
+                <select id="schoolClassFilter" onchange="renderClassStudentsTable()" class="bg-transparent border-0 text-xs font-bold text-white focus:outline-none cursor-pointer max-w-[150px]">
+                  <option value="" class="bg-[#0B0D17] text-white">Tất cả</option>
+                  <!-- Injected by JS -->
+                </select>
+              </div>
+
+              <!-- Excel Import -->
+              <input type="file" id="excel-import-input" accept=".xlsx, .xls" class="hidden" onchange="importStudentsExcel(event)">
+              <button onclick="document.getElementById('excel-import-input').click()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm shadow-blue-500/15 transition-all cursor-pointer">
+                <i class="fa-solid fa-file-excel text-sm text-green-300"></i> Nhập từ Excel
+              </button>
+
+              <button onclick="openAddStudentToClassModal()" class="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm shadow-emerald-500/10 transition-all cursor-pointer">
+                <i class="fa-solid fa-user-plus"></i> Thêm học sinh
+              </button>
+            </div>
+          </div>
+
+          <!-- Class Student List Table -->
+          <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-indigo-100">
+                <thead class="text-xs text-indigo-300 uppercase bg-[#131424]/80">
+                  <tr>
+                    <th class="px-5 py-3.5">Học sinh</th>
+                    <th class="px-5 py-3.5">Trường lớp</th>
+                    <th class="px-5 py-3.5">Email liên hệ</th>
+                    <th class="px-5 py-3.5">Cấp độ học tập</th>
+                    <th class="px-5 py-3.5">Học lực (EXP)</th>
+                    <th class="px-5 py-3.5">Số lần thi đạt</th>
+                    <th class="px-5 py-3.5 text-right">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="class-students-table-body" class="divide-y divide-indigo-500/30">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ==================== TAB: MANAGE TESTS & QUESTIONS ==================== -->
+        <section id="tab-manage-tests" class="tab-content space-y-6 hidden">
+          <!-- Main split container -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-14rem)]">
+            
+            <!-- LEFT COLUMN: Grade & Test Set Configurations (5/12 cols) -->
+            <div class="lg:col-span-5 bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-5 shadow-sm flex flex-col h-full overflow-hidden">
+              <h3 class="font-poppins font-bold text-sm text-indigo-50 border-b border-indigo-500/30 pb-3 mb-4 flex items-center justify-between">
+                <span><i class="fa-solid fa-sliders text-emerald-500 mr-1.5"></i> Cấu hình Khối & Bộ đề</span>
+              </h3>
+
+              <!-- Scrollable list of settings -->
+              <div class="space-y-4 flex-grow overflow-y-auto pr-1">
+                
+                <!-- 1. Chọn khối (Select Block) -->
+                <div class="space-y-2">
+                  <div class="flex justify-between items-center">
+                    <label class="block text-xs font-bold text-indigo-300 uppercase">Khối lớp (Grade Block):</label>
+                    <div class="flex gap-1">
+                      <button onclick="openBlockModal('add')" class="text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded cursor-pointer" title="Tạo khối lớp mới"><i class="fa-solid fa-plus mr-1"></i>Tạo khối</button>
+                      <button onclick="openBlockModal('edit')" class="text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-1 rounded cursor-pointer" title="Sửa khối"><i class="fa-solid fa-pen"></i></button>
+                      <button onclick="deleteCurrentBlock()" class="text-[10px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded cursor-pointer" title="Xóa khối"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                  </div>
+                  <select id="m-blockSelector" onchange="onBlockSelectionChange()" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
+                    <!-- Dynamically populated -->
+                  </select>
+                </div>
+
+                <!-- 2. Chọn Bộ đề / Đề thi (Select Test Set / Package) - ONLY SHOWN AFTER BLOCK IS CHOSEN -->
+                <div id="m-testSelectorContainer" class="space-y-2 hidden">
+                  <div class="flex justify-between items-center">
+                    <label class="block text-xs font-bold text-indigo-300 uppercase">Bộ đề thám hiểm:</label>
+                    <div class="flex gap-1">
+                      <button onclick="openTestSetModal('add')" class="text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded cursor-pointer" title="Tạo bộ đề mới"><i class="fa-solid fa-plus mr-1"></i>Tạo bộ đề</button>
+                      <button onclick="openTestSetModal('edit')" class="text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-1 rounded cursor-pointer" title="Sửa bộ đề"><i class="fa-solid fa-pen"></i></button>
+                      <button onclick="deleteCurrentTestSet()" class="text-[10px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded cursor-pointer" title="Xóa bộ đề"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                  </div>
+                  <select id="m-testSelector" onchange="onTestSelectionChange()" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
+                    <!-- Dynamically populated -->
+                  </select>
+                </div>
+
+                <!-- Information banner if no block is selected -->
+                <div id="m-blockPromptBanner" class="p-4 bg-slate-950/40 rounded-xl border border-dashed border-indigo-500/30 text-center py-6">
+                  <p class="text-xs text-indigo-300">Vui lòng lựa chọn một khối lớp ở trên để thiết lập đề thi.</p>
+                </div>
+
+                <!-- 3. Chọn dạng câu hỏi (Question Type Filter) -->
+                <div id="m-questionTypeContainer" class="space-y-2 hidden">
+                  <label class="block text-xs font-bold text-indigo-300 uppercase">Dạng câu hỏi lọc xem:</label>
+                  <select id="m-questionTypeFilter" onchange="renderQuestionsList()" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
+                    <option value="">Tất cả dạng câu hỏi</option>
+                    <option value="choice">Chọn 1 đáp án (Choice)</option>
+                    <option value="drag_text">Kéo thả khớp chữ</option>
+                    <option value="drag_image_text">Kéo thả khớp hình ảnh</option>
+                    <option value="table_match">Ghép nối bảng</option>
+                    <option value="multi_choice">Chọn nhiều đáp án (Multi Choice)</option>
+                    <option value="image_choice">Chọn bằng hình ảnh (Image Choice)</option>
+                    <option value="multiple_choice">Trắc nghiệm cũ (Legacy)</option>
+                    <option value="true_false">Đúng / Sai</option>
+                    <option value="fill_blank">Điền khuyết</option>
+                  </select>
+                </div>
+
+                <!-- 4. Danh sách câu hỏi đã tạo bên dưới -->
+                <div id="m-questionsListContainer" class="space-y-2 hidden flex-grow flex flex-col overflow-hidden min-h-[180px]">
+                  <label class="block text-xs font-bold text-indigo-300 uppercase">Danh sách câu hỏi trong bộ đề:</label>
+                  <div id="m-questionsList" class="flex-grow overflow-y-auto border border-indigo-500/30 rounded-xl divide-y divide-indigo-500/20 bg-slate-950/20 max-h-[220px]">
+                    <!-- Dynamically populated list -->
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Active Question detail / Create & Edit Question (7/12 cols) -->
+            <div class="lg:col-span-7 bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-5 shadow-sm flex flex-col h-full overflow-hidden">
+              <div class="border-b border-indigo-500/30 pb-3 mb-4 flex justify-between items-center">
+                <h3 class="font-poppins font-bold text-sm text-indigo-50 flex items-center">
+                  <i class="fa-solid fa-file-circle-question text-emerald-500 mr-1.5"></i>
+                  <span id="right-panel-title">Nội dung câu hỏi</span>
+                </h3>
+                <div class="flex gap-2" id="question-actions-row">
+                  <button onclick="setupNewQuestionForm()" class="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-plus"></i> Tạo câu hỏi mới
+                  </button>
+                  <button id="btn-edit-question" onclick="enableQuestionEditing()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-all hidden cursor-pointer">
+                    <i class="fa-solid fa-pen-to-square"></i> Chỉnh sửa
+                  </button>
+                  <button id="btn-delete-question" onclick="deleteCurrentQuestion()" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg transition-all hidden cursor-pointer">
+                    <i class="fa-solid fa-trash"></i> Xóa
+                  </button>
+                </div>
+              </div>
+
+              <!-- Scrollable details/editor workspace -->
+              <div class="flex-grow overflow-y-auto pr-1" id="question-workspace-container">
+                
+                <!-- View Question details mode (Default when clicked on question list) -->
+                <div id="question-view-mode" class="space-y-4">
+                  <div class="p-6 rounded-2xl bg-slate-950/50 border border-indigo-500/30 text-center py-16" id="view-placeholder">
+                    <div class="w-16 h-16 bg-[#1a1c2e] text-indigo-300 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">❓</div>
+                    <p class="text-xs text-indigo-300 font-bold">Hãy chọn hoặc tạo mới một câu hỏi thám hiểm ở danh sách bên trái.</p>
+                  </div>
+
+                  <!-- Detailed Question Viewer card -->
+                  <div id="view-question-card" class="hidden space-y-4">
+                    <div class="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/15">
+                      <span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold text-[9px] mb-2 uppercase" id="view-q-type-badge">TRẮC NGHIỆM</span>
+                      <p class="text-sm font-bold text-indigo-50 leading-relaxed" id="view-q-text">Thiết bị nào sau đây...?</p>
+                    </div>
+
+                    <!-- Options -->
+                    <div id="view-q-options-container" class="space-y-2">
+                      <!-- Injected options -->
+                    </div>
+
+                    <!-- Answer -->
+                    <div class="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 flex items-start gap-2">
+                      <span class="text-emerald-400 text-sm mt-0.5">✅</span>
+                      <div>
+                        <span class="block text-[10px] text-indigo-300 font-bold uppercase font-poppins">Đáp án đúng</span>
+                        <p class="text-xs font-bold text-emerald-400" id="view-q-answer">B</p>
+                      </div>
+                    </div>
+
+                    <!-- Explanation -->
+                    <div class="p-3.5 rounded-xl bg-slate-950/40 border border-indigo-500/30 flex items-start gap-2">
+                      <span class="text-indigo-400 text-sm mt-0.5">💡</span>
+                      <div>
+                        <span class="block text-[10px] text-indigo-300 font-bold uppercase font-poppins">Giải thích lời giải</span>
+                        <p class="text-xs text-indigo-200 leading-relaxed" id="view-q-explanation">CPU là bộ vi xử lý trung tâm...</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Edit/Create Question Form mode -->
+                <form id="question-edit-form" class="hidden space-y-4" onsubmit="handleQuestionFormSubmit(event)">
+                  <input type="hidden" id="form-q-id" value="">
+                  
+                  <div class="space-y-6">
+                    <div>
+                      <label class="block text-[13px] font-bold text-indigo-100 mb-2">Dạng câu hỏi ôn tập:</label>
+                      <div class="p-4 rounded-xl border border-indigo-500/30 bg-[#131424]/80/50 space-y-3">
+                        <select id="form-q-type" onchange="adjustFormQuestionOptions()" class="w-full p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm font-semibold cursor-pointer">
+                          <option value="choice">⚪ Trắc nghiệm chọn đáp án</option>
+                          <option value="multi_choice">☑️ Trắc nghiệm chọn nhiều đáp án</option>
+                          <option value="image_choice">🖼️ Trắc nghiệm chọn hình ảnh</option>
+                          <option value="drag_text">🖐️ Kéo thả khớp chữ</option>
+                          <option value="table_match">🔗 Ghép nối bảng</option>
+                          <option value="true_false">✅ Đúng / Sai</option>
+                        </select>
+                        <div class="text-sm text-indigo-200 bg-[#1a1c2e] p-3.5 rounded-xl border border-indigo-500/30 flex items-start gap-2.5 shadow-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-purple-400 shrink-0 mt-0.5"></i>
+                            <span id="form-q-type-hint" class="font-medium">Học sinh sẽ được chọn một trong 4 phương án liệt kê bên dưới.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="block text-[13px] font-bold text-indigo-100 mb-2">Nội dung câu hỏi (Đề bài):</label>
+                      <textarea id="form-q-text" required class="w-full p-4 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 h-28 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm placeholder:text-indigo-300 resize-y" placeholder="Nhập nội dung câu hỏi hoặc hướng dẫn làm bài..."></textarea>
+                    </div>
+
+                    <div>
+                      <label class="block text-[13px] font-bold text-indigo-100 mb-2">Hình ảnh đính kèm (Link URL - Tùy chọn):</label>
+                      <input type="text" id="form-q-image" class="w-full p-4 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm placeholder:text-indigo-300" placeholder="https://example.com/image.png">
+                    </div>
+
+                    <!-- Dynamic Form Fields will be rendered here -->
+                    <div id="dynamic-form-fields" class="space-y-4"></div>
+
+                    <div>
+                      <label class="block text-[13px] font-bold text-indigo-100 mb-2">Lời giải chi tiết (Hướng dẫn giải):</label>
+                      <textarea id="form-q-explanation" class="w-full p-4 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 h-24 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm placeholder:text-indigo-300 resize-y" placeholder="Giải thích rõ kiến thức tại sao đáp án này là đúng..."></textarea>
+                    </div>
+                  </div>
+
+                  <div class="pt-6 mt-6 border-t border-indigo-500/30 flex justify-end gap-3">
+                    <button type="button" onclick="cancelQuestionEditing()" class="px-6 py-2.5 rounded-xl bg-indigo-950 text-indigo-100 text-sm font-bold hover:bg-indigo-900 transition-colors cursor-pointer">Hủy bỏ</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold shadow-sm shadow-purple-500/20 transition-colors flex items-center gap-2 cursor-pointer">
+                      <i data-lucide="save" class="w-4 h-4"></i> Lưu Lại
+                    </button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+
+        <!-- ==================== TAB: RESULTS ==================== -->
+        <section id="tab-results" class="tab-content space-y-6 hidden">
+          <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm">
+            <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4"><i class="fa-solid fa-clipboard-check text-emerald-500 mr-2"></i>Lịch sử làm bài thi của học sinh trong lớp</h3>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-indigo-100">
+                <thead class="text-xs text-indigo-300 uppercase bg-[#131424]/80">
+                  <tr>
+                    <th class="px-4 py-3">Học sinh</th>
+                    <th class="px-4 py-3">Bài thi đã làm</th>
+                    <th class="px-4 py-3">Cấp độ</th>
+                    <th class="px-4 py-3">Điểm số</th>
+                    <th class="px-4 py-3">Thời gian hoàn thành</th>
+                    <th class="px-4 py-3">Ngày nộp bài</th>
+                    <th class="px-4 py-3">Đánh giá tiến bộ</th>
+                  </tr>
+                </thead>
+                <tbody id="teacher-results-table-body" class="divide-y divide-indigo-500/30">
+                  <!-- Dynamic Injection -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ==================== TAB: RANKING ==================== -->
+        <section id="tab-ranking" class="tab-content space-y-6 hidden">
+          <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="font-poppins font-bold text-lg text-indigo-50"><i class="fa-solid fa-ranking-star text-amber-500 mr-2"></i>Bảng xếp hạng thi đua lớp học</h3>
+              <span class="text-xs text-emerald-600 font-bold bg-emerald-500/20 px-2 py-1 rounded">Học mà chơi - Đua tốp rinh quà</span>
+            </div>
+
+            <div class="space-y-4" id="class-ranking-leaderboard">
+              <!-- JS Injected List -->
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+    </div>
+
+    <!-- ==================== TEACHER PORTAL MODALS ==================== -->
+
+    <!-- Modal: Create Class -->
+    <div id="classModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative">
+        <button onclick="closeClassModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="font-poppins font-bold text-lg text-indigo-50 mb-5">Tạo lớp học mới</h3>
+        <form id="classForm" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Mã định danh lớp (Không khoảng trắng, viết liền)</label>
+            <input type="text" id="classIdInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="class_8c3">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tên lớp hiển thị</label>
+            <input type="text" id="classNameInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="Lớp 8C3 Chuyên Tin">
+          </div>
+          <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
+            <button type="button" onclick="closeClassModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold">Hủy bỏ</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold shadow-sm shadow-emerald-500/10">Tạo lớp</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Add Student to Class -->
+    <div id="addStudentToClassModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative">
+        <button onclick="closeAddStudentToClassModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="font-poppins font-bold text-lg text-indigo-50 mb-5">Thêm học sinh mới vào lớp</h3>
+        <form id="addStudentToClassForm" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Chọn tài khoản học sinh (hoặc thêm email mới)</label>
+            <select id="studentToClassSelector" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
+              <!-- Dynamic options -->
+            </select>
+          </div>
+          <p class="text-[10px] text-indigo-300">Học sinh chưa có tài khoản có thể được thêm bởi Admin hoặc Giáo viên.</p>
+          <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
+            <button type="button" onclick="closeAddStudentToClassModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold">Hủy</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold shadow-sm shadow-emerald-500/10">Thêm vào lớp</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ==================== POPUP MODAL: STUDENT DETAILS & HISTORY ==================== -->
+    <div id="studentDetailsModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-3xl p-6 rounded-3xl shadow-xl relative overflow-y-auto max-h-[90vh]">
+        <button onclick="closeStudentDetailsModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-100 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        
+        <!-- Header Info -->
+        <div class="flex items-center gap-4 border-b border-indigo-500/30 pb-5 mb-5">
+          <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-4xl" id="detail-pokemon-avatar">
+            ⚡
+          </div>
+          <div>
+            <h3 class="font-poppins font-black text-lg text-indigo-50" id="detail-student-name">Nguyễn Minh Anh</h3>
+            <p class="text-xs text-indigo-300" id="detail-student-email">student@gmail.com</p>
+            <div class="flex flex-wrap gap-2 mt-2">
+              <span class="px-2 py-0.5 bg-blue-500/20/10 text-blue-300 text-[10px] font-bold rounded" id="detail-student-level">Level</span>
+              <span class="px-2 py-0.5 bg-yellow-50/10 text-yellow-300 text-[10px] font-bold rounded" id="detail-student-rank">Rank</span>
+              <span class="px-2 py-0.5 bg-purple-500/20/10 text-purple-300 text-[10px] font-bold rounded" id="detail-student-school">Trường lớp</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Column 1: Highest scores -->
+          <div>
+            <h4 class="font-poppins font-bold text-xs text-indigo-300 uppercase tracking-wider mb-3"><i class="fa-solid fa-trophy text-amber-500 mr-1"></i> Điểm kiểm tra cao nhất</h4>
+            <div class="border border-indigo-500/30 rounded-xl overflow-hidden bg-slate-950/20">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-[#131424]/80/5 text-indigo-300 uppercase font-bold text-[10px]">
+                  <tr>
+                    <th class="px-4 py-2.5">Bài thi / Bộ đề</th>
+                    <th class="px-4 py-2.5 text-right">Điểm cao nhất</th>
+                  </tr>
+                </thead>
+                <tbody id="detail-highest-scores-tbody" class="divide-y divide-indigo-500/20 text-indigo-100">
+                  <!-- JS injected rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Column 2: Complete attempt history -->
+          <div>
+            <h4 class="font-poppins font-bold text-xs text-indigo-300 uppercase tracking-wider mb-3"><i class="fa-solid fa-history text-indigo-500 mr-1"></i> Lịch sử làm bài thi</h4>
+            <div class="border border-indigo-500/30 rounded-xl overflow-hidden bg-slate-950/20">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-[#131424]/80/5 text-indigo-300 uppercase font-bold text-[10px]">
+                  <tr>
+                    <th class="px-4 py-2.5">Bài thi</th>
+                    <th class="px-4 py-2.5">Điểm</th>
+                    <th class="px-4 py-2.5 text-right">Thời gian</th>
+                  </tr>
+                </thead>
+                <tbody id="detail-attempts-tbody" class="divide-y divide-indigo-500/20 text-indigo-100">
+                  <!-- JS injected rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-6 border-t border-indigo-500/30 mt-6 flex justify-end">
+          <button onclick="closeStudentDetailsModal()" class="px-5 py-2 rounded-xl bg-[#1a1c2e] hover:bg-indigo-900 text-white text-xs font-bold cursor-pointer transition-all">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add/Edit Block -->
+    <div id="blockModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-sm p-6 rounded-2xl shadow-xl relative">
+        <button onclick="closeBlockModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4" id="block-modal-title">Tạo khối lớp mới</h3>
+        <form id="blockForm" class="space-y-4" onsubmit="handleBlockFormSubmit(event)">
+          <input type="hidden" id="block-form-action" value="add">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Mã khối lớp (Không dấu, viết liền)</label>
+            <input type="text" id="blockIdInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="khoi_7">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tên khối lớp hiển thị</label>
+            <input type="text" id="blockNameInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="Khối lớp 7">
+          </div>
+          <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
+            <button type="button" onclick="closeBlockModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold cursor-pointer">Hủy bỏ</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm cursor-pointer">Xác nhận</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Add/Edit Test Set (Bộ đề) -->
+    <div id="testSetModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative">
+        <button onclick="closeTestSetModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4" id="test-set-modal-title">Tạo bộ đề thám hiểm mới</h3>
+        <form id="testSetForm" class="space-y-4" onsubmit="handleTestSetFormSubmit(event)">
+          <input type="hidden" id="test-set-form-action" value="add">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Mã bộ đề (Không dấu, viết liền)</label>
+            <input type="text" id="testSetIdInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="de_thi_cf_1">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tiêu đề bài thi / bộ đề</label>
+            <input type="text" id="testSetTitleInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="Thi thử Computing Fundamentals - Đề số 1">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Thời gian làm bài (Phút)</label>
+            <input type="number" id="testSetDurationInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" value="15" min="5" max="120">
+          </div>
+          <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
+            <button type="button" onclick="closeTestSetModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold cursor-pointer">Hủy bỏ</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm cursor-pointer">Xác nhận</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Excel XLSX parsing dependency library -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Database Script Initializer -->
+    <script type="module" src="/assets/js/db-init.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
