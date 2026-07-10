@@ -127,47 +127,49 @@ body {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 16px 22px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 14px 20px !important;
+  background: #141b2d !important;
+  border: 2px solid #232d48 !important;
+  border-radius: 16px !important;
+  color: #f1f5f9 !important;
+  font-size: 13.5px;
+  font-weight: 700 !important;
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease-in-out;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 .option-card-btn:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-  background: rgba(59, 130, 246, 0.05);
+  border-color: #6366f1 !important;
+  background: #1d263e !important;
+  transform: translateY(-1px);
 }
 
 .option-card-btn.selected {
-  border-color: #3b82f6;
-  background: rgba(59, 130, 246, 0.12);
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+  border-color: #3b82f6 !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3) !important;
 }
 
 .option-card-btn.correct {
   border-color: #10b981 !important;
-  background: rgba(16, 185, 129, 0.15) !important;
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.18) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+  color: #34d399 !important;
 }
 
 .option-card-btn.wrong {
   border-color: #ef4444 !important;
-  background: rgba(239, 68, 68, 0.15) !important;
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.18) !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3) !important;
+  color: #f87171 !important;
 }
 
 /* Store Cards and General Grids */
 .bg-game-card {
-  background: rgba(255, 255, 255, 0.03) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: #0f172a !important;
+  border: 2px solid #1e293b !important;
   border-radius: 24px;
 }
 

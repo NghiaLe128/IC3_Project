@@ -2,6 +2,26 @@
  * IC3 LMS - Teacher Portal Logic
  */
 
+function convertDriveUrl(url) {
+  if (!url || typeof url !== "string") return url || "";
+  let fileId = "";
+  if (url.includes("drive.google.com/file/d/")) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) fileId = match[1];
+  } else if (url.includes("drive.google.com/open?id=")) {
+    const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) fileId = match[1];
+  } else if (url.includes("docs.google.com/file/d/")) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) fileId = match[1];
+  }
+  
+  if (fileId) {
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+  return url;
+}
+
 let activeClassId = "";
 let activeQuestionId = ""; // Track selected question in manage-tests tab
 
@@ -694,6 +714,19 @@ function selectActiveQuestion(qId) {
   document.getElementById("view-q-type-badge").innerText = typeLabels[q.type] || q.type.toUpperCase();
   document.getElementById("view-q-text").innerText = q.question;
   
+  // Show image if available
+  const qImgContainer = document.getElementById("view-q-image-container");
+  const qImgElement = document.getElementById("view-q-image");
+  if (qImgContainer && qImgElement) {
+    if (q.image) {
+      qImgElement.src = convertDriveUrl(q.image);
+      qImgContainer.classList.remove("hidden");
+    } else {
+      qImgElement.src = "";
+      qImgContainer.classList.add("hidden");
+    }
+  }
+  
   // Clean readable visual text for answer
   let displayAnswer = q.answer;
   if (q.type === "choice" && q.options) {
@@ -760,7 +793,7 @@ function selectActiveQuestion(qId) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           ${(q.leftImages || []).map((img, idx) => `
             <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex flex-col items-center gap-2 text-xs">
-              <img src="${img}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
+              <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
               <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
             </div>
           `).join("")}
@@ -812,7 +845,7 @@ function selectActiveQuestion(qId) {
           const isCorrect = idx === q.correctIndex;
           return `
             <div class="p-3 bg-[#131424]/80 border-2 rounded-xl flex flex-col items-center gap-2 relative overflow-hidden transition-all duration-200 ${isCorrect ? 'border-emerald-500 bg-emerald-500/20' : 'border-indigo-500/30'}">
-              <img src="${img}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
+              <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
               <span class="text-[10px] font-bold text-indigo-300">Lựa chọn ${idx+1}</span>
               ${isCorrect ? '<span class="absolute top-1 right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black rounded shadow flex items-center gap-0.5"><i class="fa-solid fa-check"></i> ĐÚNG</span>' : ''}
             </div>

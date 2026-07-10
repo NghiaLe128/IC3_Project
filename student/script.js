@@ -2,6 +2,26 @@
  * IC3 LMS - Student Gamified UI Logic
  */
 
+function convertDriveUrl(url) {
+  if (!url || typeof url !== "string") return url || "";
+  let fileId = "";
+  if (url.includes("drive.google.com/file/d/")) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) fileId = match[1];
+  } else if (url.includes("drive.google.com/open?id=")) {
+    const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) fileId = match[1];
+  } else if (url.includes("docs.google.com/file/d/")) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) fileId = match[1];
+  }
+  
+  if (fileId) {
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+  return url;
+}
+
 let currentStudent = null;
 let activePlayingTest = null;
 let testQuestions = [];
@@ -1235,6 +1255,19 @@ function renderGameQuestion() {
   // Render question text
   document.getElementById("game-question-text").innerText = q.question;
 
+  // Render question image if present
+  const qImgContainer = document.getElementById("game-question-image-container");
+  const qImgElement = document.getElementById("game-question-image");
+  if (qImgContainer && qImgElement) {
+    if (q.image) {
+      qImgElement.src = convertDriveUrl(q.image);
+      qImgContainer.classList.remove("hidden");
+    } else {
+      qImgElement.src = "";
+      qImgContainer.classList.add("hidden");
+    }
+  }
+
   // Render option selections based on type
   const container = document.getElementById("game-options-container");
   container.innerHTML = "";
@@ -1435,7 +1468,7 @@ function renderGameQuestion() {
 
       imagesHtml += `
         <div class="flex flex-col items-center p-4 rounded-2xl bg-slate-950 border border-slate-800/80 gap-3">
-          <img src="${imgUrl}" referrerPolicy="no-referrer" class="h-28 w-auto object-contain rounded-lg bg-white p-2 border border-slate-800" alt="Linh kiện">
+          <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-28 w-auto object-contain rounded-lg bg-white p-2 border border-slate-800" alt="Linh kiện">
           <div class="w-full">
             <div id="drag-image-target-${idx}" onclick="clearDraggedImageText(${idx})" 
                  class="${slotClass}">
@@ -1665,7 +1698,7 @@ function renderGameQuestion() {
 
       card.className = "image-choice-card border border-slate-800 bg-slate-900/60 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-800/40 transition-all relative overflow-hidden group h-40" + extraClass;
       card.innerHTML = `
-        <img src="${optImgUrl}" referrerPolicy="no-referrer" class="h-24 w-auto object-contain transition-transform duration-300 group-hover:scale-105" alt="Lựa chọn">
+        <img src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-24 w-auto object-contain transition-transform duration-300 group-hover:scale-105" alt="Lựa chọn">
         <div class="absolute bottom-2 left-2 text-[9px] font-black uppercase text-slate-500">Lựa chọn ${idx + 1}</div>
         <div id="image-choice-badge-${idx}" class="${badgeClass}">${badgeInner}</div>
       `;

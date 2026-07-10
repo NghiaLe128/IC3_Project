@@ -606,108 +606,106 @@
     </main>
 
     <!-- ==================== SCREEN: GAME PLAYING TEST MODE (FULL SCREEN OVERLAY) ==================== -->
-    <section id="game-playing-screen" class="fixed inset-0 bg-game-dark z-50 overflow-y-auto hidden flex flex-col justify-between p-4 sm:p-6">
+    <section id="game-playing-screen" class="fixed inset-0 z-50 overflow-y-auto hidden flex flex-col justify-between p-3 sm:p-5" style="background: radial-gradient(circle at 50% 50%, #0d1527 0%, #050811 100%);">
       
       <!-- Test Header / Progress indicators -->
-      <header class="w-full max-w-4xl mx-auto flex justify-between items-center gap-4 py-3 border-b border-indigo-900/40">
+      <header class="w-full max-w-4xl mx-auto flex justify-between items-center gap-4 py-2 border-b border-indigo-950">
         <div>
-          <h3 id="game-test-title" class="font-poppins font-extrabold text-sm sm:text-base text-white">Bài ôn tập Level 1</h3>
-          <span id="game-test-level-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 uppercase">Level 1</span>
+          <h3 id="game-test-title" class="font-poppins font-extrabold text-sm sm:text-base text-white tracking-wide">Bài ôn tập Level 1</h3>
+          <span id="game-test-level-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 uppercase tracking-wider">Level 1</span>
         </div>
         
         <!-- Timer -->
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-sm font-black shadow-inner">
-          <i class="fa-solid fa-hourglass-half text-xs animate-spin" style="animation-duration: 3s"></i>
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 font-mono text-xs font-black shadow-inner">
+          <i class="fa-solid fa-hourglass-half text-[10px] animate-spin" style="animation-duration: 3s"></i>
           <span id="game-timer">15:00</span>
         </div>
       </header>
 
-      <!-- RPG Battle Arena Visual Scene -->
-      <div class="w-full max-w-2xl mx-auto mt-4 p-4 rounded-3xl bg-slate-950/80 border border-indigo-500/15 shadow-2xl relative overflow-hidden">
-        <!-- Arena Background Effect -->
-        <div class="absolute inset-0 bg-radial-gradient from-indigo-500/10 to-transparent pointer-events-none"></div>
+      <!-- RPG Battle Arena Visual Scene (Ultra Sleek & Compact HUD) -->
+      <div class="w-full max-w-4xl mx-auto mt-2.5 p-3.5 rounded-2xl bg-[#111625] border border-indigo-500/20 shadow-xl relative overflow-hidden shrink-0">
+        <!-- Background light sweep -->
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-red-500/5 pointer-events-none"></div>
         
-        <div class="grid grid-cols-2 gap-4 relative z-10">
-          
-          <!-- Player's side -->
-          <div class="flex flex-col items-center p-3 rounded-2xl bg-white/2 border border-white/5 relative">
-            <div class="absolute top-2 left-2 text-[8px] font-bold text-slate-400 tracking-wider">BẠN</div>
-            <!-- Combatant Avatar -->
-            <div id="battle-scene-player-avatar" class="text-5xl h-16 w-16 flex items-center justify-center transition-all duration-300 drop-shadow-[0_4px_10px_rgba(59,130,246,0.5)]">⚡</div>
-            <h4 id="battle-scene-player-name" class="font-poppins font-extrabold text-xs text-white mt-2">Pikachu</h4>
-            <!-- HP container -->
-            <div class="w-full mt-2.5">
-              <div class="flex justify-between text-[9px] font-mono mb-1">
-                <span class="text-slate-400">HP</span>
-                <span id="battle-scene-player-hp-val" class="text-emerald-400 font-bold">100/100</span>
+        <div class="flex flex-row items-center justify-between gap-4 relative z-10">
+          <!-- Player side compact -->
+          <div class="flex items-center gap-3 w-5/12 min-w-0">
+            <div id="battle-scene-player-avatar" class="text-3xl h-10 w-10 flex items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 drop-shadow-[0_2px_8px_rgba(59,130,246,0.3)] shrink-0">⚡</div>
+            <div class="w-full min-w-0">
+              <div class="flex justify-between items-baseline gap-1 mb-1">
+                <h4 id="battle-scene-player-name" class="font-poppins font-black text-[11px] text-white truncate">Pikachu</h4>
+                <span id="battle-scene-player-hp-val" class="text-emerald-400 font-black text-[9px] font-mono shrink-0">100/100</span>
               </div>
-              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                <div id="battle-scene-player-hp-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+              <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                <div id="battle-scene-player-hp-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-300" style="width: 100%"></div>
               </div>
             </div>
-            <!-- Action feedback bubble -->
-            <span id="battle-scene-player-status" class="text-[9px] font-black text-indigo-400 mt-2 uppercase tracking-wide">Sẵn sàng!</span>
           </div>
 
-          <!-- Boss's side -->
-          <div class="flex flex-col items-center p-3 rounded-2xl bg-white/2 border border-white/5 relative">
-            <div class="absolute top-2 right-2 text-[8px] font-bold text-red-400 tracking-wider">BOSS</div>
-            <!-- Combatant Avatar -->
-            <div id="battle-scene-boss-avatar" class="text-5xl h-16 w-16 flex items-center justify-center transition-all duration-300 drop-shadow-[0_4px_10px_rgba(239,68,68,0.5)]">🌳</div>
-            <h4 id="battle-scene-boss-name" class="font-poppins font-extrabold text-xs text-white mt-2">Guardian</h4>
-            <!-- HP container -->
-            <div class="w-full mt-2.5">
-              <div class="flex justify-between text-[9px] font-mono mb-1">
-                <span class="text-slate-400">HP BOSS</span>
-                <span id="battle-scene-boss-hp-val" class="text-red-400 font-bold">1000/1000</span>
+          <!-- VS center icon -->
+          <div class="flex flex-col items-center justify-center shrink-0">
+            <span class="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/25 shadow-sm tracking-wider">VS</span>
+          </div>
+
+          <!-- Boss side compact -->
+          <div class="flex items-center flex-row-reverse gap-3 w-5/12 min-w-0">
+            <div id="battle-scene-boss-avatar" class="text-3xl h-10 w-10 flex items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 drop-shadow-[0_2px_8px_rgba(239,68,68,0.3)] shrink-0">🌳</div>
+            <div class="w-full min-w-0">
+              <div class="flex flex-row-reverse justify-between items-baseline gap-1 mb-1">
+                <h4 id="battle-scene-boss-name" class="font-poppins font-black text-[11px] text-white truncate text-right">Guardian</h4>
+                <span id="battle-scene-boss-hp-val" class="text-red-400 font-black text-[9px] font-mono shrink-0">1000/1000</span>
               </div>
-              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                <div id="battle-scene-boss-hp-bar" class="h-full bg-red-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+              <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                <div id="battle-scene-boss-hp-bar" class="h-full bg-gradient-to-r from-red-500 to-rose-400 rounded-full transition-all duration-300" style="width: 100%"></div>
               </div>
             </div>
-            <!-- Action feedback bubble -->
-            <span id="battle-scene-boss-status" class="text-[9px] font-black text-red-400 mt-2 uppercase tracking-wide">Gừ rừ...</span>
           </div>
-
         </div>
 
-        <!-- Combat log line -->
-        <div class="mt-3 text-center border-t border-white/5 pt-2 text-[10px] font-bold text-slate-300" id="battle-scene-log">
-          Đao binh đã sẵn, hãy khởi binh bằng cách chọn đáp án đúng!
+        <!-- Combat status combined row -->
+        <div class="flex justify-between items-center mt-2.5 border-t border-slate-800/40 pt-2 text-[9px] font-bold">
+          <span id="battle-scene-player-status" class="text-emerald-400 uppercase tracking-wide truncate max-w-[30%]">Sẵn sàng!</span>
+          <span id="battle-scene-log" class="text-slate-300 text-center flex-1 px-2 line-clamp-1">Chọn đáp án đúng để tấn công!</span>
+          <span id="battle-scene-boss-status" class="text-red-400 uppercase tracking-wide truncate max-w-[30%] text-right">Gừ rừ...</span>
         </div>
       </div>
 
       <!-- Question Content Area (Bento Duolingo Style Card) -->
-      <div class="flex-grow w-full max-w-2xl mx-auto flex flex-col justify-center py-6">
+      <div class="w-full max-w-4xl mx-auto py-3 sm:py-4 flex-grow flex flex-col justify-center">
         
         <!-- Progress bar indicator -->
-        <div class="w-full mb-6 flex items-center gap-3">
-          <span id="game-progress-text" class="text-xs font-black text-slate-400 font-mono shrink-0">Câu 1/5</span>
-          <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden relative shadow-inner">
+        <div class="w-full mb-3 flex items-center gap-2">
+          <span id="game-progress-text" class="text-[10px] font-black text-slate-400 font-mono shrink-0">Câu 1/5</span>
+          <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden relative shadow-inner">
             <div id="game-progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300" style="width: 20%"></div>
           </div>
         </div>
 
         <!-- Question Card -->
-        <div id="game-question-card" class="bg-game-card border border-indigo-500/20 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden transition-all duration-300">
+        <div id="game-question-card" class="bg-[#111827] border-2 border-[#1e293b] p-5 sm:p-6 rounded-2xl shadow-xl relative overflow-hidden transition-all duration-300">
           <!-- Pokémon Encouragement overlay (Cute absolute element) -->
-          <div class="absolute top-4 right-4 text-xs font-bold text-yellow-400 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20 animate-pulse">
+          <div class="absolute top-3 right-3 text-[10px] font-extrabold text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-md border border-yellow-500/20">
             <span id="pokemon-encourager-text">Pikachu cổ vũ bạn!</span> ⚡
           </div>
 
           <!-- Question Text -->
-          <h3 id="game-question-text" class="font-poppins font-black text-base sm:text-lg text-white leading-relaxed mt-4 mb-6">
+          <h3 id="game-question-text" class="font-poppins font-black text-sm sm:text-base text-white leading-relaxed mt-3 mb-4 pr-32">
             Thiết bị nào sau đây dùng để nhập dữ liệu?
           </h3>
 
+          <!-- Question Image Container -->
+          <div id="game-question-image-container" class="hidden mb-4 flex justify-center">
+            <img id="game-question-image" src="" class="max-h-40 sm:max-h-48 w-auto object-contain rounded-xl border border-indigo-500/15 bg-slate-900/60 p-1.5 shadow-md hover:scale-[1.01] transition-transform duration-200" alt="Hình ảnh câu hỏi" referrerPolicy="no-referrer">
+          </div>
+
           <!-- Options Render Area -->
-          <div id="game-options-container" class="space-y-3">
+          <div id="game-options-container" class="space-y-2.5">
             <!-- Loaded dynamically by JS -->
           </div>
 
           <!-- Explanations Box (Hidden during test, shown in review or victory) -->
-          <div id="game-explanation-box" class="hidden mt-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 text-indigo-200 text-xs leading-relaxed">
-            <h4 class="font-bold text-yellow-400 mb-1"><i class="fa-solid fa-lightbulb mr-1"></i> Kiến thức bổ trợ IC3:</h4>
+          <div id="game-explanation-box" class="hidden mt-4 p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-100 text-xs leading-relaxed">
+            <h4 class="font-bold text-yellow-400 mb-0.5"><i class="fa-solid fa-lightbulb mr-1"></i> Kiến thức bổ trợ IC3:</h4>
             <p id="game-explanation-text">Bàn phím gửi dữ liệu vào máy tính để xử lý, đây là thiết bị ngoại vi đầu vào quan trọng hàng đầu.</p>
           </div>
         </div>
@@ -715,7 +713,7 @@
       </div>
 
       <!-- Footer Buttons -->
-      <footer class="w-full max-w-2xl mx-auto flex justify-between items-center gap-4 py-4 border-t border-indigo-900/30">
+      <footer class="w-full max-w-4xl mx-auto flex justify-between items-center gap-4 py-4 border-t border-indigo-900/30">
         <button onclick="confirmExitGamePlaying()" class="px-4 py-2.5 rounded-xl border border-slate-700 hover:border-red-500 hover:text-red-200 text-xs font-bold bg-slate-900 text-slate-400 transition-all cursor-pointer">
           <i class="fa-solid fa-circle-xmark mr-1"></i> Thoát
         </button>

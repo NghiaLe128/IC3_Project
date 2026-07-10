@@ -81,13 +81,13 @@ async function seedDatabase() {
       
       // 1. Questions Seed
       const questions = [
-        { id: "q1", level: "Beginner", type: "multiple-choice", question: "Thành phần nào sau đây là bộ não của máy tính?", options: ["RAM", "Ổ cứng", "CPU", "Màn hình"], answer: "CPU", explanation: "CPU (Central Processing Unit) là đơn vị xử lý trung tâm, đóng vai trò như bộ não của máy tính." },
-        { id: "q2", level: "Beginner", type: "multiple-choice", question: "Thiết bị nào dùng để nhập dữ liệu vào máy tính?", options: ["Loa", "Bàn phím", "Máy in", "Màn hình"], answer: "Bàn phím", explanation: "Bàn phím là thiết bị nhập (input device) phổ biến nhất." },
-        { id: "q3", level: "Beginner", type: "multiple-choice", question: "Hệ điều hành phổ biến nhất cho máy tính cá nhân là gì?", options: ["Windows", "Android", "iOS", "Linux"], answer: "Windows", explanation: "Windows là hệ điều hành máy tính cá nhân phổ biến nhất thế giới." },
-        { id: "q4", level: "Explorer", type: "multiple-choice", question: "Trong Microsoft Word, tổ hợp phím Ctrl + C dùng để làm gì?", options: ["Dán", "Cắt", "Sao chép", "Lưu"], answer: "Sao chép", explanation: "Ctrl + C là phím tắt cho lệnh Copy (Sao chép)." },
-        { id: "q5", level: "Explorer", type: "multiple-choice", question: "Trong Excel, công thức luôn bắt đầu bằng dấu gì?", options: ["+", "-", "*", "="], answer: "=", explanation: "Tất cả công thức trong Excel phải bắt đầu bằng dấu bằng (=)." },
-        { id: "q6", level: "Expert", type: "multiple-choice", question: "Mật khẩu nào sau đây là an toàn nhất?", options: ["123456", "password", "Admin@2026!", "ten_cua_ban"], answer: "Admin@2026!", explanation: "Mật khẩu an toàn cần có chữ hoa, chữ thường, số và ký tự đặc biệt." },
-        { id: "q7", level: "Expert", type: "multiple-choice", question: "Phishing là gì trong an ninh mạng?", options: ["Một loại virus", "Tấn công lừa đảo lấy thông tin", "Phần mềm diệt virus", "Tên một trình duyệt"], answer: "Tấn công lừa đảo lấy thông tin", explanation: "Phishing là hình thức lừa đảo giả mạo các đơn vị uy tín để lấy thông tin nhạy cảm của người dùng." }
+        { id: "q1", level: "Beginner", type: "choice", question: "Thành phần nào sau đây là bộ não của máy tính?", options: ["RAM", "Ổ cứng", "CPU", "Màn hình"], correctIndex: 2, answer: "CPU", explanation: "CPU (Central Processing Unit) là đơn vị xử lý trung tâm, đóng vai trò như bộ não của máy tính." },
+        { id: "q2", level: "Beginner", type: "choice", question: "Thiết bị nào dùng để nhập dữ liệu vào máy tính?", options: ["Loa", "Bàn phím", "Máy in", "Màn hình"], correctIndex: 1, answer: "Bàn phím", explanation: "Bàn phím là thiết bị nhập (input device) phổ biến nhất." },
+        { id: "q3", level: "Beginner", type: "choice", question: "Hệ điều hành phổ biến nhất cho máy tính cá nhân là gì?", options: ["Windows", "Android", "iOS", "Linux"], correctIndex: 0, answer: "Windows", explanation: "Windows là hệ điều hành máy tính cá nhân phổ biến nhất thế giới." },
+        { id: "q4", level: "Explorer", type: "choice", question: "Trong Microsoft Word, tổ hợp phím Ctrl + C dùng để làm gì?", options: ["Dán", "Cắt", "Sao chép", "Lưu"], correctIndex: 2, answer: "Sao chép", explanation: "Ctrl + C là phím tắt cho lệnh Copy (Sao chép)." },
+        { id: "q5", level: "Explorer", type: "choice", question: "Trong Excel, công thức luôn bắt đầu bằng dấu gì?", options: ["+", "-", "*", "="], correctIndex: 3, answer: "=", explanation: "Tất cả công thức trong Excel phải bắt đầu bằng dấu bằng (=)." },
+        { id: "q6", level: "Expert", type: "choice", question: "Mật khẩu nào sau đây là an sau nhất?", options: ["123456", "password", "Admin@2026!", "ten_cua_ban"], correctIndex: 2, answer: "Admin@2026!", explanation: "Mật khẩu an toàn cần có chữ hoa, chữ thường, số và ký tự đặc biệt." },
+        { id: "q7", level: "Expert", type: "choice", question: "Phishing là gì trong an ninh mạng?", options: ["Một loại virus", "Tấn công lừa đảo lấy thông tin", "Phần mềm diệt virus", "Tên một trình duyệt"], correctIndex: 1, answer: "Tấn công lừa đảo lấy thông tin", explanation: "Phishing là hình thức lừa đảo giả mạo các đơn vị uy tín để lấy thông tin nhạy cảm của người dùng." }
       ];
 
       for (const q of questions) {
@@ -211,6 +211,149 @@ async function seedDatabase() {
   }
 }
 
+async function seedImageTestAndQuestions() {
+  console.log("🌱 Seeding comprehensive image-rich and multi-format test and questions to Firestore...");
+  const customQuestions = [
+    {
+      id: "q_image_choice_single",
+      level: "Explorer",
+      type: "choice",
+      question: "Hình ảnh dưới đây biểu thị linh kiện phần cứng quan trọng nào của máy tính?",
+      image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=600&auto=format&fit=crop&q=80",
+      options: ["Bộ nhớ RAM", "Bộ vi xử lý CPU (Central Processing Unit)", "Bộ nguồn điện PSU", "Card đồ họa GPU"],
+      correctIndex: 1,
+      answer: "Bộ vi xử lý CPU (Central Processing Unit)",
+      explanation: "CPU (Central Processing Unit) là bộ vi xử lý trung tâm, được ví như bộ não của máy tính, thực hiện các phép tính toán học, logic và điều khiển hoạt động của hệ thống."
+    },
+    {
+      id: "q_image_choices",
+      level: "Explorer",
+      type: "image_choice",
+      question: "Trong các thiết bị sau đây, thiết bị nào là Thiết bị nhập (Input Device) chính dùng để gõ văn bản?",
+      options: [
+        "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=80", // Monitor
+        "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&auto=format&fit=crop&q=80", // Keyboard
+        "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=400&auto=format&fit=crop&q=80", // Mouse
+        "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=80"  // Motherboard
+      ],
+      correctIndex: 1,
+      answer: "Lựa chọn 2",
+      explanation: "Bàn phím (Keyboard - Lựa chọn 2) là thiết bị ngoại vi dùng để nhập thông tin ký tự, số và điều khiển bằng cách nhấn các nút phím."
+    },
+    {
+      id: "q_drag_image_labels",
+      level: "Explorer",
+      type: "drag_image_text",
+      question: "Kéo thả các nhãn tên gọi linh kiện phần cứng tương ứng chính xác vào từng hình ảnh dưới đây:",
+      leftImages: [
+        "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&auto=format&fit=crop&q=80", // CPU
+        "https://images.unsplash.com/photo-1562976540-1502c2145186?w=400&auto=format&fit=crop&q=80", // RAM
+        "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=80", // Monitor
+        "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=400&auto=format&fit=crop&q=80"  // Mouse
+      ],
+      options: ["Bộ nhớ RAM", "Bộ vi xử lý CPU", "Màn hình (Monitor)", "Chuột máy tính (Mouse)"],
+      correctAnswers: ["Bộ vi xử lý CPU", "Bộ nhớ RAM", "Màn hình (Monitor)", "Chuột máy tính (Mouse)"],
+      explanation: "Đúng rồi! Các linh kiện được sắp xếp như sau: 1 - CPU xử lý thông tin; 2 - RAM lưu trữ dữ liệu tạm thời; 3 - Màn hình hiển thị; 4 - Chuột dùng điều khiển và nhấp lệnh."
+    },
+    {
+      id: "q_true_false_image",
+      level: "Explorer",
+      type: "true_false",
+      question: "Hình ảnh dưới đây biểu thị một bộ sạc pin dự phòng di động (Power Bank), là thiết bị lưu trữ điện năng dùng sạc pin điện thoại ngoài trời. Đúng hay Sai?",
+      image: "https://images.unsplash.com/photo-1609592424085-f5da49fb1be0?w=600&auto=format&fit=crop&q=80",
+      options: ["Đúng", "Sai"],
+      answer: "Đúng",
+      explanation: "Đúng, sạc dự phòng (Power Bank) lưu trữ năng lượng điện hóa học để nạp pin cho điện thoại và thiết bị di động mà không cần kết nối trực tiếp nguồn điện xoay chiều."
+    },
+    {
+      id: "q_fill_blank_image",
+      level: "Explorer",
+      type: "fill_blank",
+      question: "Hãy nhập tên viết tắt bằng tiếng Anh (3 chữ cái viết hoa) của thiết bị ổ cứng lưu trữ thể rắn siêu tốc dưới đây:",
+      image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&auto=format&fit=crop&q=80",
+      answer: "SSD",
+      explanation: "SSD (Solid State Drive) là ổ cứng thể rắn dùng chip nhớ flash để truy xuất và lưu trữ dữ liệu bền bỉ và nhanh chóng gấp nhiều lần ổ HDD thông thường."
+    },
+    {
+      id: "q_drag_text_example",
+      level: "Explorer",
+      type: "drag_text",
+      question: "Kéo thả các chức năng phù hợp tương ứng với từng tổ hợp phím tắt phổ biến dưới đây:",
+      rows: [
+        { label: "Phím tắt Ctrl + C" },
+        { label: "Phím tắt Ctrl + V" },
+        { label: "Phím tắt Ctrl + Z" },
+        { label: "Phím tắt Ctrl + A" }
+      ],
+      options: ["Sao chép", "Dán", "Hoàn tác", "Chọn tất cả"],
+      correctAnswers: ["Sao chép", "Dán", "Hoàn tác", "Chọn tất cả"],
+      explanation: "Ctrl + C dùng sao chép đối tượng, Ctrl + V dán nội dung từ clipboard, Ctrl + Z phục hồi trạng thái trước đó (Undo), và Ctrl + A chọn toàn bộ đối tượng."
+    },
+    {
+      id: "q_table_match_example",
+      level: "Expert",
+      type: "table_match",
+      headers: ["Cổng Kết Nối", "Thiết Bị Ngoại Vi Thích Hợp"],
+      question: "Hãy ghép nối cổng kết nối phần cứng chính xác với thiết bị ngoại vi thích hợp:",
+      rows: ["Cổng HDMI", "Cổng USB", "Cổng mạng RJ-45", "Audio 3.5mm Jack"],
+      options: ["Màn hình / TV / Máy chiếu", "Chuột / Bàn phím / Thẻ nhớ", "Cáp mạng LAN internet", "Tai nghe / Loa nghe nhạc"],
+      correctAnswers: [0, 1, 2, 3],
+      explanation: "HDMI truyền hình ảnh và âm thanh chất lượng cao. USB cực kỳ đa dụng. RJ-45 kết nối mạng internet dây. Jack 3.5mm truyền tín hiệu âm thanh analog."
+    },
+    {
+      id: "q_multi_choice_example",
+      level: "Explorer",
+      type: "multi_choice",
+      question: "Trong các thiết bị sau đây, những thiết bị nào được phân loại thuộc nhóm Thiết Bị Xuất (Output Devices)? (Hãy chọn 3 đáp án đúng)",
+      options: ["Màn hình máy tính (Monitor)", "Máy in văn phòng (Printer)", "Loa âm thanh (Speakers)", "Bàn phím gõ chữ (Keyboard)", "Máy quét ảnh (Scanner)"],
+      correctIndices: [0, 1, 2],
+      explanation: "Màn hình, máy in và loa đều là thiết bị xuất vì chúng đưa thông tin ra từ máy tính. Bàn phím và máy quét đưa thông tin vào trong máy tính nên là thiết bị nhập."
+    }
+  ];
+
+  const customTest = {
+    id: "test_image_l1",
+    title: "Thử thách: Hình ảnh IC3 Sparks 🖼️",
+    level: "Explorer",
+    duration: 20,
+    questionCount: 5,
+    questions: ["q_image_choice_single", "q_image_choices", "q_drag_image_labels", "q_true_false_image", "q_fill_blank_image"],
+    scoreVal: 50,
+    createdBY: "admin@gmail.com"
+  };
+
+  const allTypesTest = {
+    id: "test_all_types_l2",
+    title: "Thử thách: Trọn Bộ 8 Dạng Câu Hỏi IC3 🌟",
+    level: "Expert",
+    duration: 30,
+    questionCount: 8,
+    questions: [
+      "q_image_choice_single",
+      "q_image_choices",
+      "q_drag_image_labels",
+      "q_true_false_image",
+      "q_fill_blank_image",
+      "q_drag_text_example",
+      "q_table_match_example",
+      "q_multi_choice_example"
+    ],
+    scoreVal: 80,
+    createdBY: "admin@gmail.com"
+  };
+
+  try {
+    for (const q of customQuestions) {
+      await setDoc(doc(db, IC3_KEYS.QUESTIONS, q.id), q);
+    }
+    await setDoc(doc(db, IC3_KEYS.TESTS, customTest.id), customTest);
+    await setDoc(doc(db, IC3_KEYS.TESTS, allTypesTest.id), allTypesTest);
+    console.log("✅ Seeded custom image-rich & comprehensive tests successfully!");
+  } catch (error) {
+    console.error("❌ Error seeding custom tests:", error);
+  }
+}
+
 async function initData() {
   console.log("🚀 Initializing IC3 LMS Cloud Database...");
   
@@ -236,6 +379,21 @@ async function initData() {
     // Auto-seed if tests are missing
     if (window.IC3_CACHE[IC3_KEYS.TESTS].length === 0) {
       await seedDatabase();
+    }
+
+    // Explicitly check for custom multi-format test and questions; seed if missing!
+    const hasAllTypesTest = window.IC3_CACHE[IC3_KEYS.TESTS].some(t => t.id === "test_all_types_l2");
+    if (!hasAllTypesTest) {
+      console.log("🌱 Custom comprehensive test/questions missing, seeding them now...");
+      await seedImageTestAndQuestions();
+      // Fetch collections again to update cache
+      await Promise.all(collectionsToFetch.map(async (key) => {
+        try {
+          const colRef = collection(db, key);
+          const snapshot = await getDocs(colRef);
+          window.IC3_CACHE[key] = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        } catch (e) {}
+      }));
     }
 
     console.log("✅ Cloud Data Initialization Step Complete");
