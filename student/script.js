@@ -25,7 +25,7 @@ let bossCurrentHP = 1000;
 // ==================== TEST MODE SELECTION LOGIC ====================
 function openTestModeSelection(testId) {
   selectedTestIdToStart = testId;
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const test = tests.find(t => t.id === testId);
   if (!test) return;
 
@@ -119,50 +119,65 @@ function toggleTheme() {
 applySavedTheme();
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (window.IC3_DB && window.IC3_DB.getData('users').length > 0) {
+  if (window.IC3_CACHE && window.IC3_CACHE.users && window.IC3_CACHE.users.length > 0) {
     startStudentApp();
   } else {
     window.addEventListener('ic3-db-ready', startStudentApp);
   }
 });
 
-function startStudentApp() {
-  checkStudentAuth();
+async function startStudentApp() {
+  await checkStudentAuth();
   loadStudentProfile();
   applySavedTheme();
   switchStudentTab("battle");
 }
 
 // 1. Auth & Profile Loading
-function checkStudentAuth() {
-  const user = IC3_DB.getCurrentUser();
+async function checkStudentAuth() {
+  const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
+  const user = userStr ? JSON.parse(userStr) : null;
+  
   if (!user || user.role !== "student") {
     alert("Vui lòng đăng nhập bằng tài khoản học sinh!");
     window.location.href = "../index.html";
     return;
   }
   
-  // Load specific student details
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
-  currentStudent = students.find(s => s.email === user.email);
-  if (!currentStudent) {
-    // Fail-safe init if missing in student database
+  // Load specific student details from Firestore
+  try {
+    const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, user.email);
+    const studentDoc = await window.fStore.getDoc(studentDocRef);
+    
+    if (studentDoc.exists()) {
+      currentStudent = studentDoc.data();
+    } else {
+      // Fallback for demo accounts or missing profile
+      currentStudent = {
+        email: user.email,
+        name: user.name,
+        classId: "C1",
+        pokemon: "pikachu",
+        level: "Beginner",
+        exp: 150,
+        maxExp: 500,
+        coins: 50,
+        rank: "Bronze",
+        badges: [],
+        unlockedLessons: ["lesson_l1_1"],
+        unlockedZones: ["level_1"]
+      };
+      await window.fStore.setDoc(studentDocRef, currentStudent);
+    }
+  } catch (error) {
+    console.error("Error loading student profile:", error);
+    // Use fallback if network fails
     currentStudent = {
       email: user.email,
       name: user.name,
-      classId: "",
-      pokemon: "pikachu",
-      level: "Beginner",
-      exp: 150,
-      maxExp: 500,
-      coins: 50,
-      rank: "Bronze",
-      badges: [],
-      unlockedLessons: ["lesson_l1_1"],
-      unlockedZones: ["level_1"]
+      unlockedLessons: [],
+      pokemon: "pikachu"
     };
-    students.push(currentStudent);
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
   }
 }
 
@@ -218,8 +233,7 @@ function loadStudentProfile() {
 }
 
 function logoutStudent() {
-  IC3_DB.logout();
-  window.location.href = "../index.html";
+  window.logoutUser();
 }
 
 // 2. Tab Switching Engine
@@ -244,6 +258,10 @@ function switchStudentTab(tabId) {
 
 // ==================== RENDER: BATTLE ARENA ====================
 function renderBattleArena() {
+  if (!currentStudent) {
+    console.warn("Student data not ready for battle arena");
+    return;
+  }
   const pokemonAvatars = {
     pikachu: "⚡",
     charmander: "🔥",
@@ -303,8 +321,8 @@ function renderBattleArena() {
   document.getElementById("battle-stat-bar-spd").style.width = `${currentSpd}%`;
 
   // Render Boss List challenger cards
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
   const container = document.getElementById("battle-boss-selector-container");
   container.innerHTML = "";
 
@@ -400,8 +418,12 @@ function renderBattleArena() {
 
 // ==================== RENDER: WORLD MAP ====================
 function renderWorldMap() {
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES);
+  if (!currentStudent) {
+    console.warn("Student data not ready for world map");
+    return;
+  }
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
 
   // Define locks dynamically based on student progression level
   const isL2Unlocked = ["Explorer", "Expert", "Master IC3"].includes(currentStudent.level);
@@ -421,6 +443,10 @@ function renderWorldMap() {
 let currentSelectedSkillNode = "basics";
 
 function renderSkillTree() {
+  if (!currentStudent) {
+    console.warn("Student data not ready for skill tree");
+    return;
+  }
   if (!currentStudent.unlockedLessons) {
     currentStudent.unlockedLessons = ["lesson_l1_1"];
   }
@@ -632,11 +658,11 @@ function watchLessonVideo(nodeId) {
     currentStudent.exp += 10;
     
     // Save to Database
-    const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
 
     alert("🎉 Bạn đã tiếp thu kiến thức thành công và được cộng thêm +10 EXP thám hiểm!");
@@ -666,11 +692,11 @@ function submitSkillQuiz(nodeId) {
     }
 
     // Save student profile
-    const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
 
     loadStudentProfile();
@@ -829,11 +855,11 @@ function selectInventoryCompanion(pokeId) {
   currentStudent.pokemon = pokeId;
   
   // Save changes to database
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
   alert(`🎉 Đã đổi Pokémon đồng hành thành công! Thần thú hiện tại của bạn là ${pokeId.toUpperCase()}.`);
@@ -861,11 +887,11 @@ function useInventoryItem(itemIndex) {
     currentStudent.ownedItems.splice(itemIndex, 1);
 
     // Save profile
-    const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
 
     alert(`🎁 BẠN ĐÃ MỞ HỘP QUÀ MAY MẮN THÀNH CÔNG!\nHộp quà chứa: ${chosen.msg}`);
@@ -908,11 +934,11 @@ function triggerEvolvePokemon() {
   }
 
   // Save changes
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
   alert(`🔮 TIẾN HÓA THẦN THỨ THÀNH CÔNG! 🔮\n\nChúc mừng thám hiểm giả! Pokémon và trình độ kiến thức của bạn đã thăng cấp thành công từ ${previousLevel.toUpperCase()} lên ${nextLevelName.toUpperCase()}!\n\nGiao diện thám hiểm, bảng xếp hạng và danh hiệu vương giả mới đã được cập nhật!`);
@@ -995,14 +1021,14 @@ function startTest(testId, mode = "practice") {
   isReviewingExam = false;
   examUserAnswers = [];
 
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   activePlayingTest = tests.find(t => t.id === testId);
   if (!activePlayingTest) return;
 
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS);
+  const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   
   // Filter questions that are in the test list
-  testQuestions = questions.filter(q => activePlayingTest.questions.includes(q.id));
+  testQuestions = allQuestions.filter(q => activePlayingTest.questions.includes(q.id));
   
   if (testQuestions.length === 0) {
     alert("Lỗi: Bài kiểm tra này chưa được cài đặt câu hỏi. Vui lòng thử lại sau!");
@@ -2338,15 +2364,15 @@ function finishTest() {
   }
 
   // Save student stats to LocalStorage
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
   // Save score log entry
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES);
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   const now = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   const formattedDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -2367,7 +2393,7 @@ function finishTest() {
   };
 
   scores.push(scoreEntry);
-  IC3_DB.setData(IC3_DB.KEYS.SCORES, scores);
+  window.saveData(window.IC3_KEYS.SCORES, scores);
 
   // Render Victory Overlay Screen
   showVictoryScreen(score, expGained, coinsGained, levelUp);
@@ -2400,7 +2426,7 @@ function closeVictoryScreen() {
 
 // ==================== STORE & SHOPPING ENGINE ====================
 function renderRewardsStore() {
-  const rewards = IC3_DB.getData(IC3_DB.KEYS.REWARDS);
+  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
   const grid = document.getElementById("student-rewards-store-grid");
   grid.innerHTML = "";
 
@@ -2474,11 +2500,11 @@ function buyStoreItem(id, cost, type) {
     }
 
     // Save updated student stats
-    const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
 
     loadStudentProfile();
@@ -2489,9 +2515,9 @@ function buyStoreItem(id, cost, type) {
 
 // ==================== HISTORY LOG ENGINE ====================
 function renderScoresHistory() {
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES);
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   const studentScores = scores.filter(s => s.studentEmail === currentStudent.email);
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
 
   const body = document.getElementById("student-scores-table-body");
   body.innerHTML = "";
@@ -2579,11 +2605,11 @@ function selectPokemonAvatar(pokeId) {
   currentStudent.pokemon = pokeId;
   
   // Save to database
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
   loadStudentProfile();
@@ -2597,8 +2623,8 @@ function closePokemonSelectorModal() {
 
 // ==================== RENDERING: LEADERBOARD ====================
 function renderLeaderboard() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
 
   // Sort by exp descending
   const sortedStudents = [...students].sort((a, b) => (b.exp || 0) - (a.exp || 0));
@@ -2730,7 +2756,7 @@ function renderBadges() {
   ];
 
   // Dynamically evaluate badges unlocked status
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES) || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
   const myScores = scores.filter(s => s.studentEmail === currentStudent.email);
   
   const hasFirstTest = myScores.length > 0;
@@ -2742,7 +2768,7 @@ function renderBadges() {
   }
   const hasPokemonCollector = currentStudent.unlockedPokemons.length > 3;
 
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const level3TestsIds = tests.filter(t => t.level === "level_3").map(t => t.id);
   const hasIC3Master = myScores.some(s => level3TestsIds.includes(s.testId) && s.score >= 50);
 
@@ -2758,11 +2784,11 @@ function renderBadges() {
 
   // Keep database in sync
   currentStudent.badges = unlockedBadges;
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx].badges = unlockedBadges;
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
   allBadgesDef.forEach(b => {

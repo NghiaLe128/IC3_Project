@@ -6,7 +6,7 @@ let activeClassId = "";
 let activeQuestionId = ""; // Track selected question in manage-tests tab
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (window.IC3_DB && window.IC3_DB.getData('users').length > 0) {
+  if (window.IC3_CACHE && window.IC3_CACHE.users && window.IC3_CACHE.users.length > 0) {
     startTeacherApp();
   } else {
     window.addEventListener('ic3-db-ready', startTeacherApp);
@@ -25,7 +25,7 @@ function startTeacherApp() {
 
 // 1. Auth Validation
 function checkTeacherAuth() {
-  const currentUser = IC3_DB.getCurrentUser();
+  const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   if (!currentUser || currentUser.role !== "teacher") {
     alert("Bạn không có quyền truy cập trang Giáo viên. Vui lòng đăng nhập bằng tài khoản Giáo viên!");
     window.location.href = "../index.html";
@@ -49,14 +49,14 @@ function initClock() {
 }
 
 function logoutTeacher() {
-  IC3_DB.logout();
+  window.logoutUser();
   window.location.href = "../index.html";
 }
 
 // 3. Class selection control
 function initClassSelector() {
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES) || [];
-  const teacher = IC3_DB.getCurrentUser();
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
+  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   
   // Filter classes belonging to this teacher
   const teacherClasses = classes.filter(c => c.teacherEmail === teacher.email);
@@ -117,18 +117,18 @@ function switchTab(tabId) {
 
 // ==================== OVERVIEW RENDERING ====================
 function renderOverview() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const classStudents = students.filter(s => s.classId === activeClassId);
 
   // 1. Total students
   document.getElementById("overview-students-count").innerText = `${classStudents.length} học sinh`;
 
   // 2. Total test count
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   document.getElementById("overview-tests-count").innerText = `${tests.length} bài kiểm tra`;
 
   // 3. Completion Rate Calculation (Passed tests / Total tests * 100)
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES) || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
   const classStudentEmails = classStudents.map(s => s.email);
   const classScores = scores.filter(sc => classStudentEmails.includes(sc.studentEmail));
   
@@ -154,14 +154,14 @@ function renderOverview() {
 }
 
 function renderClassesGrid() {
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES) || [];
-  const teacher = IC3_DB.getCurrentUser();
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
+  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   const teacherClasses = classes.filter(c => c.teacherEmail === teacher.email);
   
   const gridEl = document.getElementById("teacher-classes-grid");
   gridEl.innerHTML = "";
 
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
 
   teacherClasses.forEach(c => {
     const classSize = students.filter(s => s.classId === c.id).length;
@@ -239,7 +239,7 @@ function renderOverviewProgressTable(classStudents) {
 
 // ==================== STUDENTS LIST TAB ====================
 function renderClassStudentsTable() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const classStudents = students.filter(s => s.classId === activeClassId);
 
   // Populate filter dropdown with unique school classes
@@ -256,7 +256,7 @@ function renderClassStudentsTable() {
     return;
   }
 
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES) || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
 
   filteredStudents.forEach(std => {
     // Count success tests (>=50)
@@ -318,8 +318,8 @@ function importStudentsExcel(e) {
       const worksheet = workbook.Sheets[firstSheetName];
       const json = XLSX.utils.sheet_to_json(worksheet);
       
-      const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
-      const users = IC3_DB.getData(IC3_DB.KEYS.USERS) || [];
+      const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
+      const users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [] || [];
       let count = 0;
 
       json.forEach(row => {
@@ -360,8 +360,8 @@ function importStudentsExcel(e) {
         }
       });
       
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
-      IC3_DB.setData(IC3_DB.KEYS.USERS, users);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.USERS, users);
       
       alert(`Đã nhập thành công ${count} học sinh từ file Excel! Mật khẩu đăng nhập mặc định của các em là: 123456`);
       renderClassStudentsTable();
@@ -380,7 +380,7 @@ function openAddStudentToClassModal() {
     return;
   }
   const modal = document.getElementById("addStudentToClassModal");
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   
   // Find students who are NOT in this class yet
   const availableStudents = students.filter(s => s.classId !== activeClassId);
@@ -410,11 +410,11 @@ function handleStudentToClassSubmit(e) {
     return;
   }
 
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const idx = students.findIndex(s => s.email === email);
   if (idx !== -1) {
     students[idx].classId = activeClassId;
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
   closeAddStudentToClassModal();
@@ -424,11 +424,11 @@ function handleStudentToClassSubmit(e) {
 
 function removeStudentFromClass(email) {
   if (confirm(`Bạn muốn đưa học sinh ${email} ra khỏi lớp học này?`)) {
-    const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
     const idx = students.findIndex(s => s.email === email);
     if (idx !== -1) {
       students[idx].classId = ""; // No class assigned
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
     renderOverview();
     renderClassStudentsTable();
@@ -437,7 +437,7 @@ function removeStudentFromClass(email) {
 
 // ==================== POPUP MODAL: STUDENT DETAILS & HISTORY ====================
 function openStudentDetailsModal(studentEmail) {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const student = students.find(s => s.email === studentEmail);
   if (!student) {
     alert("Không tìm thấy thông tin học sinh!");
@@ -458,9 +458,9 @@ function openStudentDetailsModal(studentEmail) {
   document.getElementById("detail-student-rank").innerText = `Hạng: ${student.rank || "Bronze"}`;
   document.getElementById("detail-student-school").innerText = `Trường: ${student.schoolClass || "Chưa có"}`;
 
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES) || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
   const studentScores = scores.filter(s => s.studentEmail === studentEmail);
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
 
   // Lịch sử làm bài thi
   const attemptsTbody = document.getElementById("detail-attempts-tbody");
@@ -568,7 +568,7 @@ function onBlockSelectionChange() {
   testSelectorContainer.classList.remove("hidden");
 
   // Fetch tests for this block
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   
   // Ensure we migrate any existing tests without a blockId to the corresponding block
   tests.forEach(t => {
@@ -579,7 +579,7 @@ function onBlockSelectionChange() {
       else t.blockId = "block_level_1"; // Default fall-back
     }
   });
-  IC3_DB.setData(IC3_DB.KEYS.TESTS, tests);
+  window.saveData(window.IC3_KEYS.TESTS, tests);
 
   const blockTests = tests.filter(t => t.blockId === blockId);
   const testSelector = document.getElementById("m-testSelector");
@@ -617,11 +617,11 @@ function renderQuestionsList() {
   const listContainer = document.getElementById("m-questionsList");
   listContainer.innerHTML = "";
 
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const test = tests.find(t => t.id === testId);
   if (!test) return;
 
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS) || [];
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
   const testQuestions = questions.filter(q => test.questions.includes(q.id));
 
   const filteredQuestions = typeFilter ? testQuestions.filter(q => q.type === typeFilter) : testQuestions;
@@ -671,7 +671,7 @@ function selectActiveQuestion(qId) {
     activeBtn.classList.add("bg-indigo-50/50", "border-indigo-100");
   }
 
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS) || [];
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
   const q = questions.find(item => item.id === qId);
   if (!q) return;
 
@@ -857,7 +857,7 @@ function setupNewQuestionForm() {
     return;
   }
 
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const test = tests.find(t => t.id === testId);
 
   document.getElementById("view-placeholder").classList.add("hidden");
@@ -887,7 +887,7 @@ function setupNewQuestionForm() {
 function enableQuestionEditing() {
   if (!activeQuestionId) return;
 
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS) || [];
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
   const q = questions.find(item => item.id === activeQuestionId);
   if (!q) return;
 
@@ -1288,7 +1288,7 @@ async function handleQuestionFormSubmit(e) {
   let imageBase64 = imageInput ? imageInput.value.trim() : null;
   const level = "level_1"; // Default to level_1 as we removed the level selector
 
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS) || [];
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
   const testId = document.getElementById("m-testSelector").value;
 
   let finalId = id;
@@ -1364,12 +1364,12 @@ async function handleQuestionFormSubmit(e) {
   if (isNew) {
     questions.push(qObj);
     // Link to active test set
-    const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
     const idx = tests.findIndex(t => t.id === testId);
     if (idx !== -1) {
       tests[idx].questions.push(finalId);
       tests[idx].questionCount = tests[idx].questions.length;
-      IC3_DB.setData(IC3_DB.KEYS.TESTS, tests);
+      window.saveData(window.IC3_KEYS.TESTS, tests);
     }
   } else {
     const idx = questions.findIndex(item => item.id === finalId);
@@ -1380,7 +1380,7 @@ async function handleQuestionFormSubmit(e) {
     }
   }
 
-  IC3_DB.setData(IC3_DB.KEYS.QUESTIONS, questions);
+  window.saveData(window.IC3_KEYS.QUESTIONS, questions);
   alert("Lưu câu hỏi thám hiểm thành công!");
 
   renderQuestionsList();
@@ -1391,17 +1391,17 @@ function deleteCurrentQuestion() {
   if (!activeQuestionId) return;
 
   if (confirm("Bạn có chắc chắn muốn xóa câu hỏi này ra khỏi bộ đề thám hiểm?")) {
-    const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS) || [];
+    const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
     const filteredQuestions = questions.filter(q => q.id !== activeQuestionId);
-    IC3_DB.setData(IC3_DB.KEYS.QUESTIONS, filteredQuestions);
+    window.saveData(window.IC3_KEYS.QUESTIONS, filteredQuestions);
 
     const testId = document.getElementById("m-testSelector").value;
-    const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
     const tIdx = tests.findIndex(t => t.id === testId);
     if (tIdx !== -1) {
       tests[tIdx].questions = tests[tIdx].questions.filter(id => id !== activeQuestionId);
       tests[tIdx].questionCount = tests[tIdx].questions.length;
-      IC3_DB.setData(IC3_DB.KEYS.TESTS, tests);
+      window.saveData(window.IC3_KEYS.TESTS, tests);
     }
 
     alert("Đã xóa câu hỏi thành công!");
@@ -1489,9 +1489,9 @@ function deleteCurrentBlock() {
     saveBlocks(blocks);
 
     // Delete associated tests
-    const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
     const remainingTests = tests.filter(t => t.blockId !== blockId);
-    IC3_DB.setData(IC3_DB.KEYS.TESTS, remainingTests);
+    window.saveData(window.IC3_KEYS.TESTS, remainingTests);
 
     alert("Đã xóa khối lớp thành công!");
     initManageTestsTab();
@@ -1514,7 +1514,7 @@ function openTestSetModal(action) {
       alert("Vui lòng chọn bộ đề cần sửa!");
       return;
     }
-    const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
     const test = tests.find(t => t.id === testId);
     if (!test) return;
 
@@ -1540,7 +1540,7 @@ function handleTestSetFormSubmit(e) {
   const title = document.getElementById("testSetTitleInput").value.trim();
   const duration = parseInt(document.getElementById("testSetDurationInput").value) || 15;
 
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const activeBlockId = document.getElementById("m-blockSelector").value;
 
   // Map block level identifiers for backward compatibility inside student zones
@@ -1565,7 +1565,7 @@ function handleTestSetFormSubmit(e) {
       questions: [],
       questionCount: 0,
       scoreVal: 100,
-      createdBY: IC3_DB.getCurrentUser().email
+      createdBY: JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)).email
     });
   } else {
     const idx = tests.findIndex(t => t.id === id);
@@ -1576,7 +1576,7 @@ function handleTestSetFormSubmit(e) {
     }
   }
 
-  IC3_DB.setData(IC3_DB.KEYS.TESTS, tests);
+  window.saveData(window.IC3_KEYS.TESTS, tests);
   closeTestSetModal();
   
   // Reload block tests
@@ -1595,9 +1595,9 @@ function deleteCurrentTestSet() {
   }
 
   if (confirm("Bạn có chắc chắn muốn xóa bộ đề thám hiểm này? Mọi liên kết và câu hỏi đi kèm sẽ bị gỡ bỏ.")) {
-    const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
     const remainingTests = tests.filter(t => t.id !== testId);
-    IC3_DB.setData(IC3_DB.KEYS.TESTS, remainingTests);
+    window.saveData(window.IC3_KEYS.TESTS, remainingTests);
 
     alert("Đã xóa bộ đề thành công!");
     onBlockSelectionChange();
@@ -1607,13 +1607,13 @@ function deleteCurrentTestSet() {
 
 // ==================== RESULTS HISTORY ====================
 function renderResultsTable() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const classStudents = students.filter(s => s.classId === activeClassId);
   const emails = classStudents.map(s => s.email);
 
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES) || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
   const classScores = scores.filter(sc => emails.includes(sc.studentEmail));
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS) || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
 
   const body = document.getElementById("teacher-results-table-body");
   body.innerHTML = "";
@@ -1659,7 +1659,7 @@ function renderResultsTable() {
 
 // ==================== CLASS RANKING ====================
 function renderClassRanking() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS) || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const classStudents = students.filter(s => s.classId === activeClassId);
   const leaderboardEl = document.getElementById("class-ranking-leaderboard");
   leaderboardEl.innerHTML = "";
@@ -1727,9 +1727,9 @@ function handleClassSubmit(e) {
   e.preventDefault();
   const id = document.getElementById("classIdInput").value.trim().toLowerCase();
   const name = document.getElementById("classNameInput").value.trim();
-  const teacher = IC3_DB.getCurrentUser();
+  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
 
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES) || [];
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
   if (classes.some(c => c.id === id)) {
     alert("Mã định danh lớp học này đã bị trùng!");
     return;
@@ -1743,7 +1743,7 @@ function handleClassSubmit(e) {
   };
 
   classes.push(newClass);
-  IC3_DB.setData(IC3_DB.KEYS.CLASSES, classes);
+  window.saveData(window.IC3_KEYS.CLASSES, classes);
 
   closeClassModal();
   initClassSelector();

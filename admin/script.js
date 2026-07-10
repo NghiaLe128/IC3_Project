@@ -4,7 +4,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   // Wait for Cloud DB to be ready
-  if (window.IC3_DB && window.IC3_DB.getData('users').length > 0) {
+  if (window.IC3_CACHE && window.IC3_CACHE.users && window.IC3_CACHE.users.length > 0) {
     startAdminApp();
   } else {
     window.addEventListener('ic3-db-ready', startAdminApp);
@@ -26,7 +26,7 @@ function startAdminApp() {
 
 // 1. Auth check
 function checkAdminAuth() {
-  const currentUser = IC3_DB.getCurrentUser();
+  const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   if (!currentUser || currentUser.role !== "admin") {
     alert("Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản Admin!");
     window.location.href = "../index.html";
@@ -52,7 +52,7 @@ function initClock() {
 
 // Logout
 function logoutAdmin() {
-  IC3_DB.logout();
+  window.logoutUser();
   window.location.href = "../index.html";
 }
 
@@ -99,10 +99,10 @@ function switchTab(tabId) {
 
 // 4. Dashboard Data rendering
 function initDashboard() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
-  const teachers = IC3_DB.getData(IC3_DB.KEYS.TEACHERS);
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
-  const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
 
   // Update counters
   document.getElementById("stat-students-count").innerText = students.length;
@@ -205,9 +205,9 @@ function renderDashboardRecentScores(scores, students, tests) {
 
 // ==================== STUDENTS (CRUD) OPERATIONS ====================
 function renderStudentsTable() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const searchQuery = document.getElementById("searchStudent").value.trim().toLowerCase();
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES);
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
 
   const tableBody = document.getElementById("students-table-body");
   tableBody.innerHTML = "";
@@ -234,7 +234,7 @@ function renderStudentsTable() {
     const cls = classes.find(c => c.id === std.classId) || { name: "Chưa phân lớp" };
     
     // Count successful test results (score >= 50)
-    const scores = IC3_DB.getData(IC3_DB.KEYS.SCORES);
+    const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
     const passedCount = scores.filter(s => s.studentEmail === std.email && s.score >= 50).length;
 
     const tr = document.createElement("tr");
@@ -282,7 +282,7 @@ function openStudentModal(isEdit = false, studentEmail = "") {
   const emailInput = document.getElementById("studentEmailInput");
 
   // Populate classes dropdown
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES);
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
   const classSelect = document.getElementById("studentClassInput");
   classSelect.innerHTML = "";
   classes.forEach(c => {
@@ -291,7 +291,7 @@ function openStudentModal(isEdit = false, studentEmail = "") {
 
   if (isEdit) {
     title.innerText = "Chỉnh sửa thông tin học sinh";
-    const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
     const std = students.find(s => s.email === studentEmail);
     if (std) {
       document.getElementById("studentEditEmail").value = std.email;
@@ -326,8 +326,8 @@ function handleStudentSubmit(e) {
   const classId = document.getElementById("studentClassInput").value;
   const pokemon = document.getElementById("studentPokemonInput").value;
 
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
-  const users = IC3_DB.getData(IC3_DB.KEYS.USERS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
 
   if (editEmail) {
     // Edit mode
@@ -336,14 +336,14 @@ function handleStudentSubmit(e) {
       students[idx].name = name;
       students[idx].classId = classId;
       students[idx].pokemon = pokemon;
-      IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
 
       // Optionally update name/password in users
       const uIdx = users.findIndex(u => u.email === editEmail);
       if (uIdx !== -1) {
         users[uIdx].name = name;
         if (password) users[uIdx].password = password;
-        IC3_DB.setData(IC3_DB.KEYS.USERS, users);
+        window.saveData(window.IC3_KEYS.USERS, users);
       }
     }
   } else {
@@ -368,7 +368,7 @@ function handleStudentSubmit(e) {
       unlockedZones: ["level_1"]
     };
     students.push(newStudent);
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
 
     const newUser = {
       email,
@@ -377,7 +377,7 @@ function handleStudentSubmit(e) {
       name
     };
     users.push(newUser);
-    IC3_DB.setData(IC3_DB.KEYS.USERS, users);
+    window.saveData(window.IC3_KEYS.USERS, users);
   }
 
   closeStudentModal();
@@ -390,17 +390,17 @@ function editStudent(email) {
 
 function deleteStudent(email) {
   if (confirm(`Bạn có chắc chắn muốn xóa học sinh ${email} và mọi lịch sử liên quan?`)) {
-    let students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
-    let users = IC3_DB.getData(IC3_DB.KEYS.USERS);
-    let scores = IC3_DB.getData(IC3_DB.KEYS.SCORES);
+    let students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+    let users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
+    let scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
 
     students = students.filter(s => s.email !== email);
     users = users.filter(u => u.email !== email);
     scores = scores.filter(sc => sc.studentEmail !== email);
 
-    IC3_DB.setData(IC3_DB.KEYS.STUDENTS, students);
-    IC3_DB.setData(IC3_DB.KEYS.USERS, users);
-    IC3_DB.setData(IC3_DB.KEYS.SCORES, scores);
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.USERS, users);
+    window.saveData(window.IC3_KEYS.SCORES, scores);
 
     renderStudentsTable();
   }
@@ -409,8 +409,8 @@ function deleteStudent(email) {
 
 // ==================== TEACHERS (CRUD) OPERATIONS ====================
 function renderTeachersGrid() {
-  const teachers = IC3_DB.getData(IC3_DB.KEYS.TEACHERS);
-  const classes = IC3_DB.getData(IC3_DB.KEYS.CLASSES);
+  const teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
   const gridEl = document.getElementById("teachers-grid");
   gridEl.innerHTML = "";
 
@@ -474,8 +474,8 @@ function handleTeacherSubmit(e) {
   const password = document.getElementById("teacherPasswordInput").value;
   const name = document.getElementById("teacherNameInput").value.trim();
 
-  const teachers = IC3_DB.getData(IC3_DB.KEYS.TEACHERS);
-  const users = IC3_DB.getData(IC3_DB.KEYS.USERS);
+  const teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+  const users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
 
   if (teachers.some(t => t.email === email)) {
     alert("Giáo viên này đã tồn tại trong hệ thống!");
@@ -490,7 +490,7 @@ function handleTeacherSubmit(e) {
     classes: []
   };
   teachers.push(newTeacher);
-  IC3_DB.setData(IC3_DB.KEYS.TEACHERS, teachers);
+  window.saveData(window.IC3_KEYS.TEACHERS, teachers);
 
   // Save auth user
   const newUser = {
@@ -500,7 +500,7 @@ function handleTeacherSubmit(e) {
     name
   };
   users.push(newUser);
-  IC3_DB.setData(IC3_DB.KEYS.USERS, users);
+  window.saveData(window.IC3_KEYS.USERS, users);
 
   closeTeacherModal();
   renderTeachersGrid();
@@ -508,14 +508,14 @@ function handleTeacherSubmit(e) {
 
 function deleteTeacher(email) {
   if (confirm(`Bạn có chắc chắn muốn xóa giáo viên ${email}?`)) {
-    let teachers = IC3_DB.getData(IC3_DB.KEYS.TEACHERS);
-    let users = IC3_DB.getData(IC3_DB.KEYS.USERS);
+    let teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+    let users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
 
     teachers = teachers.filter(t => t.email !== email);
     users = users.filter(u => u.email !== email);
 
-    IC3_DB.setData(IC3_DB.KEYS.TEACHERS, teachers);
-    IC3_DB.setData(IC3_DB.KEYS.USERS, users);
+    window.saveData(window.IC3_KEYS.TEACHERS, teachers);
+    window.saveData(window.IC3_KEYS.USERS, users);
 
     renderTeachersGrid();
   }
@@ -524,7 +524,7 @@ function deleteTeacher(email) {
 
 // ==================== QUESTIONS BANK (IC3-LEVELS) OPERATIONS ====================
 function updateLevelsQuestionCount() {
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS);
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   const countL1 = questions.filter(q => q.level === "level_1").length;
   const countL2 = questions.filter(q => q.level === "level_2").length;
   const countL3 = questions.filter(q => q.level === "level_3").length;
@@ -535,7 +535,7 @@ function updateLevelsQuestionCount() {
 }
 
 function renderQuestionsTable() {
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS);
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   const tableBody = document.getElementById("questions-table-body");
   tableBody.innerHTML = "";
 
@@ -619,7 +619,7 @@ function handleQuestionSubmit(e) {
   const answer = document.getElementById("questionAnswerInput").value.trim();
   const explanation = document.getElementById("questionExplanationInput").value.trim();
 
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS);
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   
   // Generate safe numeric-based ID
   const newId = `q_custom_${Date.now().toString().slice(-6)}`;
@@ -645,7 +645,7 @@ function handleQuestionSubmit(e) {
   }
 
   questions.push(newQuestion);
-  IC3_DB.setData(IC3_DB.KEYS.QUESTIONS, questions);
+  window.saveData(window.IC3_KEYS.QUESTIONS, questions);
 
   closeQuestionModal();
   renderQuestionsTable();
@@ -654,9 +654,9 @@ function handleQuestionSubmit(e) {
 
 function deleteQuestion(id) {
   if (confirm(`Bạn muốn xóa câu hỏi ${id} khỏi kho dữ liệu?`)) {
-    let questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS);
+    let questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
     questions = questions.filter(q => q.id !== id);
-    IC3_DB.setData(IC3_DB.KEYS.QUESTIONS, questions);
+    window.saveData(window.IC3_KEYS.QUESTIONS, questions);
     
     renderQuestionsTable();
     updateLevelsQuestionCount();
@@ -666,7 +666,7 @@ function deleteQuestion(id) {
 
 // ==================== TESTS SECTION ====================
 function renderTestsGrid() {
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const gridEl = document.getElementById("tests-list-grid");
   gridEl.innerHTML = "";
 
@@ -723,7 +723,7 @@ function closeTestModal() {
 
 function filterQuestionsForTestSelection() {
   const level = document.getElementById("testLevelInput").value;
-  const questions = IC3_DB.getData(IC3_DB.KEYS.QUESTIONS);
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   const select = document.getElementById("testQuestionsInput");
   select.innerHTML = "";
 
@@ -752,7 +752,7 @@ function handleTestSubmit(e) {
     return;
   }
 
-  const tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const newId = `test_custom_${Date.now().toString().slice(-6)}`;
 
   const newTest = {
@@ -763,11 +763,11 @@ function handleTestSubmit(e) {
     questionCount: selectedQuestions.length,
     questions: selectedQuestions,
     scoreVal: 100,
-    createdBY: IC3_DB.getCurrentUser().email
+    createdBY: JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)).email
   };
 
   tests.push(newTest);
-  IC3_DB.setData(IC3_DB.KEYS.TESTS, tests);
+  window.saveData(window.IC3_KEYS.TESTS, tests);
 
   closeTestModal();
   renderTestsGrid();
@@ -775,9 +775,9 @@ function handleTestSubmit(e) {
 
 function deleteTest(id) {
   if (confirm("Xóa đề kiểm tra này khỏi danh sách?")) {
-    let tests = IC3_DB.getData(IC3_DB.KEYS.TESTS);
+    let tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
     tests = tests.filter(t => t.id !== id);
-    IC3_DB.setData(IC3_DB.KEYS.TESTS, tests);
+    window.saveData(window.IC3_KEYS.TESTS, tests);
     renderTestsGrid();
   }
 }
@@ -785,7 +785,7 @@ function deleteTest(id) {
 
 // ==================== RANKINGS SECTION ====================
 function renderRankingList() {
-  const students = IC3_DB.getData(IC3_DB.KEYS.STUDENTS);
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const listEl = document.getElementById("ranking-list-full");
   listEl.innerHTML = "";
 
@@ -857,7 +857,7 @@ function renderRankingList() {
 
 // ==================== REWARDS SECTION ====================
 function renderRewardsGrid() {
-  const rewards = IC3_DB.getData(IC3_DB.KEYS.REWARDS);
+  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
   const gridEl = document.getElementById("admin-rewards-grid");
   gridEl.innerHTML = "";
 
@@ -914,7 +914,7 @@ function handleRewardSubmit(e) {
   const image = document.getElementById("rewardImageInput").value.trim();
   const desc = document.getElementById("rewardDescInput").value.trim();
 
-  const rewards = IC3_DB.getData(IC3_DB.KEYS.REWARDS);
+  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
   const newId = `reward_custom_${Date.now().toString().slice(-6)}`;
 
   const newReward = {
@@ -927,7 +927,7 @@ function handleRewardSubmit(e) {
   };
 
   rewards.push(newReward);
-  IC3_DB.setData(IC3_DB.KEYS.REWARDS, rewards);
+  window.saveData(window.IC3_KEYS.REWARDS, rewards);
 
   closeRewardModal();
   renderRewardsGrid();
@@ -935,9 +935,9 @@ function handleRewardSubmit(e) {
 
 function deleteReward(id) {
   if (confirm("Bạn có muốn xóa phần quà này khỏi danh sách cửa hàng đổi điểm?")) {
-    let rewards = IC3_DB.getData(IC3_DB.KEYS.REWARDS);
+    let rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
     rewards = rewards.filter(r => r.id !== id);
-    IC3_DB.setData(IC3_DB.KEYS.REWARDS, rewards);
+    window.saveData(window.IC3_KEYS.REWARDS, rewards);
     renderRewardsGrid();
   }
 }
@@ -947,7 +947,7 @@ function deleteReward(id) {
 function resetDatabaseToDefault() {
   if (confirm("CẢNH BÁO: Thao tác này sẽ xóa mọi dữ liệu tùy chỉnh hiện tại và khôi phục lại cấu trúc cơ sở dữ liệu mẫu gốc ban đầu của IC3 LMS. Bạn có chắc chắn muốn tiếp tục không?")) {
     localStorage.clear();
-    IC3_DB.init();
+    
     alert("Khôi phục cơ sở dữ liệu thành công! Trang web sẽ tự động tải lại.");
     window.location.reload();
   }
