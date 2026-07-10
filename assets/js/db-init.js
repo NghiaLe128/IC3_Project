@@ -454,36 +454,544 @@ async function seedGradeLevelTests() {
       explanation: "Để bảo vệ máy tính khỏi virus, không mở tệp lạ từ người lạ gửi đến."
     },
 
-    // Khối 6 (Grade 6) Questions
+    // Khối 6 (Grade 6) - Ôn tập 1: Cơ bản về máy tính (Computing Fundamentals)
     {
-      id: "q_g6_1",
+      id: "q_g6_ot1_1",
       level: "Explorer",
       type: "choice",
-      question: "Thiết bị nào có nhiệm vụ kết nối các máy tính trong một mạng cục bộ (LAN)?",
-      options: ["CPU", "Switch / Hub", "Máy in", "Loa"],
+      question: "Thiết bị nào sau đây là thiết bị nhập (Input Device)?",
+      options: ["Màn hình", "Bàn phím", "Máy in", "Loa"],
       correctIndex: 1,
-      answer: "Switch / Hub",
-      explanation: "Switch hoặc Hub là thiết bị phần cứng kết nối các máy tính trong cùng một mạng LAN."
+      answer: "Bàn phím",
+      explanation: "Bàn phím được dùng để nhập dữ liệu ký tự và lệnh vào máy tính."
     },
     {
-      id: "q_g6_2",
+      id: "q_g6_ot1_2",
       level: "Explorer",
       type: "choice",
-      question: "Đuôi mở rộng nào sau đây thường là của tệp tin hình ảnh?",
-      options: [".docx", ".mp3", ".png", ".xlsx"],
+      question: "Đuôi tệp mở rộng nào dưới đây thường thuộc về tài liệu Word?",
+      options: [".xlsx", ".pptx", ".docx", ".pdf"],
       correctIndex: 2,
-      answer: ".png",
-      explanation: ".png (hoặc .jpg, .gif) là định dạng file ảnh phổ biến."
+      answer: ".docx",
+      explanation: ".docx là phần mở rộng mặc định của tài liệu Microsoft Word từ phiên bản 2007 trở đi."
     },
     {
-      id: "q_g6_3",
+      id: "q_g6_ot1_3",
       level: "Explorer",
       type: "choice",
-      question: "Hệ điều hành làm nhiệm vụ gì trong máy tính?",
-      options: ["Chỉ để chơi game", "Quản lý phần cứng và cung cấp môi trường chạy ứng dụng", "Chỉ để soạn thảo văn bản", "Bảo vệ máy tính khỏi bụi bẩn"],
+      question: "Thiết bị nào sau đây vừa là thiết bị nhập vừa là thiết bị xuất?",
+      options: ["Chuột máy tính", "Màn hình cảm ứng", "Bàn phím", "Máy quét (Scanner)"],
       correctIndex: 1,
-      answer: "Quản lý phần cứng và cung cấp môi trường chạy ứng dụng",
-      explanation: "Hệ điều hành quản lý mọi tài nguyên phần cứng, phần mềm và điều phối hoạt động chung của máy tính."
+      answer: "Màn hình cảm ứng",
+      explanation: "Màn hình cảm ứng nhận diện cú chạm để nhập dữ liệu và đồng thời hiển thị kết quả hình ảnh ra ngoài."
+    },
+    {
+      id: "q_g6_ot1_4",
+      level: "Explorer",
+      type: "choice",
+      question: "Hệ điều hành Windows và macOS là các phần mềm ứng dụng dùng để soạn thảo văn bản đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 1,
+      answer: "Sai",
+      explanation: "Windows và macOS là các hệ điều hành (phần mềm hệ thống) quản lý máy tính, không phải là phần mềm ứng dụng soạn thảo văn bản."
+    },
+    {
+      id: "q_g6_ot1_5",
+      level: "Explorer",
+      type: "fill_blank",
+      question: "Trong số các đơn vị sau: KB, MB, GB, TB. Đâu là đơn vị đo dung lượng lưu trữ nhỏ nhất?",
+      answer: "KB",
+      explanation: "KB (Kilobyte) là đơn vị nhỏ nhất trong các đơn vị được liệt kê (1 TB > 1 GB > 1 MB > 1 KB)."
+    },
+    {
+      id: "q_g6_ot1_6",
+      level: "Explorer",
+      type: "choice",
+      question: "RAM (Random Access Memory) là loại bộ nhớ như thế nào?",
+      options: [
+        "Bộ nhớ lưu trữ dữ liệu lâu dài ngay cả khi mất điện",
+        "Bộ nhớ truy cập ngẫu nhiên tạm thời, dữ liệu sẽ mất sạch khi tắt máy",
+        "Bộ nhớ chỉ đọc không thể thay đổi dữ liệu bên trong",
+        "Bộ nhớ dành riêng cho chuột và bàn phím"
+      ],
+      correctIndex: 1,
+      answer: "Bộ nhớ truy cập ngẫu nhiên tạm thời, dữ liệu sẽ mất sạch khi tắt máy",
+      explanation: "RAM là bộ nhớ tạm thời dùng để chứa dữ liệu các chương trình đang hoạt động, dữ liệu sẽ bị xóa hoàn toàn khi máy ngắt nguồn điện."
+    },
+    {
+      id: "q_g6_ot1_7",
+      level: "Explorer",
+      type: "choice",
+      question: "Bộ xử lý trung tâm CPU thường được ví như bộ phận nào trên cơ thể con người?",
+      options: ["Trái tim", "Đôi mắt", "Bộ não", "Bàn tay"],
+      correctIndex: 2,
+      answer: "Bộ não",
+      explanation: "CPU (Central Processing Unit) là bộ xử lý trung tâm, chịu trách nhiệm tính toán, xử lý và điều khiển mọi hoạt động giống như bộ não con người."
+    },
+    {
+      id: "q_g6_ot1_8",
+      level: "Explorer",
+      type: "choice",
+      question: "Để tắt máy tính an toàn và đúng cách, thao tác chuẩn nhất là:",
+      options: [
+        "Rút trực tiếp dây cắm nguồn điện ra khỏi ổ cắm",
+        "Nhấn và giữ chặt nút nguồn vật lý trên thùng máy",
+        "Nhấp chọn Menu Start rồi chọn Shut down",
+        "Chỉ cần tắt màn hình máy tính là được"
+      ],
+      correctIndex: 2,
+      answer: "Nhấp chọn Menu Start rồi chọn Shut down",
+      explanation: "Sử dụng tính năng Shut down tích hợp sẵn giúp hệ điều hành lưu trạng thái, tắt các chương trình an toàn rồi mới ngắt nguồn."
+    },
+    {
+      id: "q_g6_ot1_9",
+      level: "Explorer",
+      type: "choice",
+      question: "Phần cứng (Hardware) bao gồm tất cả các chương trình và ứng dụng chạy trên máy tính đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 1,
+      answer: "Sai",
+      explanation: "Phần cứng là các linh kiện vật lý cầm nắm được (CPU, RAM, chuột, bàn phím). Các chương trình chạy trên máy tính là Phần mềm (Software)."
+    },
+    {
+      id: "q_g6_ot1_10",
+      level: "Explorer",
+      type: "drag_text",
+      question: "Hãy kéo thả các nhóm thiết bị vào đúng vai trò chức năng tương ứng:",
+      rows: [
+        { label: "Bàn phím, chuột, máy quét (scanner)" },
+        { label: "Màn hình, máy in, loa" },
+        { label: "Ổ cứng HDD/SSD, thẻ nhớ, USB" }
+      ],
+      options: ["Thiết bị nhập", "Thiết bị xuất", "Thiết bị lưu trữ"],
+      correctAnswers: ["Thiết bị nhập", "Thiết bị xuất", "Thiết bị lưu trữ"],
+      answer: "[\"Thiết bị nhập\",\"Thiết bị xuất\",\"Thiết bị lưu trữ\"]",
+      explanation: "Bàn phím/chuột dùng để nhập dữ liệu; Màn hình/máy in đưa dữ liệu ra ngoài; Ổ cứng/USB lưu trữ dữ liệu bền vững."
+    },
+    {
+      id: "q_g6_ot1_11",
+      level: "Explorer",
+      type: "table_match",
+      question: "Hãy ghép nối các phần mềm sau với đúng nhóm chức năng của chúng:",
+      headers: ["Phần mềm", "Loại phần mềm / Chức năng"],
+      rows: [
+        "Windows 11 / macOS",
+        "Microsoft Word / Excel",
+        "Google Chrome / Edge"
+      ],
+      options: [
+        "Hệ điều hành quản lý phần cứng",
+        "Phần mềm ứng dụng văn phòng",
+        "Trình duyệt Web truy cập mạng"
+      ],
+      correctAnswers: [0, 1, 2],
+      answer: "[0,1,2]",
+      explanation: "Windows/macOS là hệ điều hành; Word/Excel là ứng dụng văn phòng; Chrome/Edge là trình duyệt web thông dụng."
+    },
+    {
+      id: "q_g6_ot1_12",
+      level: "Explorer",
+      type: "choice",
+      question: "Card đồ họa (VGA) trong máy tính chịu trách nhiệm chính cho việc gì?",
+      options: [
+        "Xử lý và hiển thị hình ảnh, video ra màn hình",
+        "Kết nối máy tính với Internet qua dây cáp",
+        "Cung cấp nguồn điện ổn định cho bo mạch chủ",
+        "Lưu trữ dữ liệu vĩnh viễn"
+      ],
+      correctIndex: 0,
+      answer: "Xử lý và hiển thị hình ảnh, video ra màn hình",
+      explanation: "VGA (Video Graphics Array) chịu trách nhiệm xử lý đồ họa, hình ảnh và hiển thị lên màn hình máy tính."
+    },
+    {
+      id: "q_g6_ot1_13",
+      level: "Explorer",
+      type: "choice",
+      question: "Dung lượng 1 GB (Gigabyte) tương đương với khoảng bao nhiêu MB (Megabyte)?",
+      options: ["100 MB", "1000 MB", "1024 MB", "10000 MB"],
+      correctIndex: 2,
+      answer: "1024 MB",
+      explanation: "Trong đơn vị đo lường tin học tiêu chuẩn, 1 GB bằng 1024 MB."
+    },
+    {
+      id: "q_g6_ot1_14",
+      level: "Explorer",
+      type: "choice",
+      question: "Khi một ứng dụng bị đơ (treo máy) không tắt được, phím tắt nhanh để khởi chạy Task Manager đóng cưỡng bức nó là Ctrl + Shift + Esc đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 0,
+      answer: "Đúng",
+      explanation: "Ctrl + Shift + Esc là tổ hợp phím tắt nhanh nhất để mở trực tiếp trình quản lý tác vụ Task Manager đóng ứng dụng treo."
+    },
+    {
+      id: "q_g6_ot1_15",
+      level: "Explorer",
+      type: "choice",
+      question: "Thiết bị mạng nào nhận tín hiệu Internet và phát sóng không dây cho các máy tính kết nối?",
+      options: ["Switch mạng LAN", "Router Wi-Fi", "Dây cáp quang", "Card mạng không dây"],
+      correctIndex: 1,
+      answer: "Router Wi-Fi",
+      explanation: "Router Wi-Fi là thiết bị phát sóng mạng không dây giúp các thiết bị ngoại vi kết nối Internet dễ dàng."
+    },
+
+    // Khối 6 (Grade 6) - Ôn tập 2: Các ứng dụng chính (Key Applications)
+    {
+      id: "q_g6_ot2_1",
+      level: "Explorer",
+      type: "choice",
+      question: "Phím tắt thông dụng nào dùng để sao chép (Copy) đoạn văn bản được chọn?",
+      options: ["Ctrl + X", "Ctrl + C", "Ctrl + V", "Ctrl + Z"],
+      correctIndex: 1,
+      answer: "Ctrl + C",
+      explanation: "Ctrl + C là phím tắt dùng sao chép; Ctrl + X để cắt và Ctrl + V để dán."
+    },
+    {
+      id: "q_g6_ot2_2",
+      level: "Explorer",
+      type: "choice",
+      question: "Trong Microsoft Word, nhấp nút chữ 'B' đậm trên thanh công cụ nhằm thực hiện định dạng:",
+      options: ["In nghiêng chữ", "Gạch chân dưới chữ", "Tạo chữ in đậm", "Tô màu nền chữ"],
+      correctIndex: 2,
+      answer: "Tạo chữ in đậm",
+      explanation: "Chữ B viết tắt của Bold dùng để thiết lập văn bản in đậm."
+    },
+    {
+      id: "q_g6_ot2_3",
+      level: "Explorer",
+      type: "choice",
+      question: "Trong phần mềm bảng tính Microsoft Excel, giao điểm của một hàng và một cột gọi là:",
+      options: ["Trang tính (Sheet)", "Bảng biểu (Table)", "Ô tính (Cell)", "Cột tính (Column)"],
+      correctIndex: 2,
+      answer: "Ô tính (Cell)",
+      explanation: "Giao điểm giữa một cột và một dòng được gọi là ô tính (Cell), định danh bởi cột trước dòng sau như A1."
+    },
+    {
+      id: "q_g6_ot2_4",
+      level: "Explorer",
+      type: "choice",
+      question: "Trong Excel, để tính giá trị trung bình cộng của các ô từ A1 đến A5, công thức đúng là:",
+      options: ["=SUM(A1:A5)", "=AVERAGE(A1:A5)", "=MAX(A1:A5)", "=MIN(A1:A5)"],
+      correctIndex: 1,
+      answer: "=AVERAGE(A1:A5)",
+      explanation: "Hàm AVERAGE thực hiện tính giá trị trung bình cộng của dải ô được chỉ định."
+    },
+    {
+      id: "q_g6_ot2_5",
+      level: "Explorer",
+      type: "choice",
+      question: "Để chèn một bảng (Table) vào trang soạn thảo Word, em truy cập vào tab Home đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 1,
+      answer: "Sai",
+      explanation: "Để chèn các đối tượng như bảng, hình ảnh, hình vẽ, biểu đồ ta phải chọn tab Insert."
+    },
+    {
+      id: "q_g6_ot2_6",
+      level: "Explorer",
+      type: "choice",
+      question: "Trong Microsoft PowerPoint, để bắt đầu trình chiếu toàn màn hình từ slide đầu tiên, phím tắt là:",
+      options: ["F1", "F5", "Esc", "Spacebar"],
+      correctIndex: 1,
+      answer: "F5",
+      explanation: "Nhấn phím F5 để thực thi khởi động chế độ trình chiếu PowerPoint từ trang slide đầu tiên."
+    },
+    {
+      id: "q_g6_ot2_7",
+      level: "Explorer",
+      type: "fill_blank",
+      question: "Tên ứng dụng soạn thảo văn bản thông dụng nhất nằm trong bộ công cụ văn phòng Microsoft Office là gì?",
+      answer: "Word",
+      explanation: "Microsoft Word (hoặc MS Word) là chương trình soạn thảo văn bản phổ thông hàng đầu hiện nay."
+    },
+    {
+      id: "q_g6_ot2_8",
+      level: "Explorer",
+      type: "choice",
+      question: "Ký hiệu Creative Commons (CC) trên một tài liệu trực tuyến có ý nghĩa gì?",
+      options: [
+        "Tác phẩm hoàn toàn không có bản quyền bảo hộ",
+        "Bản quyền mở, cho phép cộng đồng chia sẻ, sử dụng tác phẩm theo một số điều kiện đi kèm",
+        "Tác phẩm thuộc sở hữu độc quyền của nhà nước cấm truy cập",
+        "Tác phẩm đã bị lỗi thời"
+      ],
+      correctIndex: 1,
+      answer: "Bản quyền mở, cho phép cộng đồng chia sẻ, sử dụng tác phẩm theo một số điều kiện đi kèm",
+      explanation: "Creative Commons cung cấp các giấy phép bản quyền mở giúp tác giả chia sẻ tác phẩm của mình rộng rãi đồng thời bảo vệ các quyền lợi cơ bản."
+    },
+    {
+      id: "q_g6_ot2_9",
+      level: "Explorer",
+      type: "choice",
+      question: "Hành vi copy nguyên văn tài liệu của người khác vào bài luận của mình mà không trích nguồn rõ ràng được gọi là Đạo văn (Plagiarism) đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 0,
+      answer: "Đúng",
+      explanation: "Sử dụng thành quả, chất xám của người khác mà không công nhận hoặc ghi danh nguồn chính xác chính là đạo văn."
+    },
+    {
+      id: "q_g6_ot2_10",
+      level: "Explorer",
+      type: "drag_text",
+      question: "Hãy kéo thả các phần mềm Microsoft Office tương thích vào đúng nhiệm vụ của chúng:",
+      rows: [
+        { label: "Xây dựng các báo cáo, tài liệu văn bản chuyên nghiệp" },
+        { label: "Tạo các trang bảng tính, quản lý dữ liệu, biểu đồ" },
+        { label: "Thiết kế slide trình chiếu hội thảo sinh động" }
+      ],
+      options: ["Microsoft Word", "Microsoft Excel", "Microsoft PowerPoint"],
+      correctAnswers: ["Microsoft Word", "Microsoft Excel", "Microsoft PowerPoint"],
+      answer: "[\"Microsoft Word\",\"Microsoft Excel\",\"Microsoft PowerPoint\"]",
+      explanation: "Word dùng soạn tài liệu; Excel dùng cho bảng tính; PowerPoint thiết kế trình chiếu."
+    },
+    {
+      id: "q_g6_ot2_11",
+      level: "Explorer",
+      type: "table_match",
+      question: "Hãy ghép cặp công thức toán học trong Excel với đúng chức năng tính toán của chúng:",
+      headers: ["Công thức Excel", "Chức năng tính toán"],
+      rows: [
+        "=SUM(C1:C10)",
+        "=MAX(C1:C10)",
+        "=MIN(C1:C10)"
+      ],
+      options: [
+        "Tính tổng tất cả các số trong vùng từ C1 đến C10",
+        "Tìm ra số có giá trị lớn nhất trong vùng C1 đến C10",
+        "Tìm ra số có giá trị nhỏ nhất trong vùng C1 đến C10"
+      ],
+      correctAnswers: [0, 1, 2],
+      answer: "[0,1,2]",
+      explanation: "Hàm SUM cộng tổng; MAX tìm giá trị lớn nhất; MIN tìm giá trị nhỏ nhất trong dải ô."
+    },
+    {
+      id: "q_g6_ot2_12",
+      level: "Explorer",
+      type: "choice",
+      question: "Khi tìm kiếm cụm từ trên Google Search, để yêu cầu Google tìm chính xác cụm từ đó theo thứ tự, ta đặt cụm từ trong cặp ký hiệu nào?",
+      options: ["Cặp dấu ngoặc đơn ( )", "Cặp dấu ngoặc kép \" \"", "Cặp dấu ngoặc vuông [ ]", "Cặp dấu hỏi chấm ? ?"],
+      correctIndex: 1,
+      answer: "Cặp dấu ngoặc kép \" \"",
+      explanation: "Đặt cụm từ tìm kiếm trong dấu ngoặc kép \"...\" thông báo cho Google trả về các kết quả chứa chính xác cụm từ đó."
+    },
+    {
+      id: "q_g6_ot2_13",
+      level: "Explorer",
+      type: "choice",
+      question: "Trong Microsoft Word, tổ hợp phím tắt Ctrl + Z thực hiện thao tác gì?",
+      options: ["Lưu văn bản", "Hoàn tác (Undo) lại hành động vừa thao tác", "Cắt văn bản", "In văn bản nhanh"],
+      correctIndex: 1,
+      answer: "Hoàn tác (Undo) lại hành động vừa thao tác",
+      explanation: "Ctrl + Z dùng để Undo - hoàn tác lại hành động sai vừa làm trước đó."
+    },
+    {
+      id: "q_g6_ot2_14",
+      level: "Explorer",
+      type: "choice",
+      question: "Trong bảng tính Excel, mọi công thức tính toán hợp lệ đều bắt buộc phải bắt đầu bằng dấu bằng (=) đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 0,
+      answer: "Đúng",
+      explanation: "Excel bắt buộc dùng dấu bằng (=) ở đầu ô để phân biệt giữa một công thức tính toán và một văn bản văn bản thô."
+    },
+    {
+      id: "q_g6_ot2_15",
+      level: "Explorer",
+      type: "choice",
+      question: "Sự khác biệt cốt lõi giữa hiệu ứng 'Animations' và 'Transitions' trong PowerPoint là:",
+      options: [
+        "Transitions áp dụng cho chữ viết, Animations áp dụng cho chèn ảnh",
+        "Animations áp dụng cho các đối tượng bên trong một slide, Transitions áp dụng cho cách chuyển cảnh giữa các slide",
+        "Hai hiệu ứng này hoàn toàn giống nhau chỉ khác tên gọi",
+        "Transitions hoạt động nhanh hơn Animations"
+      ],
+      correctIndex: 1,
+      answer: "Animations áp dụng cho các đối tượng bên trong một slide, Transitions áp dụng cho cách chuyển cảnh giữa các slide",
+      explanation: "Transitions thiết lập chuyển tiếp hoạt ảnh giữa các slide, còn Animations tạo chuyển động cụ thể cho chữ/hình ảnh bên trong slide."
+    },
+
+    // Khối 6 (Grade 6) - Ôn tập 3: Cuộc sống trực tuyến (Living Online)
+    {
+      id: "q_g6_ot3_1",
+      level: "Explorer",
+      type: "choice",
+      question: "Trường dữ liệu nào trong Email dùng để gửi bản sao công khai cho người khác (người nhận thấy được địa chỉ của nhau)?",
+      options: ["To", "Cc (Carbon Copy)", "Bcc (Blind Carbon Copy)", "Subject"],
+      correctIndex: 1,
+      answer: "Cc (Carbon Copy)",
+      explanation: "Cc viết tắt của Carbon Copy dùng gửi bản sao email công khai cho nhiều người, người nhận đều nhìn thấy địa chỉ email của nhau."
+    },
+    {
+      id: "q_g6_ot3_2",
+      level: "Explorer",
+      type: "choice",
+      question: "Tiêu đề hoặc chủ đề tóm tắt của bức thư điện tử được điền vào mục nào sau đây?",
+      options: ["Sender", "Attachment", "Subject", "Body"],
+      correctIndex: 2,
+      answer: "Subject",
+      explanation: "Mục Subject lưu tiêu đề bức thư, giúp người nhận biết nhanh nội dung chính của thư là gì trước khi click xem."
+    },
+    {
+      id: "q_g6_ot3_3",
+      level: "Explorer",
+      type: "choice",
+      question: "Đâu là một mật khẩu mạnh và có độ an toàn bảo mật cao nhất?",
+      options: ["12345678", "hoangminh6a3", "M1nhC#2026!", "minhminh"],
+      correctIndex: 2,
+      answer: "M1nhC#2026!",
+      explanation: "Mật khẩu an toàn cần dài từ 8 ký tự trở lên, gồm chữ hoa, chữ thường, chữ số và ít nhất một ký tự đặc biệt (như #, !)."
+    },
+    {
+      id: "q_g6_ot3_4",
+      level: "Explorer",
+      type: "choice",
+      question: "Thông tin nào sau đây thuộc nhóm thông tin cá nhân định danh nhạy cảm (PII) cần bảo mật tuyệt đối trực tuyến?",
+      options: [
+        "Danh sách bài hát yêu thích của em",
+        "Tên câu lạc bộ bóng đá em mến mộ",
+        "Địa chỉ nhà riêng, mật khẩu tài khoản và số điện thoại",
+        "Tên môn học yêu thích ở lớp"
+      ],
+      correctIndex: 2,
+      answer: "Địa chỉ nhà riêng, mật khẩu tài khoản và số điện thoại",
+      explanation: "Địa chỉ, số điện thoại, mật khẩu là dữ liệu cá nhân nhạy cảm, có thể bị kẻ gian lợi dụng để quấy rối, lừa đảo hoặc đánh cắp danh tính."
+    },
+    {
+      id: "q_g6_ot3_5",
+      level: "Explorer",
+      type: "choice",
+      question: "Khi nhận được tin nhắn từ người lạ tự xưng là quản trị mạng xã hội đòi mật khẩu để kích hoạt tính năng bảo mật, cung cấp ngay lập tức là hành động đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 1,
+      answer: "Sai",
+      explanation: "Các nhà quản trị mạng chân chính tuyệt đối không bao giờ yêu cầu người dùng gửi mật khẩu qua chat trực tiếp. Đây là bẫy lừa đảo trực tuyến (Phishing)."
+    },
+    {
+      id: "q_g6_ot3_6",
+      level: "Explorer",
+      type: "choice",
+      question: "Để trả lời một email đồng thời cho cả người gửi gốc và tất cả những người nhận khác trong Cc, em chọn:",
+      options: ["Reply", "Reply All", "Forward", "Bcc"],
+      correctIndex: 1,
+      answer: "Reply All",
+      explanation: "Chọn Reply All (Trả lời tất cả) để phản hồi thư tới toàn bộ mọi người có tên trong danh sách nhận thư."
+    },
+    {
+      id: "q_g6_ot3_7",
+      level: "Explorer",
+      type: "fill_blank",
+      question: "Hành vi sử dụng công nghệ, tin nhắn, mạng xã hội để đe dọa, xúc phạm hoặc chế giễu người khác gọi là bắt nạt gì?",
+      answer: "Mạng",
+      explanation: "Bắt nạt qua các nền tảng kỹ thuật số, tin nhắn, mạng xã hội được gọi là Bắt nạt mạng (Cyberbullying)."
+    },
+    {
+      id: "q_g6_ot3_8",
+      level: "Explorer",
+      type: "choice",
+      question: "Mạng Intranet khác biệt gì so với mạng Internet toàn cầu?",
+      options: [
+        "Mạng Intranet mở rộng cho tất cả mọi người trên thế giới tham gia tự do",
+        "Intranet là mạng nội bộ riêng tư của một trường học hoặc công ty, chỉ người dùng nội bộ được cấp quyền mới truy cập được",
+        "Intranet là một loại dây cáp dùng để cắm vào máy tính",
+        "Intranet có tốc độ chậm hơn Internet rất nhiều lần"
+      ],
+      correctIndex: 1,
+      answer: "Intranet là mạng nội bộ riêng tư của một trường học hoặc công ty, chỉ người dùng nội bộ được cấp quyền mới truy cập được",
+      explanation: "Mạng Intranet hoạt động giống Internet nhưng được giới hạn phạm vi an toàn, phục vụ riêng cho các thành viên trong cùng một cơ quan tổ chức."
+    },
+    {
+      id: "q_g6_ot3_9",
+      level: "Explorer",
+      type: "choice",
+      question: "Thuật ngữ 'Netiquette' được hiểu là các quy tắc ứng xử văn minh, tôn trọng người khác khi giao tiếp trên môi trường mạng đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 0,
+      answer: "Đúng",
+      explanation: "Netiquette (phép lịch sự trực tuyến) là văn hóa và quy tắc ứng xử chuẩn mực của con người khi tham gia các hoạt động trực tuyến."
+    },
+    {
+      id: "q_g6_ot3_10",
+      level: "Explorer",
+      type: "drag_text",
+      question: "Hãy kéo thả các phương thức giao tiếp kỹ thuật số vào đúng mô tả vai trò phổ biến của chúng:",
+      rows: [
+        { label: "Gửi thư điện tử chính thức, kèm tệp tin hồ sơ pháp lý" },
+        { label: "Trò chuyện, nhắn tin trực tuyến, gọi thoại thời gian thực" },
+        { label: "Kết nối cộng đồng, tương tác, bình luận, chia sẻ ảnh" }
+      ],
+      options: ["Thư điện tử (Email)", "Phần mềm nhắn tin (Zalo, Messenger)", "Mạng xã hội (Facebook, Instagram)"],
+      correctAnswers: ["Thư điện tử (Email)", "Phần mềm nhắn tin (Zalo, Messenger)", "Mạng xã hội (Facebook, Instagram)"],
+      answer: "[\"Thư điện tử (Email)\",\"Phần mềm nhắn tin (Zalo, Messenger)\",\"Mạng xã hội (Facebook, Instagram)\"]",
+      explanation: "Email dùng gửi thư chính thức; Zalo/Messenger dùng nhắn tin trò chuyện; Facebook/Instagram dùng tương tác kết nối xã hội."
+    },
+    {
+      id: "q_g6_ot3_11",
+      level: "Explorer",
+      type: "table_match",
+      question: "Hãy ghép nối các tính năng xử lý thư điện tử (Email) sau với đúng bản chất hoạt động của chúng:",
+      headers: ["Tính năng Email", "Bản chất hoạt động"],
+      rows: [
+        "Reply (Trả lời)",
+        "Forward (Chuyển tiếp)",
+        "Bcc (Bản sao ẩn danh)"
+      ],
+      options: [
+        "Chỉ gửi phản hồi duy nhất cho người viết bức thư gốc",
+        "Gửi nội dung thư hiện có sang cho một người nhận hoàn toàn mới",
+        "Gửi bản sao thư ẩn danh, người nhận khác không thấy địa chỉ người Cc ẩn này"
+      ],
+      correctAnswers: [0, 1, 2],
+      answer: "[0,1,2]",
+      explanation: "Reply trả lời một người; Forward chuyển tiếp sang hòm thư khác; Bcc gửi thư ẩn danh bảo vệ địa chỉ."
+    },
+    {
+      id: "q_g6_ot3_12",
+      level: "Explorer",
+      type: "choice",
+      question: "Để gia tăng bảo mật tối đa cho hòm thư cá nhân, tránh bị kẻ xấu dò mật khẩu, em nên bật chế độ:",
+      options: ["Đăng nhập tự động không cần mật khẩu", "Tính năng lưu mật khẩu công khai trên trình duyệt", "Xác thực hai yếu tố (2FA)", "Chia sẻ tài khoản cho bạn thân quản lý hộ"],
+      correctIndex: 2,
+      answer: "Xác thực hai yếu tố (2FA)",
+      explanation: "Xác thực 2 yếu tố (2FA) yêu cầu thêm mã bảo mật OTP từ điện thoại, giúp ngăn chặn đăng nhập trái phép cực kỳ hiệu quả."
+    },
+    {
+      id: "q_g6_ot3_13",
+      level: "Explorer",
+      type: "choice",
+      question: "Hành động nào sau đây biểu hiện văn hóa giao tiếp tôn trọng lịch sự trực tuyến?",
+      options: [
+        "Dùng lời lẽ xúc phạm khi người khác không đồng ý kiến với mình",
+        "Tôn trọng sự khác biệt, phản hồi bằng từ ngữ lịch sự ôn hòa mang tính xây dựng",
+        "Đăng tải tin đồn giật gân không rõ nguồn gốc để câu like",
+        "Tự ý công khai hình ảnh và thông tin của bạn học lên mạng"
+      ],
+      correctIndex: 1,
+      answer: "Tôn trọng sự khác biệt, phản hồi bằng từ ngữ lịch sự ôn hòa mang tính xây dựng",
+      explanation: "Sử dụng từ ngữ ôn hòa, lịch sự và mang tính xây dựng khi tranh luận trực tuyến thể hiện phép lịch sự mạng Netiquette."
+    },
+    {
+      id: "q_g6_ot3_14",
+      level: "Explorer",
+      type: "choice",
+      question: "Tất cả mọi thông tin được đăng tải và lan truyền trên Internet đều đáng tin cậy 100% đúng hay sai?",
+      options: ["Đúng", "Sai"],
+      correctIndex: 1,
+      answer: "Sai",
+      explanation: "Internet cho phép mọi người tự do đăng tải, nên có rất nhiều tin giả, tin đồn thất thiệt. Ta luôn phải chọn lọc và đối chiếu nguồn chính thống."
+    },
+    {
+      id: "q_g6_ot3_15",
+      level: "Explorer",
+      type: "choice",
+      question: "Biện pháp phòng ngừa phần mềm độc hại (Malware, virus) hiệu quả nhất cho máy tính khi lướt web là:",
+      options: [
+        "Click vào mọi quảng cáo trúng thưởng hiển thị trên các website lạ",
+        "Cài đặt và sử dụng phần mềm diệt virus chính hãng uy tín, luôn cập nhật đầy đủ",
+        "Tắt hoàn toàn tường lửa của Windows để mạng chạy nhanh hơn",
+        "Không bao giờ khởi động lại máy tính"
+      ],
+      correctIndex: 1,
+      answer: "Cài đặt và sử dụng phần mềm diệt virus chính hãng uy tín, luôn cập nhật đầy đủ",
+      explanation: "Phần mềm chống độc hại bảo vệ máy tính khỏi các mã độc, kết hợp tường lửa lọc chặn rủi ro xâm hại."
     },
 
     // Khối 7 (Grade 7) Questions
@@ -561,44 +1069,85 @@ async function seedGradeLevelTests() {
     const blockId = `block_${g}`;
     const level = g <= 4 ? "Beginner" : g <= 6 ? "Explorer" : "Expert";
     
-    // Test 1
-    gradeTests.push({
-      id: `test_g${g}_ot1`,
-      title: `Ôn tập 1 - Khối ${g}`,
-      level: level,
-      blockId: blockId,
-      duration: 15,
-      questionCount: 2,
-      questions: [`q_g${g}_1`, `q_g${g}_2`],
-      scoreVal: 30,
-      createdBY: "admin@gmail.com"
-    });
+    if (g === 6) {
+      // Test 1 - Khối 6
+      gradeTests.push({
+        id: "test_g6_ot1",
+        title: "Ôn tập 1 - Khối 6",
+        level: level,
+        blockId: blockId,
+        duration: 20,
+        questionCount: 15,
+        questions: Array.from({ length: 15 }, (_, i) => `q_g6_ot1_${i + 1}`),
+        scoreVal: 100,
+        createdBY: "admin@gmail.com"
+      });
 
-    // Test 2
-    gradeTests.push({
-      id: `test_g${g}_ot2`,
-      title: `Ôn tập 2 - Khối ${g}`,
-      level: level,
-      blockId: blockId,
-      duration: 20,
-      questionCount: 2,
-      questions: [`q_g${g}_2`, `q_g${g}_3`],
-      scoreVal: 40,
-      createdBY: "admin@gmail.com"
-    });
+      // Test 2 - Khối 6
+      gradeTests.push({
+        id: "test_g6_ot2",
+        title: "Ôn tập 2 - Khối 6",
+        level: level,
+        blockId: blockId,
+        duration: 20,
+        questionCount: 15,
+        questions: Array.from({ length: 15 }, (_, i) => `q_g6_ot2_${i + 1}`),
+        scoreVal: 100,
+        createdBY: "admin@gmail.com"
+      });
 
-    // Test 3
-    gradeTests.push({
-      id: `test_g${g}_ot3`,
-      title: `Ôn tập 3 - Khối ${g}`,
-      level: level,
-      blockId: blockId,
-      duration: 25,
-      questionCount: 2,
-      questions: [`q_g${g}_3`, `q_g${g}_1`],
-      scoreVal: 50,
-      createdBY: "admin@gmail.com"
-    });
+      // Test 3 - Khối 6
+      gradeTests.push({
+        id: "test_g6_ot3",
+        title: "Ôn tập 3 - Khối 6",
+        level: level,
+        blockId: blockId,
+        duration: 20,
+        questionCount: 15,
+        questions: Array.from({ length: 15 }, (_, i) => `q_g6_ot3_${i + 1}`),
+        scoreVal: 100,
+        createdBY: "admin@gmail.com"
+      });
+    } else {
+      // Test 1
+      gradeTests.push({
+        id: `test_g${g}_ot1`,
+        title: `Ôn tập 1 - Khối ${g}`,
+        level: level,
+        blockId: blockId,
+        duration: 15,
+        questionCount: 2,
+        questions: [`q_g${g}_1`, `q_g${g}_2`],
+        scoreVal: 30,
+        createdBY: "admin@gmail.com"
+      });
+
+      // Test 2
+      gradeTests.push({
+        id: `test_g${g}_ot2`,
+        title: `Ôn tập 2 - Khối ${g}`,
+        level: level,
+        blockId: blockId,
+        duration: 20,
+        questionCount: 2,
+        questions: [`q_g${g}_2`, `q_g${g}_3`],
+        scoreVal: 40,
+        createdBY: "admin@gmail.com"
+      });
+
+      // Test 3
+      gradeTests.push({
+        id: `test_g${g}_ot3`,
+        title: `Ôn tập 3 - Khối ${g}`,
+        level: level,
+        blockId: blockId,
+        duration: 25,
+        questionCount: 2,
+        questions: [`q_g${g}_3`, `q_g${g}_1`],
+        scoreVal: 50,
+        createdBY: "admin@gmail.com"
+      });
+    }
   });
 
   try {
@@ -658,8 +1207,11 @@ async function initData() {
 
     // Explicitly check for grade-level specific tests; seed if missing!
     const hasGradeTests = window.IC3_CACHE[IC3_KEYS.TESTS].some(t => t.id === "test_g3_ot1");
-    if (!hasGradeTests) {
-      console.log("🌱 Grade-level tests missing, seeding Khối 3,4,5,6,7,8 tests now...");
+    const testG6 = window.IC3_CACHE[IC3_KEYS.TESTS].find(t => t.id === "test_g6_ot1");
+    const needsG6Upgrade = !testG6 || (testG6.questions && testG6.questions.length < 15);
+
+    if (!hasGradeTests || needsG6Upgrade) {
+      console.log("🌱 Grade-level tests missing or Grade 6 needs upgrading, seeding Khối 3,4,5,6,7,8 tests now...");
       await seedGradeLevelTests();
       // Fetch collections again to update cache
       await Promise.all(collectionsToFetch.map(async (key) => {

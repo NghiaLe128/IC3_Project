@@ -272,7 +272,7 @@ function renderClassStudentsTable() {
   body.innerHTML = "";
 
   if (filteredStudents.length === 0) {
-    body.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
     return;
   }
 
@@ -281,7 +281,25 @@ function renderClassStudentsTable() {
   filteredStudents.forEach(std => {
     // Count success tests (>=50)
     const passedCount = scores.filter(sc => sc.studentEmail === std.email && sc.score >= 50).length;
-    const schoolClassText = std.schoolClass || "Chưa cập nhật";
+    
+    let schoolText = "Chưa cập nhật";
+    let classText = "Chưa cập nhật";
+    if (std.schoolClass) {
+      const parts = std.schoolClass.split(" - ");
+      if (parts.length >= 2) {
+        schoolText = parts[0].trim();
+        classText = parts.slice(1).join(" - ").trim();
+      } else {
+        const lower = std.schoolClass.toLowerCase();
+        if (lower.includes("lớp")) {
+          const idx = lower.indexOf("lớp");
+          schoolText = std.schoolClass.substring(0, idx).replace(/[-,/]/g, "").trim() || "Chưa cập nhật";
+          classText = std.schoolClass.substring(idx).trim();
+        } else {
+          schoolText = std.schoolClass;
+        }
+      }
+    }
 
     const tr = document.createElement("tr");
     tr.className = "hover:bg-[#131424]/80 transition-all text-xs";
@@ -291,7 +309,8 @@ function renderClassStudentsTable() {
           <i class="fa-solid fa-circle-user text-indigo-300"></i> ${std.name}
         </button>
       </td>
-      <td class="px-5 py-3.5 font-medium text-indigo-200">${schoolClassText}</td>
+      <td class="px-5 py-3.5 font-medium text-indigo-200">${schoolText}</td>
+      <td class="px-5 py-3.5 font-medium text-indigo-200">${classText}</td>
       <td class="px-5 py-3.5 font-mono text-indigo-300">${std.email}</td>
       <td class="px-5 py-3.5"><span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded font-bold">${std.level || "Beginner"}</span></td>
       <td class="px-5 py-3.5 font-mono font-bold text-yellow-600">${std.exp} EXP</td>
@@ -729,141 +748,170 @@ function selectActiveQuestion(qId) {
       qImgContainer.classList.add("hidden");
     }
   }
+
+  // Get options container
+  const optionsContainer = document.getElementById("view-q-options-container");
+  if (optionsContainer) {
+    optionsContainer.innerHTML = "";
+  }
   
-  // Clean readable visual text for answer
-  let displayAnswer = q.answer;
+  // 1. Calculate display answer
+  let displayAnswer = q.answer || "";
   if (q.type === "choice" && q.options) {
     displayAnswer = `${String.fromCharCode(65 + (q.correctIndex || 0))}. ${q.options[q.correctIndex || 0]}`;
   } else if (q.type === "drag_text" || q.type === "drag_image_text") {
     displayAnswer = (q.correctAnswers || []).join(" | ");
   } else if (q.type === "table_match") {
-    optionsContainer.innerHTML = `
-      <div class="space-y-3">
-        <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-table-list mr-1"></i>Bảng nối cặp đúng (Table Match):</div>
-        <div class="overflow-x-auto border border-indigo-500/30 rounded-xl shadow-sm">
-          <table class="w-full text-xs text-left border-collapse">
-            <thead>
-              <tr class="bg-[#131424]/80 border-b border-indigo-500/30 text-[10px] font-bold text-indigo-300 uppercase tracking-wider">
-                <th class="p-3">Hàng hỏi / Nhãn mô tả</th>
-                ${(q.options || []).map(col => `<th class="p-3 text-center">${col}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${(q.rows || []).map((row, rIdx) => `
-                <tr class="border-b border-indigo-500/10 hover:bg-[#131424]/40 transition-colors">
-                  <td class="p-3 font-semibold text-indigo-100">${row}</td>
-                  ${(q.options || []).map((col, cIdx) => `
-                      <td class="p-3 text-center">
-                          ${q.correctAnswers[rIdx] === cIdx ? '<span class="text-emerald-500 text-lg"><i class="fa-solid fa-circle-dot"></i></span>' : '<span class="text-indigo-500/30 text-lg"><i class="fa-regular fa-circle"></i></span>'}
-                      </td>
-                  `).join('')}
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;} else if (q.type === "drag_text") {
-    optionsContainer.innerHTML = `
-      <div class="space-y-3">
-        <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-tags mr-1"></i>Thẻ từ khóa kéo thả (Options):</div>
-        <div class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[#131424]/80 border border-indigo-500/30">
-          ${(q.options || []).map(opt => `
-            <span class="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold font-mono">${opt}</span>
-          `).join("")}
-        </div>
-        <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mt-3"><i class="fa-solid fa-arrows-to-dot mr-1"></i>Ô trống & Đáp án đúng:</div>
-        <div class="space-y-2">
-          ${(q.rows || []).map((row, idx) => `
-            <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex justify-between items-center text-xs">
-              <span class="font-bold text-indigo-100">${row.label || row}</span>
-              <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `;
-  } else if (q.type === "drag_image_text") {
-    optionsContainer.innerHTML = `
-      <div class="space-y-3">
-        <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-tags mr-1"></i>Nhãn chữ kéo thả (Options):</div>
-        <div class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[#131424]/80 border border-indigo-500/30">
-          ${(q.options || []).map(opt => `
-            <span class="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold font-mono">${opt}</span>
-          `).join("")}
-        </div>
-        <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mt-3"><i class="fa-solid fa-images mr-1"></i>Ghép nối hình ảnh & Đáp án đúng:</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          ${(q.leftImages || []).map((img, idx) => `
-            <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex flex-col items-center gap-2 text-xs">
-              <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
-              <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `;
-  } else if (q.type === "table_match") {
-    const headers = q.headers || ["Cột trái", "Cột phải"];
-    optionsContainer.innerHTML = `
-      <div class="space-y-3">
-        <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-table-list mr-1"></i>Bảng nối cặp đúng (Table Match):</div>
-        <div class="overflow-hidden border border-indigo-500/30 rounded-xl shadow-sm">
-          <table class="w-full text-xs text-left border-collapse">
-            <thead>
-              <tr class="bg-[#131424]/80 border-b border-indigo-500/30 text-[10px] font-bold text-indigo-300 uppercase tracking-wider">
-                <th class="p-3">${headers[0]}</th>
-                <th class="p-3">${headers[1]}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(q.rows || []).map((row, idx) => `
-                <tr class="border-b border-slate-50 hover:bg-[#131424]/80/50 transition-colors">
-                  <td class="p-3 font-semibold text-indigo-100">${row}</td>
-                  <td class="p-3"><span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-150 text-emerald-400 font-bold text-[11px] flex items-center gap-1 w-fit">✓ ${(q.options || [])[q.correctAnswers[idx]] || ""}</span></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
+    displayAnswer = (q.correctAnswers || []).map((ansIdx, rIdx) => `${(q.rows || [])[rIdx] || ""} -> ${(q.options || [])[ansIdx] || ""}`).join(" | ");
   } else if (q.type === "multi_choice" && q.options) {
-    q.options.forEach((opt, idx) => {
-      const isCorrect = (q.correctIndices || []).includes(idx);
-      optionsContainer.innerHTML += `
-        <div class="p-2.5 rounded-xl border ${isCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-800 font-bold shadow-sm shadow-emerald-500/5' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'} text-xs flex justify-between items-center transition-all">
-          <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded border flex items-center justify-center text-[10px] ${isCorrect ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-indigo-400 bg-[#1a1c2e]'}"><i class="fa-solid fa-check"></i></span>
-            <span>${opt}</span>
-          </div>
-          ${isCorrect ? '<span class="text-emerald-600 font-bold flex items-center gap-1 text-[10px]"><i class="fa-solid fa-circle-check"></i> ĐÁP ÁN ĐÚNG</span>' : ''}
-        </div>
-      `;
-    });
+    displayAnswer = (q.correctIndices || []).map(idx => `${String.fromCharCode(65 + idx)}. ${q.options[idx]}`).join(" | ");
   } else if (q.type === "image_choice" && q.options) {
-    optionsContainer.innerHTML = `
-      <div class="grid grid-cols-2 gap-3 w-full">
-        ${q.options.map((img, idx) => {
-          const isCorrect = idx === q.correctIndex;
-          return `
-            <div class="p-3 bg-[#131424]/80 border-2 rounded-xl flex flex-col items-center gap-2 relative overflow-hidden transition-all duration-200 ${isCorrect ? 'border-emerald-500 bg-emerald-500/20' : 'border-indigo-500/30'}">
-              <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
-              <span class="text-[10px] font-bold text-indigo-300">Lựa chọn ${idx+1}</span>
-              ${isCorrect ? '<span class="absolute top-1 right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black rounded shadow flex items-center gap-0.5"><i class="fa-solid fa-check"></i> ĐÚNG</span>' : ''}
+    displayAnswer = `Lựa chọn ${q.correctIndex + 1}`;
+  } else if (q.type === "true_false") {
+    displayAnswer = q.answer === "true" || q.answer === true || q.answer === "đúng" || q.answer === "Đúng" ? "Đúng" : "Sai";
+  }
+  
+  document.getElementById("view-q-answer").innerText = displayAnswer;
+  document.getElementById("view-q-explanation").innerText = q.explanation || "Không có giải thích.";
+
+  // 2. Render options visualization
+  if (optionsContainer) {
+    if (q.type === "choice" && q.options) {
+      q.options.forEach((opt, idx) => {
+        const isCorrect = idx === q.correctIndex;
+        optionsContainer.innerHTML += `
+          <div class="p-2.5 rounded-xl border ${isCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'} text-xs flex justify-between items-center transition-all">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${isCorrect ? 'border-emerald-500 bg-emerald-500 text-white font-bold' : 'border-indigo-400 bg-[#1a1c2e]'}">${String.fromCharCode(65 + idx)}</span>
+              <span>${opt}</span>
             </div>
-          `;
-        }).join("")}
-      </div>
-    `;
-  } else if (q.type === "multiple_choice" && q.options) {
-    q.options.forEach(opt => {
-      optionsContainer.innerHTML += `
-        <div class="p-2.5 rounded-lg border border-indigo-500/30 bg-[#131424]/80 text-xs text-indigo-100">
-          ${opt}
+            ${isCorrect ? '<span class="text-emerald-400 font-bold flex items-center gap-1 text-[10px]"><i class="fa-solid fa-circle-check"></i> ĐÁP ÁN ĐÚNG</span>' : ''}
+          </div>
+        `;
+      });
+    } else if (q.type === "drag_text") {
+      optionsContainer.innerHTML = `
+        <div class="space-y-3">
+          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-tags mr-1"></i>Thẻ từ khóa kéo thả (Options):</div>
+          <div class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[#131424]/80 border border-indigo-500/30">
+            ${(q.options || []).map(opt => `
+              <span class="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold font-mono">${opt}</span>
+            `).join("")}
+          </div>
+          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mt-3"><i class="fa-solid fa-arrows-to-dot mr-1"></i>Ô trống & Đáp án đúng:</div>
+          <div class="space-y-2">
+            ${(q.rows || []).map((row, idx) => `
+              <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex justify-between items-center text-xs">
+                <span class="font-bold text-indigo-100">${row.label || row}</span>
+                <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
+              </div>
+            `).join("")}
+          </div>
         </div>
       `;
-    });
+    } else if (q.type === "drag_image_text") {
+      optionsContainer.innerHTML = `
+        <div class="space-y-3">
+          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-tags mr-1"></i>Nhãn chữ kéo thả (Options):</div>
+          <div class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[#131424]/80 border border-indigo-500/30">
+            ${(q.options || []).map(opt => `
+              <span class="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold font-mono">${opt}</span>
+            `).join("")}
+          </div>
+          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mt-3"><i class="fa-solid fa-images mr-1"></i>Ghép nối hình ảnh & Đáp án đúng:</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${(q.leftImages || []).map((img, idx) => `
+              <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex flex-col items-center gap-2 text-xs">
+                <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
+                <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    } else if (q.type === "table_match") {
+      const headers = q.headers || ["Cột trái", "Cột phải"];
+      optionsContainer.innerHTML = `
+        <div class="space-y-3">
+          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-table-list mr-1"></i>Bảng nối cặp đúng (Table Match):</div>
+          <div class="overflow-hidden border border-indigo-500/30 rounded-xl shadow-sm">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-[#131424]/80 border-b border-indigo-500/30 text-[10px] font-bold text-indigo-300 uppercase tracking-wider">
+                  <th class="p-3">${headers[0]}</th>
+                  <th class="p-3">${headers[1]}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(q.rows || []).map((row, idx) => `
+                  <tr class="border-b border-indigo-500/10 hover:bg-[#131424]/80/50 transition-colors">
+                    <td class="p-3 font-semibold text-indigo-100">${row}</td>
+                    <td class="p-3"><span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-150 text-emerald-400 font-bold text-[11px] flex items-center gap-1 w-fit">✓ ${(q.options || [])[q.correctAnswers[idx]] || ""}</span></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } else if (q.type === "multi_choice" && q.options) {
+      q.options.forEach((opt, idx) => {
+        const isCorrect = (q.correctIndices || []).includes(idx);
+        optionsContainer.innerHTML += `
+          <div class="p-2.5 rounded-xl border ${isCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold shadow-sm shadow-emerald-500/5' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'} text-xs flex justify-between items-center transition-all">
+            <div class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded border flex items-center justify-center text-[10px] ${isCorrect ? 'border-emerald-500 bg-emerald-500 text-white font-bold' : 'border-indigo-400 bg-[#1a1c2e]'}"><i class="fa-solid fa-check"></i></span>
+              <span>${opt}</span>
+            </div>
+            ${isCorrect ? '<span class="text-emerald-400 font-bold flex items-center gap-1 text-[10px]"><i class="fa-solid fa-circle-check"></i> ĐÁP ÁN ĐÚNG</span>' : ''}
+          </div>
+        `;
+      });
+    } else if (q.type === "image_choice" && q.options) {
+      optionsContainer.innerHTML = `
+        <div class="grid grid-cols-2 gap-3 w-full">
+          ${q.options.map((img, idx) => {
+            const isCorrect = idx === q.correctIndex;
+            return `
+              <div class="p-3 bg-[#131424]/80 border-2 rounded-xl flex flex-col items-center gap-2 relative overflow-hidden transition-all duration-200 ${isCorrect ? 'border-emerald-500 bg-emerald-500/20' : 'border-indigo-500/30'}">
+                <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
+                <span class="text-[10px] font-bold text-indigo-300">Lựa chọn ${idx+1}</span>
+                ${isCorrect ? '<span class="absolute top-1 right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black rounded shadow flex items-center gap-0.5"><i class="fa-solid fa-check"></i> ĐÚNG</span>' : ''}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    } else if (q.type === "true_false") {
+      const isTrueCorrect = q.answer === "true" || q.answer === true || q.answer === "đúng" || q.answer === "Đúng";
+      optionsContainer.innerHTML = `
+        <div class="grid grid-cols-2 gap-3 w-full">
+          <div class="p-3 rounded-xl border text-center transition-all ${isTrueCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'}">
+            <p class="text-sm">Đúng</p>
+            ${isTrueCorrect ? '<span class="text-[10px] text-emerald-400 font-bold">✓ ĐÁP ÁN ĐÚNG</span>' : ''}
+          </div>
+          <div class="p-3 rounded-xl border text-center transition-all ${!isTrueCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'}">
+            <p class="text-sm">Sai</p>
+            ${!isTrueCorrect ? '<span class="text-[10px] text-emerald-400 font-bold">✓ ĐÁP ÁN ĐÚNG</span>' : ''}
+          </div>
+        </div>
+      `;
+    } else if (q.type === "fill_blank") {
+      optionsContainer.innerHTML = `
+        <div class="p-3.5 bg-[#131424]/80 border border-indigo-500/30 rounded-xl text-xs text-indigo-200">
+          <p class="font-bold text-indigo-100 mb-1">Dạng điền từ vào ô trống:</p>
+          <p>Học sinh nhập câu trả lời trực tiếp: <span class="font-bold text-emerald-400 underline font-mono text-sm">${q.answer}</span></p>
+        </div>
+      `;
+    } else if (q.options) {
+      q.options.forEach(opt => {
+        optionsContainer.innerHTML += `
+          <div class="p-2.5 rounded-lg border border-indigo-500/30 bg-[#131424]/80 text-xs text-indigo-100">
+            ${opt}
+          </div>
+        `;
+      });
+    }
   }
 
   // Set action buttons
