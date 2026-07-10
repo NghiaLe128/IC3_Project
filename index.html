@@ -160,7 +160,7 @@
               <span id="successMessage">Đăng nhập thành công! Đang chuyển hướng...</span>
             </div>
 
-            <button type="submit" 
+            <button type="submit" id="submitBtn"
               class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 transform hover:scale-[1.02] active:scale-[0.98] transition-all">
               Bắt đầu hành trình <i class="fa-solid fa-arrow-right ml-1"></i>
             </button>
@@ -215,13 +215,22 @@
     </footer>
 
     <!-- Scripts -->
-    <script type="module" src="/assets/js/db-init.js"></script>
-    <script>
+    <script type="module" src="./assets/js/db-init.js"></script>
+    <script type="module">
       // Check if user is already logged in, then auto-redirect
       function initApp() {
+        if (!window.IC3_DB) return;
+        
         const currentUser = window.IC3_DB.getCurrentUser();
         if (currentUser) {
           redirectUser(currentUser.role);
+        }
+        
+        // Enable login button when DB is ready
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Đăng nhập <i class="fa-solid fa-arrow-right ml-2"></i>';
         }
       }
 
@@ -232,9 +241,18 @@
           window.addEventListener('ic3-db-ready', initApp);
         }
       });
+      
+      // Initialize state
+      document.addEventListener('DOMContentLoaded', () => {
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu...';
+        }
+      });
 
       // Show/Hide password toggle
-      function togglePassword() {
+      window.togglePassword = function() {
         const passwordInput = document.getElementById('password');
         const eyeIcon = document.getElementById('eyeIcon');
         if (passwordInput.type === 'password') {
@@ -244,56 +262,62 @@
           passwordInput.type = 'password';
           eyeIcon.className = 'fa-regular fa-eye';
         }
-      }
+      };
 
       // Handle custom form login
-      document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        
-        const errorBox = document.getElementById('errorBox');
-        const successBox = document.getElementById('successBox');
-        errorBox.classList.add('hidden');
-        successBox.classList.add('hidden');
+      document.addEventListener('DOMContentLoaded', () => {
+        const loginForm = document.getElementById('loginForm');
+        if (!loginForm) return;
 
-        // Show loading state
-        const submitBtn = e.target.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang xác thực...';
+        loginForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = document.getElementById('email').value.trim();
+          const password = document.getElementById('password').value;
+          const submitBtn = document.getElementById('submitBtn');
+          const errorBox = document.getElementById('errorBox');
+          const successBox = document.getElementById('successBox');
+          
+          errorBox.classList.add('hidden');
+          successBox.classList.add('hidden');
 
-        try {
-          if (!window.IC3_DB) {
-            throw new Error("Hệ thống chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
-          }
-          const result = await window.IC3_DB.login(email, password);
-          if (result.success) {
-            successBox.classList.remove('hidden');
-            setTimeout(() => {
-              redirectUser(result.user.role);
-            }, 1000);
-          } else {
+          const originalBtnText = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang xác thực...';
+
+          try {
+            if (!window.IC3_DB) {
+              throw new Error("Hệ thống chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
+            }
+            const result = await window.IC3_DB.login(email, password);
+            if (result.success) {
+              successBox.classList.remove('hidden');
+              setTimeout(() => {
+                redirectUser(result.user.role);
+              }, 1000);
+            } else {
+              errorBox.classList.remove('hidden');
+              document.getElementById('errorMessage').innerText = result.message;
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = originalBtnText;
+            }
+          } catch (err) {
             errorBox.classList.remove('hidden');
-            document.getElementById('errorMessage').innerText = result.message;
+            document.getElementById('errorMessage').innerText = "Lỗi hệ thống: " + err.message;
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
           }
-        } catch (err) {
-          errorBox.classList.remove('hidden');
-          document.getElementById('errorMessage').innerText = "Lỗi hệ thống: " + err.message;
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = originalBtnText;
-        }
+        });
       });
 
       // Quick Demo logins
-      async function quickLogin(email) {
+      window.quickLogin = async function(email) {
+        const errorBox = document.getElementById('errorBox');
+        const successBox = document.getElementById('successBox');
+        const submitBtn = document.getElementById('submitBtn');
+
         document.getElementById('email').value = email;
         document.getElementById('password').value = '123456';
         
-        const errorBox = document.getElementById('errorBox');
-        const successBox = document.getElementById('successBox');
         errorBox.classList.add('hidden');
         successBox.classList.add('hidden');
 
@@ -301,7 +325,12 @@
           alert("Hệ thống chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
           return;
         }
+
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        
         const result = await window.IC3_DB.login(email, '123456');
+        
         if (result.success) {
           successBox.classList.remove('hidden');
           setTimeout(() => {
@@ -310,8 +339,10 @@
         } else {
           errorBox.classList.remove('hidden');
           document.getElementById('errorMessage').innerText = result.message;
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
         }
-      }
+      };
 
       // Dynamic redirect engine
       function redirectUser(role) {

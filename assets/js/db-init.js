@@ -55,15 +55,15 @@ const IC3_DB = {
         IC3_CACHE[key] = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       }));
       console.log("✅ Cloud Data Loaded Successfully!");
-      
-      // Dispatch event so scripts know DB is ready
-      window.dispatchEvent(new CustomEvent('ic3-db-ready'));
     } catch (error) {
       console.error("❌ Failed to load cloud data:", error);
       // Fallback to empty arrays if cloud fails
       collectionsToFetch.forEach(key => {
         if (!IC3_CACHE[key]) IC3_CACHE[key] = [];
       });
+    } finally {
+      // Dispatch event so scripts know DB is ready (even if empty)
+      window.dispatchEvent(new CustomEvent('ic3-db-ready'));
     }
   },
 

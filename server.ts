@@ -5,8 +5,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = process.type === 'renderer' ? '' : (typeof import.meta !== 'undefined' && import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : ''));
+const __dirname = path.dirname(__filename || process.cwd());
+
+// Determine if we are running in the dist folder
+const isBundled = __dirname.endsWith('dist');
+const rootDir = isBundled ? path.resolve(__dirname, '..') : __dirname;
+const publicDir = isBundled ? __dirname : path.join(__dirname, 'dist');
 
 const app = express();
 const PORT = 3000;
