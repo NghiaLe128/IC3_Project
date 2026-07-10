@@ -251,9 +251,25 @@
 
       <!-- ==================== VIEW: 2. IC3 BATTLE (BOSS BATTLES) ==================== -->
       <section id="student-tab-battle" class="student-view-content space-y-6 hidden">
-        <div>
-          <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-shield-halved text-red-500 mr-2"></i>Đấu Trường IC3 BATTLE</h3>
-          <p class="text-xs text-slate-400 font-medium">Đối đầu trực tiếp với Boss Vùng Đất bằng sức mạnh kiến thức tin học IC3 để giành lấy vinh quang!</p>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/60 border border-indigo-500/10">
+          <div>
+            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-shield-halved text-red-500 mr-2"></i>Đấu Trường IC3 BATTLE</h3>
+            <p class="text-xs text-slate-400 font-medium">Lựa chọn bộ đề thi ôn tập kiểm tra theo từng khối học để tích lũy điểm EXP và thăng cấp Pokémon!</p>
+          </div>
+          <div id="student-grade-container" class="flex items-center gap-3 bg-slate-950 px-4 py-2.5 rounded-xl border border-indigo-500/20 shrink-0">
+            <span id="student-grade-label" class="text-xs font-bold text-indigo-400 flex items-center gap-1.5"><i class="fa-solid fa-graduation-cap"></i> Khối lớp ôn tập:</span>
+            <select id="student-grade-select" onchange="changeStudentGrade(this.value)" class="bg-transparent text-xs font-black text-white focus:outline-none cursor-pointer border-none p-0">
+              <option value="block_3" class="bg-slate-950 text-white">Khối 3</option>
+              <option value="block_4" class="bg-slate-950 text-white">Khối 4</option>
+              <option value="block_5" class="bg-slate-950 text-white">Khối 5</option>
+              <option value="block_6" class="bg-slate-950 text-white">Khối 6</option>
+              <option value="block_7" class="bg-slate-950 text-white">Khối 7</option>
+              <option value="block_8" class="bg-slate-950 text-white">Khối 8</option>
+            </select>
+            <div id="student-grade-locked-badge" class="hidden text-xs font-black text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-lg">
+              <i class="fa-solid fa-lock text-[10px]"></i> <span id="student-grade-locked-text">Lớp 6A3</span>
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">

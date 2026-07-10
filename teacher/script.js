@@ -538,11 +538,14 @@ function closeStudentDetailsModal() {
 // Local storage blocks loader helper
 function getBlocks() {
   const blocksData = localStorage.getItem("ic3_blocks");
-  if (!blocksData) {
+  if (!blocksData || blocksData.includes("block_level_1") || !blocksData.includes("block_3")) {
     const defaultBlocks = [
-      { id: "block_level_1", name: "Khối thám hiểm Level 1" },
-      { id: "block_level_2", name: "Khối thám hiểm Level 2" },
-      { id: "block_level_3", name: "Khối thám hiểm Level 3" }
+      { id: "block_3", name: "Khối 3" },
+      { id: "block_4", name: "Khối 4" },
+      { id: "block_5", name: "Khối 5" },
+      { id: "block_6", name: "Khối 6" },
+      { id: "block_7", name: "Khối 7" },
+      { id: "block_8", name: "Khối 8" }
     ];
     localStorage.setItem("ic3_blocks", JSON.stringify(defaultBlocks));
     return defaultBlocks;
@@ -592,11 +595,11 @@ function onBlockSelectionChange() {
   
   // Ensure we migrate any existing tests without a blockId to the corresponding block
   tests.forEach(t => {
-    if (!t.blockId) {
-      if (t.level === "level_1" || t.id === "test_l1") t.blockId = "block_level_1";
-      else if (t.level === "level_2" || t.id === "test_l2") t.blockId = "block_level_2";
-      else if (t.level === "level_3" || t.id === "test_l3") t.blockId = "block_level_3";
-      else t.blockId = "block_level_1"; // Default fall-back
+    if (!t.blockId || t.blockId === "block_level_1" || t.blockId === "block_level_2" || t.blockId === "block_level_3") {
+      if (t.blockId === "block_level_1" || t.level === "level_1" || t.id === "test_l1") t.blockId = "block_3";
+      else if (t.blockId === "block_level_2" || t.level === "level_2" || t.id === "test_l2") t.blockId = "block_4";
+      else if (t.blockId === "block_level_3" || t.level === "level_3" || t.id === "test_l3") t.blockId = "block_5";
+      else t.blockId = "block_3"; // Default fall-back
     }
   });
   window.saveData(window.IC3_KEYS.TESTS, tests);

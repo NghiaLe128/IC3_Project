@@ -171,12 +171,16 @@ async function checkStudentAuth() {
     
     if (studentDoc.exists()) {
       currentStudent = studentDoc.data();
+      if (!currentStudent.blockId) {
+        currentStudent.blockId = "block_3";
+      }
     } else {
       // Fallback for demo accounts or missing profile
       currentStudent = {
         email: user.email,
         name: user.name,
         classId: "C1",
+        blockId: "block_3",
         pokemon: "pikachu",
         level: "Beginner",
         exp: 150,
@@ -195,8 +199,17 @@ async function checkStudentAuth() {
     currentStudent = {
       email: user.email,
       name: user.name,
-      unlockedLessons: [],
-      pokemon: "pikachu"
+      classId: "C1",
+      blockId: "block_3",
+      pokemon: "pikachu",
+      level: "Beginner",
+      exp: 150,
+      maxExp: 500,
+      coins: 50,
+      rank: "Bronze",
+      badges: [],
+      unlockedLessons: ["lesson_l1_1"],
+      unlockedZones: ["level_1"]
     };
   }
 }
@@ -250,7 +263,109 @@ function loadStudentProfile() {
 
   document.getElementById("playerExpBar").style.width = `${expPercent}%`;
   document.getElementById("playerExpText").innerText = `${currentStudent.exp}/${levelMaxExp} EXP`;
+
+  // Set grade selector value
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const studentClass = classes.find(c => c.id === currentStudent.classId);
+  const gradeSelect = document.getElementById("student-grade-select");
+  const lockedBadge = document.getElementById("student-grade-locked-badge");
+  const lockedText = document.getElementById("student-grade-locked-text");
+
+  const blockNames = {
+    block_3: "Khối 3",
+    block_4: "Khối 4",
+    block_5: "Khối 5",
+    block_6: "Khối 6",
+    block_7: "Khối 7",
+    block_8: "Khối 8"
+  };
+
+  if (studentClass) {
+    const resolvedBlockId = getBlockIdFromClass(studentClass);
+    if (currentStudent.blockId !== resolvedBlockId) {
+      currentStudent.blockId = resolvedBlockId;
+      saveStudentBlockInMemoryAndFirestore(resolvedBlockId);
+    }
+    
+    if (gradeSelect) {
+      gradeSelect.value = resolvedBlockId;
+      gradeSelect.disabled = true;
+      gradeSelect.classList.add("pointer-events-none", "opacity-80");
+    }
+    if (lockedBadge && lockedText) {
+      lockedBadge.classList.remove("hidden");
+      const blockName = blockNames[resolvedBlockId] || "Cố định";
+      lockedText.innerText = `${studentClass.name} (${blockName})`;
+    }
+  } else {
+    if (gradeSelect) {
+      gradeSelect.disabled = false;
+      gradeSelect.classList.remove("pointer-events-none", "opacity-80");
+      if (currentStudent.blockId) {
+        gradeSelect.value = currentStudent.blockId;
+      }
+    }
+    if (lockedBadge) {
+      lockedBadge.classList.add("hidden");
+    }
+  }
 }
+
+function getBlockIdFromClass(cls) {
+  if (!cls) return "block_3";
+  if (cls.blockId) return cls.blockId;
+  
+  // Extract number 3 to 8 from class name or class ID
+  const matchName = cls.name.match(/\b([3-8])\b/) || cls.name.match(/([3-8])/);
+  const matchId = cls.id.match(/([3-8])/);
+  
+  const digit = matchName ? matchName[1] : (matchId ? matchId[1] : null);
+  if (digit) {
+    return `block_${digit}`;
+  }
+  return "block_3"; // Default fallback
+}
+
+async function saveStudentBlockInMemoryAndFirestore(blockId) {
+  currentStudent.blockId = blockId;
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const idx = students.findIndex(s => s.email === currentStudent.email);
+  if (idx !== -1) {
+    students[idx] = currentStudent;
+    await window.saveData(window.IC3_KEYS.STUDENTS, students);
+  } else {
+    try {
+      const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
+      await window.fStore.setDoc(studentDocRef, currentStudent);
+    } catch (e) {
+      console.error("Error saving student blockId:", e);
+    }
+  }
+}
+
+window.changeStudentGrade = async function(newBlockId) {
+  if (!currentStudent) return;
+  currentStudent.blockId = newBlockId;
+  
+  // Save student profile
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const idx = students.findIndex(s => s.email === currentStudent.email);
+  if (idx !== -1) {
+    students[idx] = currentStudent;
+    await window.saveData(window.IC3_KEYS.STUDENTS, students);
+  } else {
+    try {
+      const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
+      await window.fStore.setDoc(studentDocRef, currentStudent);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  
+  // Refresh profile & battle arena view
+  loadStudentProfile();
+  renderBattleArena();
+};
 
 function logoutStudent() {
   window.logoutUser();
@@ -341,40 +456,69 @@ function renderBattleArena() {
   document.getElementById("battle-stat-bar-spd").style.width = `${currentSpd}%`;
 
   // Render Boss List challenger cards
-  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
-  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   const container = document.getElementById("battle-boss-selector-container");
   container.innerHTML = "";
 
-  const bossesDef = [
-    {
-      testId: "test_l1",
-      name: "Data Tree Guardian (Thần Cây Dữ Liệu) 🌳",
-      levelReq: "Beginner",
-      avatar: "🌳",
-      desc: "Trấn giữ kiến thức cốt lõi phần cứng, hệ điều hành và an toàn máy tính Level 1.",
-      accent: "from-emerald-950/40 via-slate-900/50 to-slate-900/60 border-emerald-500/25",
-      reward: "Nhận 250+ EXP & 50+ Coins 🪙"
-    },
-    {
-      testId: "test_l2",
-      name: "Office Mega Robot (Người Máy Word & Excel) 🤖",
-      levelReq: "Explorer",
-      avatar: "🤖",
-      desc: "Lĩnh chủ phòng ngự bằng các ứng dụng chìa khóa Word, Excel, PowerPoint chuyên nghiệp.",
-      accent: "from-blue-950/40 via-slate-900/50 to-slate-900/60 border-blue-500/25",
-      reward: "Nhận 350+ EXP & 80+ Coins 🪙"
-    },
-    {
-      testId: "test_l3",
-      name: "Cyber Security Dragon (Rồng Hỏa Ngục An Ninh Mạng) 👾",
-      levelReq: "Expert",
-      avatar: "👾",
-      desc: "Sát thủ internet tối cao điều khiển mạng trực tuyến, hòm thư điện tử và bảo mật thế giới số.",
-      accent: "from-purple-950/40 via-slate-900/50 to-slate-900/60 border-purple-500/25",
-      reward: "Nhận 450+ EXP & 100+ Coins 🪙"
+  const studentBlockId = currentStudent.blockId || "block_3";
+  // Filter tests belonging to this specific grade block
+  const gradeTests = tests.filter(t => t.blockId === studentBlockId);
+
+  if (gradeTests.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full bg-slate-900/40 border border-white/5 p-8 rounded-3xl text-center space-y-3">
+        <span class="text-4xl">📭</span>
+        <h4 class="font-poppins font-bold text-sm text-slate-200">Khối lớp này chưa có đề ôn tập nào</h4>
+        <p class="text-xs text-slate-400 max-w-md mx-auto">Giáo viên có thể khởi tạo hoặc biên soạn thêm các bộ đề thi mới dành riêng cho khối lớp này trong phần quản lý giáo viên!</p>
+      </div>
+    `;
+    return;
+  }
+
+  const bossesDef = gradeTests.map((t, idx) => {
+    let name = t.title;
+    let avatar = "🌳";
+    let desc = "Trấn giữ bộ đề ôn tập và kiểm tra tin học dành cho khối lớp của bạn.";
+    let accent = "from-emerald-950/40 via-slate-900/50 to-slate-900/60 border-emerald-500/25";
+    let reward = "Nhận 250+ EXP & 50+ Coins 🪙";
+    
+    if (idx === 0) {
+      avatar = "🌳";
+      name = `${t.title} (Thần Cây Dữ Liệu) 🌳`;
+      desc = "Đối đầu trực tiếp với Thần Cây để kiểm tra năng lực tin học căn bản của khối lớp.";
+      accent = "from-emerald-950/40 via-slate-900/50 to-slate-900/60 border-emerald-500/25";
+      reward = "Nhận 250+ EXP & 50+ Coins 🪙";
+    } else if (idx === 1) {
+      avatar = "🤖";
+      name = `${t.title} (Người Máy Word & Excel) 🤖`;
+      desc = "Thử thách tư duy logic văn phòng và ứng dụng của khối lớp cùng Người Máy Siêu Việt.";
+      accent = "from-blue-950/40 via-slate-900/50 to-slate-900/60 border-blue-500/25";
+      reward = "Nhận 350+ EXP & 80+ Coins 🪙";
+    } else if (idx === 2) {
+      avatar = "👾";
+      name = `${t.title} (Rồng Hỏa Ngục An Ninh Mạng) 👾`;
+      desc = "Trận chiến đỉnh cao vượt qua các chướng ngại vật bảo mật và hiểu biết internet số.";
+      accent = "from-purple-950/40 via-slate-900/50 to-slate-900/60 border-purple-500/25";
+      reward = "Nhận 450+ EXP & 100+ Coins 🪙";
+    } else {
+      avatar = "🌟";
+      name = `${t.title} (Thử Thách Đặc Biệt) 🌟`;
+      desc = "Bộ đề thi tùy chỉnh do thầy cô thiết kế dành riêng cho bạn.";
+      accent = "from-slate-900 via-slate-950 to-indigo-950 border-indigo-500/20";
+      reward = "Nhận 300+ EXP & 60+ Coins 🪙";
     }
-  ];
+
+    return {
+      testId: t.id,
+      name: name,
+      levelReq: "Beginner", // Specific grade tests are always unlocked!
+      avatar: avatar,
+      desc: desc,
+      accent: accent,
+      reward: reward
+    };
+  });
 
   bossesDef.forEach(boss => {
     const test = tests.find(t => t.id === boss.testId);
@@ -406,7 +550,7 @@ function renderBattleArena() {
         </div>
       `;
     } else {
-      card.className = `bg-gradient-to-r ${boss.accent} border p-5 rounded-3xl flex flex-col md:flex-row items-center gap-5 shadow-2xl relative overflow-hidden group hover:border-white/25 transition-all`;
+      card.className = `bg-gradient-to-r ${boss.accent} border p-5 rounded-3xl flex flex-col md:flex-row items-center gap-5 shadow-2xl relative overflow-hidden group hover:border-white/25 transition-all w-full`;
       
       const badgeText = bestScore > 0 ? `Đã đấu (Cao nhất: ${bestScore}/100)` : "Chưa khiêu chiến";
       const badgeClass = bestScore >= 50 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-indigo-500/10 text-indigo-300 border-indigo-500/20";
@@ -453,10 +597,13 @@ function renderWorldMap() {
   updateZoneLockUI("level_2", isL2Unlocked);
   updateZoneLockUI("level_3", isL3Unlocked);
 
-  // Render quizzes per zone
-  renderZoneQuizzes("level_1", tests.filter(t => t.level === "level_1"), scores);
-  renderZoneQuizzes("level_2", tests.filter(t => t.level === "level_2"), scores, isL2Unlocked);
-  renderZoneQuizzes("level_3", tests.filter(t => t.level === "level_3"), scores, isL3Unlocked);
+  // Render quizzes per zone, filtered by the student's active grade block
+  const studentBlockId = currentStudent.blockId || "block_3";
+  const gradeTests = tests.filter(t => t.blockId === studentBlockId);
+
+  renderZoneQuizzes("level_1", gradeTests.filter(t => t.level === "level_1" || t.level === "Beginner"), scores);
+  renderZoneQuizzes("level_2", gradeTests.filter(t => t.level === "level_2" || t.level === "Explorer"), scores, isL2Unlocked);
+  renderZoneQuizzes("level_3", gradeTests.filter(t => t.level === "level_3" || t.level === "Expert"), scores, isL3Unlocked);
 }
 
 // ==================== RENDERING: 3. ÔN TẬP (SKILL TREE PRACTICE) ====================
