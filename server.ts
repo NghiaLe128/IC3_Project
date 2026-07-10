@@ -5,8 +5,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const __filename = process.type === 'renderer' ? '' : (typeof import.meta !== 'undefined' && import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : ''));
-const __dirname = path.dirname(__filename || process.cwd());
+const getRuntimePath = () => {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.url) {
+      return fileURLToPath(import.meta.url);
+    }
+  } catch (e) {
+    // Ignore error and fallback
+  }
+  return typeof __filename !== 'undefined' ? __filename : process.cwd();
+};
+
+const __filename = getRuntimePath();
+const __dirname = path.dirname(__filename);
 
 // Determine if we are running in the dist folder
 const isBundled = __dirname.endsWith('dist');
