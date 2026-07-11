@@ -667,6 +667,12 @@ function renderQuestionsList() {
   if (!test) return;
 
   const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
+  
+  const missing = test.questions.filter(id => !questions.some(q => q.id === id));
+  if (missing.length > 0) {
+    listContainer.innerHTML += `<p class="p-4 text-center text-[11px] text-red-500 italic">Cảnh báo: Có ${missing.length} câu hỏi không tìm thấy! IDs: ${missing.join(', ')}</p>`;
+  }
+  
   const testQuestions = questions.filter(q => test.questions.includes(q.id));
 
   const filteredQuestions = typeFilter ? testQuestions.filter(q => q.type === typeFilter) : testQuestions;
@@ -1538,7 +1544,11 @@ async function handleQuestionFormSubmit(e) {
     if (idx !== -1) {
       tests[idx].questions.push(finalId);
       tests[idx].questionCount = tests[idx].questions.length;
-      window.saveData(window.IC3_KEYS.TESTS, tests);
+      const res = await window.saveData(window.IC3_KEYS.TESTS, tests);
+      if (!res.success) {
+        alert("Lỗi khi lưu bộ đề: " + res.error);
+        return;
+      }
     }
     onBlockSelectionChange();
     document.getElementById("m-testSelector").value = testId;
@@ -1552,7 +1562,11 @@ async function handleQuestionFormSubmit(e) {
     }
   }
 
-  window.saveData(window.IC3_KEYS.QUESTIONS, questions);
+  const resQ = await window.saveData(window.IC3_KEYS.QUESTIONS, questions);
+  if (!resQ.success) {
+    alert("Lỗi khi lưu câu hỏi: " + resQ.error);
+    return;
+  }
   alert("Lưu câu hỏi thám hiểm thành công!");
 
   renderQuestionsList();
