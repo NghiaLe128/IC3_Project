@@ -413,11 +413,31 @@ function renderBattleArena() {
     eevee: "Eevee Biến Hóa"
   };
 
+  const pokemonElements = {
+    pikachu: { name: "⚡ Electric", color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20", shadow: "drop-shadow-[0_10px_15px_rgba(250,204,21,0.3)]" },
+    charmander: { name: "🔥 Fire", color: "text-orange-400 bg-orange-500/10 border-orange-500/20", shadow: "drop-shadow-[0_10px_15px_rgba(251,146,60,0.3)]" },
+    bulbasaur: { name: "🌱 Grass", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", shadow: "drop-shadow-[0_10px_15px_rgba(52,211,153,0.3)]" },
+    squirtle: { name: "💧 Water", color: "text-blue-400 bg-blue-500/10 border-blue-500/20", shadow: "drop-shadow-[0_10px_15px_rgba(96,165,250,0.3)]" },
+    eevee: { name: "🦊 Normal", color: "text-amber-400 bg-amber-500/10 border-amber-500/20", shadow: "drop-shadow-[0_10px_15px_rgba(251,191,36,0.3)]" }
+  };
+
   const activePoke = currentStudent.pokemon || "pikachu";
   
   // Render companion details in Battle Tab
   document.getElementById("battle-poke-name").innerText = pokemonNames[activePoke];
-  document.getElementById("battle-poke-avatar").innerText = pokemonAvatars[activePoke];
+  
+  const elBadge = document.getElementById("battle-poke-element");
+  const pokeElementData = pokemonElements[activePoke] || pokemonElements.pikachu;
+  if(elBadge) {
+    elBadge.className = `text-xs font-bold px-2.5 py-1 rounded-full border ${pokeElementData.color}`;
+    elBadge.innerText = pokeElementData.name;
+  }
+
+  const elAvatar = document.getElementById("battle-poke-avatar");
+  if(elAvatar) {
+    elAvatar.className = `text-7xl animate-pulse transition-all duration-300 ${pokeElementData.shadow}`;
+    elAvatar.innerText = pokemonAvatars[activePoke] || "⚡";
+  }
   
   // Dynamic RPG Level Stage
   let stage = "Cấp 1 (Sơ sinh)";
@@ -1333,16 +1353,30 @@ function startTest(testId, mode = "practice") {
   const activePoke = currentStudent.pokemon || "pikachu";
   const bossProf = bossesProfile[testId] || { name: "Guardian", avatar: "🌳" };
 
-  playerMaxHP = 100;
-  playerCurrentHP = 100;
+  const baseHp = activePoke === "bulbasaur" ? 140 : activePoke === "squirtle" ? 130 : 100;
+  playerMaxHP = baseHp + Math.floor(currentStudent.exp / 15);
+  playerCurrentHP = playerMaxHP;
   
   bossMaxHP = testQuestions.length * 100;
   bossCurrentHP = bossMaxHP;
 
+  const pokemonElements = {
+    pikachu: { color: "bg-yellow-500/10 border-yellow-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(250,204,21,0.3)]" },
+    charmander: { color: "bg-orange-500/10 border-orange-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,146,60,0.3)]" },
+    bulbasaur: { color: "bg-emerald-500/10 border-emerald-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(52,211,153,0.3)]" },
+    squirtle: { color: "bg-blue-500/10 border-blue-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(96,165,250,0.3)]" },
+    eevee: { color: "bg-amber-500/10 border-amber-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,191,36,0.3)]" }
+  };
+  const scenePokeData = pokemonElements[activePoke] || pokemonElements.pikachu;
+
   // Render initial health and titles to RPG Battle Arena
-  document.getElementById("battle-scene-player-avatar").innerText = pokemonAvatars[activePoke] || "⚡";
+  const sceneAvatar = document.getElementById("battle-scene-player-avatar");
+  if(sceneAvatar) {
+    sceneAvatar.className = `text-3xl h-10 w-10 flex items-center justify-center rounded-xl border shrink-0 ${scenePokeData.color} ${scenePokeData.shadow}`;
+    sceneAvatar.innerText = pokemonAvatars[activePoke] || "⚡";
+  }
   document.getElementById("battle-scene-player-name").innerText = pokemonNames[activePoke] || "Pikachu";
-  document.getElementById("battle-scene-player-hp-val").innerText = "100/100";
+  document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
   document.getElementById("battle-scene-player-hp-bar").style.width = "100%";
   document.getElementById("battle-scene-player-status").innerText = "SẴN SÀNG!";
 
@@ -2265,9 +2299,10 @@ function executeSubmitExamCalculation() {
     document.getElementById("battle-scene-player-status").innerText = "CHIẾN THẮNG! 🏆";
   } else {
     document.getElementById("battle-scene-boss-status").innerText = "HÌ HÌ...";
-    playerCurrentHP = Math.max(0, 100 - ((testQuestions.length - correctAnswersCount) * 20));
-    document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/100`;
-    document.getElementById("battle-scene-player-hp-bar").style.width = `${playerCurrentHP}%`;
+    playerCurrentHP = Math.max(0, playerMaxHP - ((testQuestions.length - correctAnswersCount) * 20));
+    document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
+    const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
+    document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
     document.getElementById("battle-scene-player-status").innerText = playerCurrentHP > 0 ? "KIỆT SỨC!" : "BẠI TRẬN! 💀";
   }
 
@@ -2504,8 +2539,9 @@ function nextGameQuestion() {
 
       // Player takes damage!
       playerCurrentHP = Math.max(0, playerCurrentHP - 20);
-      document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/100`;
-      document.getElementById("battle-scene-player-hp-bar").style.width = `${playerCurrentHP}%`;
+      document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
+      const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
+      document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
 
       document.getElementById("battle-scene-player-status").innerText = "-20 HP! HỰ!";
       document.getElementById("battle-scene-boss-status").innerText = "TẤN CÔNG! 💥";
@@ -2569,6 +2605,19 @@ function finishTest() {
   clearInterval(testTimerInterval);
   document.getElementById("game-playing-screen").classList.add("hidden");
   exitAntiCheatMode(); // Disable anti-cheat mode
+
+  // Handle Pokemon HP Death
+  let lockedPoke = null;
+  if (playerCurrentHP === 0 && currentStudent.pokemon && currentStudent.pokemon !== "pikachu") {
+    lockedPoke = currentStudent.pokemon;
+    if (currentStudent.unlockedPokemons) {
+      currentStudent.unlockedPokemons = currentStudent.unlockedPokemons.filter(p => p !== lockedPoke);
+    }
+    currentStudent.pokemon = "pikachu";
+    setTimeout(() => {
+       alert(`⚠️ Ồ KHÔNG! Thần thú của bạn đã bị kiệt sức (0 HP) và đã bị tự động KHÓA! Bạn sẽ sử dụng Pikachu mặc định cho trận sau.`);
+    }, 500);
+  }
 
   // Calculate final score
   const totalQ = testQuestions.length;
