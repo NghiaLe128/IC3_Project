@@ -679,7 +679,7 @@ function renderQuestionsList() {
   const filteredQuestions = testQuestions.filter(q => 
     (!typeFilter || q.type === typeFilter) &&
     (!searchQuery || q.question.toLowerCase().includes(searchQuery))
-  ).sort((a, b) => a.id.localeCompare(b.id));
+  );
 
   if (filteredQuestions.length === 0) {
     listContainer.innerHTML = `<p class="p-4 text-center text-[11px] text-indigo-300 italic">Không tìm thấy câu hỏi phù hợp.</p>`;
