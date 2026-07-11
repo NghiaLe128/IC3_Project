@@ -621,7 +621,7 @@ function onBlockSelectionChange() {
       else t.blockId = "block_3"; // Default fall-back
     }
   });
-  window.saveData(window.IC3_KEYS.TESTS, tests);
+  // Do not call window.saveData here to prevent overwriting concurrent updates.
 
   const blockTests = tests.filter(t => t.blockId === blockId);
   const testSelector = document.getElementById("m-testSelector");
@@ -679,7 +679,7 @@ function renderQuestionsList() {
   const filteredQuestions = testQuestions.filter(q => 
     (!typeFilter || q.type === typeFilter) &&
     (!searchQuery || q.question.toLowerCase().includes(searchQuery))
-  );
+  ).sort((a, b) => a.id.localeCompare(b.id));
 
   if (filteredQuestions.length === 0) {
     listContainer.innerHTML = `<p class="p-4 text-center text-[11px] text-indigo-300 italic">Không tìm thấy câu hỏi phù hợp.</p>`;
@@ -1473,7 +1473,15 @@ async function handleQuestionFormSubmit(e) {
   let isNew = false;
 
   if (!finalId) {
-    finalId = `q_tcustom_${Date.now().toString().slice(-6)}`;
+    const blockId = document.getElementById("m-blockSelector").value || "block";
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+    const test = tests.find(t => t.id === testId);
+    let count = 1;
+    if (test && test.questions) {
+      count = test.questions.length + 1;
+    }
+    const paddedCount = count.toString().padStart(3, '0');
+    finalId = `q_${blockId}_${testId}_${paddedCount}_${Date.now().toString().slice(-4)}`;
     isNew = true;
   }
 
@@ -1543,14 +1551,27 @@ async function handleQuestionFormSubmit(e) {
   if (isNew) {
     questions.push(qObj);
     // Link to active test set
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
     const idx = tests.findIndex(t => t.id === testId);
     if (idx !== -1) {
-      tests[idx].questions.push(finalId);
-      tests[idx].questionCount = tests[idx].questions.length;
-      const res = await window.saveData(window.IC3_KEYS.TESTS, tests);
-      if (!res.success) {
-        alert("Lỗi khi lưu bộ đề: " + res.error);
+      try {
+        const testRef = window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId);
+        const testSnap = await window.fStore.getDoc(testRef);
+        if (testSnap.exists()) {
+          const latestTest = testSnap.data();
+          latestTest.questions = latestTest.questions || [];
+          if (!latestTest.questions.includes(finalId)) {
+            latestTest.questions.push(finalId);
+            latestTest.questionCount = latestTest.questions.length;
+            await window.fStore.setDoc(testRef, latestTest, { merge: true });
+            
+            // Sync local cache
+            tests[idx].questions = latestTest.questions;
+            tests[idx].questionCount = latestTest.questionCount;
+          }
+        }
+      } catch (e) {
+        alert("Lỗi khi lưu câu hỏi vào bộ đề: " + e.message);
         return;
       }
     }
@@ -1566,11 +1587,13 @@ async function handleQuestionFormSubmit(e) {
     }
   }
 
-  const resQ = await window.saveData(window.IC3_KEYS.QUESTIONS, questions);
-  if (!resQ.success) {
-    alert("Lỗi khi lưu câu hỏi: " + resQ.error);
+  try {
+    await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, finalId), qObj, { merge: true });
+  } catch (err) {
+    alert("Lỗi khi lưu câu hỏi: " + err.message);
     return;
   }
+  
   alert("Lưu câu hỏi thám hiểm thành công!");
 
   renderQuestionsList();
@@ -1581,17 +1604,30 @@ function deleteCurrentQuestion() {
   if (!activeQuestionId) return;
 
   if (confirm("Bạn có chắc chắn muốn xóa câu hỏi này ra khỏi bộ đề thám hiểm?")) {
-    const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
-    const filteredQuestions = questions.filter(q => q.id !== activeQuestionId);
-    window.saveData(window.IC3_KEYS.QUESTIONS, filteredQuestions);
+    const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+    window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions.filter(q => q.id !== activeQuestionId);
+    
+    // Actually delete the doc from Firestore
+    window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, activeQuestionId));
 
     const testId = document.getElementById("m-testSelector").value;
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
     const tIdx = tests.findIndex(t => t.id === testId);
     if (tIdx !== -1) {
-      tests[tIdx].questions = tests[tIdx].questions.filter(id => id !== activeQuestionId);
-      tests[tIdx].questionCount = tests[tIdx].questions.length;
-      window.saveData(window.IC3_KEYS.TESTS, tests);
+      // We must fetch latest to prevent overwriting other concurrent modifications
+      window.fStore.getDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId)).then(snap => {
+        if (snap.exists()) {
+          const latestTest = snap.data();
+          latestTest.questions = latestTest.questions || [];
+          latestTest.questions = latestTest.questions.filter(id => id !== activeQuestionId);
+          latestTest.questionCount = latestTest.questions.length;
+          
+          window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId), latestTest, { merge: true });
+          
+          tests[tIdx].questions = latestTest.questions;
+          tests[tIdx].questionCount = latestTest.questionCount;
+        }
+      });
     }
 
     alert("Đã xóa câu hỏi thành công!");
@@ -1679,9 +1715,14 @@ function deleteCurrentBlock() {
     saveBlocks(blocks);
 
     // Delete associated tests
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
-    const remainingTests = tests.filter(t => t.blockId !== blockId);
-    window.saveData(window.IC3_KEYS.TESTS, remainingTests);
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+    const testsToDelete = tests.filter(t => t.blockId === blockId);
+    window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.blockId !== blockId);
+    
+    // Actually delete the docs from Firestore
+    testsToDelete.forEach(t => {
+      window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, t.id));
+    });
 
     alert("Đã xóa khối lớp thành công!");
     initManageTestsTab();
@@ -1748,8 +1789,9 @@ function handleTestSetFormSubmit(e) {
     calculatedLevel = "level_3";
   }
 
+  let testObj = null;
   if (action === "add") {
-    tests.push({
+    testObj = {
       id,
       title,
       blockId: activeBlockId,
@@ -1760,7 +1802,8 @@ function handleTestSetFormSubmit(e) {
       questionCount: 0,
       scoreVal: 100,
       createdBY: JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)).email
-    });
+    };
+    tests.push(testObj);
   } else {
     const idx = tests.findIndex(t => t.id === id);
     if (idx !== -1) {
@@ -1768,10 +1811,15 @@ function handleTestSetFormSubmit(e) {
       tests[idx].duration = duration;
       tests[idx].level = calculatedLevel;
       tests[idx].difficulty = difficulty;
+      testObj = tests[idx];
     }
   }
 
-  window.saveData(window.IC3_KEYS.TESTS, tests);
+  if (testObj) {
+    // Only update this specific test to prevent concurrent overwrite
+    window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, id), testObj, { merge: true });
+  }
+
   closeTestSetModal();
   
   // Reload block tests
@@ -1790,9 +1838,11 @@ function deleteCurrentTestSet() {
   }
 
   if (confirm("Bạn có chắc chắn muốn xóa bộ đề thám hiểm này? Mọi liên kết và câu hỏi đi kèm sẽ bị gỡ bỏ.")) {
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
-    const remainingTests = tests.filter(t => t.id !== testId);
-    window.saveData(window.IC3_KEYS.TESTS, remainingTests);
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+    window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.id !== testId);
+    
+    // Actually delete the doc from Firestore
+    window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId));
 
     alert("Đã xóa bộ đề thành công!");
     onBlockSelectionChange();
