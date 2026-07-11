@@ -628,7 +628,10 @@ function onBlockSelectionChange() {
   testSelector.innerHTML = `<option value="">-- Chọn bộ đề thám hiểm --</option>`;
 
   blockTests.forEach(t => {
-    testSelector.innerHTML += `<option value="${t.id}">${t.title} (${t.questions.length} câu)</option>`;
+    let diffIcon = "🟢 Dễ";
+    if (t.difficulty === "medium") diffIcon = "🟡 Trung bình";
+    if (t.difficulty === "hard") diffIcon = "🔴 Khó";
+    testSelector.innerHTML += `<option value="${t.id}">[${diffIcon}] ${t.title} (${t.questions.length} câu)</option>`;
   });
 
   onTestSelectionChange();
@@ -1013,33 +1016,49 @@ function renderDynamicFormFields(type, qData = {}) {
   if (type === "choice") {
     html = `
       <div class="p-5 rounded-2xl border border-purple-500/30 bg-[#1a1c2e]">
-        <h3 class="text-sm font-bold text-purple-400 mb-4">Cấu hình các đáp án trắc nghiệm:</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-bold text-purple-400">Cấu hình các đáp án trắc nghiệm:</h3>
+          <button type="button" onclick="window.addMultiChoiceOption('choice')" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors flex items-center gap-1">
+             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm đáp án
+          </button>
+        </div>
+        <div id="form-multi-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
     `;
     
-    for (let i = 0; i < 4; i++) {
+    const opts = qData.options || ["", "", "", ""];
+    opts.forEach((opt, i) => {
         const letter = String.fromCharCode(65 + i);
-        const optVal = (qData.options && qData.options[i]) ? qData.options[i].replace(/"/g, '&quot;') : '';
+        const optVal = opt ? opt.replace(/"/g, '&quot;') : '';
         const isChecked = (qData.correctIndex === i) || (i===0 && qData.correctIndex === undefined);
         html += `
-          <div class="flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300">
+          <div class="multi-opt-row flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300 relative group">
              <input type="radio" name="form-correct-choice" value="${i}" ${isChecked ? 'checked' : ''} class="mt-2.5 w-4 h-4 text-purple-400 focus:ring-purple-500 border-indigo-400 cursor-pointer">
              <div class="flex-1">
-               <div class="flex items-center gap-2 mb-1.5 pl-1">
-                 <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold">${letter}</div>
-                 <label class="text-xs font-bold text-indigo-100">Phương án ${letter}:</label>
+               <div class="flex items-center justify-between mb-1.5 pl-1">
+                 <div class="flex items-center gap-2">
+                   <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold letter-indicator">${letter}</div>
+                   <label class="text-xs font-bold text-indigo-100 label-indicator">Phương án ${letter}:</label>
+                 </div>
+                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters('choice');" class="text-indigo-300 hover:text-red-500 transition-colors">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                 </button>
                </div>
-               <input type="text" id="form-opt-${i}" class="w-full p-2.5 rounded-lg border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm outline-none placeholder:text-indigo-300" placeholder="Nội dung đáp án ${letter}..." value="${optVal}">
+               <input type="text" class="form-opt-multi input-indicator w-full p-2.5 rounded-lg border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm outline-none placeholder:text-indigo-300" placeholder="Nội dung phương án ${letter}..." value="${optVal}">
              </div>
           </div>
         `;
-    }
-    
+    });
+
     html += `
         </div>
-        <div class="flex items-center gap-2 mt-4 text-xs font-bold text-purple-400">
-          <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-500"></i>
-          Hãy tích chọn chấm tròn ở đáp án chính xác nhất để hệ thống nhận diện.
+        <div class="flex items-start md:items-center justify-between mt-4 flex-col md:flex-row gap-3">
+            <div class="flex items-center gap-2 text-xs font-bold text-purple-400">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-500"></i>
+              Hãy tích chọn chấm tròn ở đáp án chính xác nhất để hệ thống nhận diện.
+            </div>
+            <button type="button" onclick="window.addMultiChoiceOption('choice')" class="px-4 py-2 rounded-xl border border-purple-200 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors flex items-center gap-2 bg-[#1a1c2e] shadow-sm whitespace-nowrap">
+                <i data-lucide="plus" class="w-4 h-4"></i> Tạo thêm đáp án mới
+            </button>
         </div>
       </div>
     `;
@@ -1286,18 +1305,22 @@ window.addMultiChoiceOption = function(type) {
     div.className = "multi-opt-row flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300 relative group";
     
     const isImage = type === 'image_choice';
+    const isChoice = type === 'choice';
     const labelPrefix = isImage ? 'Đáp án đúng' : 'Phương án';
     const placeholderText = isImage ? 'Ví dụ: /favicon.png hoặc đường dẫn ảnh...' : `Nội dung phương án ${letter}...`;
+    const inputType = isChoice ? 'radio' : 'checkbox';
+    const inputName = isChoice ? 'form-correct-choice' : 'form-correct-multi';
+    const inputColorClass = isChoice ? 'text-purple-400 focus:ring-purple-500' : 'text-blue-400 focus:ring-blue-500 rounded';
     
     div.innerHTML = `
-             <input type="checkbox" name="form-correct-multi" value="${index}" class="mt-2.5 w-4 h-4 text-blue-400 focus:ring-blue-500 border-indigo-400 rounded cursor-pointer">
+             <input type="${inputType}" name="${inputName}" value="${index}" class="mt-2.5 w-4 h-4 ${inputColorClass} border-indigo-400 cursor-pointer">
              <div class="flex-1">
                <div class="flex items-center justify-between mb-1.5 pl-1">
                  <div class="flex items-center gap-2">
                    <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold letter-indicator">${letter}</div>
                    <label class="text-xs font-bold text-indigo-100 label-indicator">${labelPrefix} ${letter}</label>
                  </div>
-                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters();" class="text-indigo-300 hover:text-red-500 transition-colors">
+                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters('${type}');" class="text-indigo-300 hover:text-red-500 transition-colors">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                  </button>
                </div>
@@ -1305,18 +1328,19 @@ window.addMultiChoiceOption = function(type) {
              </div>
     `;
     container.appendChild(div);
-    window.updateMultiChoiceLetters();
+    window.updateMultiChoiceLetters(type);
     if (window.lucide) { window.lucide.createIcons(); }
 };
 
-window.updateMultiChoiceLetters = function() {
+window.updateMultiChoiceLetters = function(type) {
     const container = document.getElementById('form-multi-options');
     if(!container) return;
     const rows = container.querySelectorAll('.multi-opt-row');
     rows.forEach((row, index) => {
         const letter = String.fromCharCode(65 + index);
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        if(checkbox) checkbox.value = index;
+        const radioOrCheckbox = row.querySelector('input[type="radio"], input[type="checkbox"]');
+        if(radioOrCheckbox) radioOrCheckbox.value = index;
+
         
         const letterInd = row.querySelector('.letter-indicator');
         if(letterInd) letterInd.innerText = letter;
@@ -1394,15 +1418,11 @@ async function handleQuestionFormSubmit(e) {
   };
 
   if (type === "choice") {
-    qObj.options = [
-      document.getElementById("form-opt-0").value.trim(),
-      document.getElementById("form-opt-1").value.trim(),
-      document.getElementById("form-opt-2").value.trim(),
-      document.getElementById("form-opt-3").value.trim()
-    ];
+    const opts = Array.from(document.querySelectorAll(".form-opt-multi")).map(i => i.value.trim());
+    qObj.options = opts;
     const checkedRadio = document.querySelector('input[name="form-correct-choice"]:checked');
     qObj.correctIndex = checkedRadio ? parseInt(checkedRadio.value) : 0;
-    qObj.answer = qObj.options[qObj.correctIndex];
+    qObj.answer = qObj.options[qObj.correctIndex] || "";
   } else if (type === "multi_choice" || type === "image_choice") {
     const opts = Array.from(document.querySelectorAll(".form-opt-multi")).map(i => i.value.trim());
     qObj.options = opts;
@@ -1591,7 +1611,8 @@ function openTestSetModal(action) {
 
   if (action === "add") {
     document.getElementById("test-set-modal-title").innerText = "Tạo bộ đề thám hiểm mới";
-    document.getElementById("testSetIdInput").disabled = false;
+    document.getElementById("testSetIdInput").value = "";
+    document.getElementById("testSetDifficultyInput").value = "easy";
   } else {
     const testId = document.getElementById("m-testSelector").value;
     if (!testId) {
@@ -1604,9 +1625,9 @@ function openTestSetModal(action) {
 
     document.getElementById("test-set-modal-title").innerText = "Chỉnh sửa bộ đề thám hiểm";
     document.getElementById("testSetIdInput").value = test.id;
-    document.getElementById("testSetIdInput").disabled = true;
     document.getElementById("testSetTitleInput").value = test.title;
     document.getElementById("testSetDurationInput").value = test.duration || 15;
+    document.getElementById("testSetDifficultyInput").value = test.difficulty || "easy";
   }
 
   modal.classList.remove("hidden");
@@ -1620,9 +1641,15 @@ function handleTestSetFormSubmit(e) {
   e.preventDefault();
 
   const action = document.getElementById("test-set-form-action").value;
-  const id = document.getElementById("testSetIdInput").value.trim().toLowerCase();
+  let id = document.getElementById("testSetIdInput").value.trim().toLowerCase();
+  
+  if (action === "add") {
+     id = `test_${Date.now().toString().slice(-6)}`;
+  }
+  
   const title = document.getElementById("testSetTitleInput").value.trim();
   const duration = parseInt(document.getElementById("testSetDurationInput").value) || 15;
+  const difficulty = document.getElementById("testSetDifficultyInput").value;
 
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const activeBlockId = document.getElementById("m-blockSelector").value;
@@ -1636,15 +1663,12 @@ function handleTestSetFormSubmit(e) {
   }
 
   if (action === "add") {
-    if (tests.some(t => t.id === id)) {
-      alert("Mã định danh bộ đề này đã tồn tại!");
-      return;
-    }
     tests.push({
       id,
       title,
       blockId: activeBlockId,
       level: calculatedLevel,
+      difficulty,
       duration,
       questions: [],
       questionCount: 0,
@@ -1657,6 +1681,7 @@ function handleTestSetFormSubmit(e) {
       tests[idx].title = title;
       tests[idx].duration = duration;
       tests[idx].level = calculatedLevel;
+      tests[idx].difficulty = difficulty;
     }
   }
 

@@ -625,9 +625,14 @@
         <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4" id="test-set-modal-title">Tạo bộ đề thám hiểm mới</h3>
         <form id="testSetForm" class="space-y-4" onsubmit="handleTestSetFormSubmit(event)">
           <input type="hidden" id="test-set-form-action" value="add">
+          <input type="hidden" id="testSetIdInput">
           <div>
-            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Mã bộ đề (Không dấu, viết liền)</label>
-            <input type="text" id="testSetIdInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" placeholder="de_thi_cf_1">
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Cấp độ bộ đề</label>
+            <select id="testSetDifficultyInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
+              <option value="easy" selected>🟢 Dễ</option>
+              <option value="medium">🟡 Trung bình</option>
+              <option value="hard">🔴 Khó</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tiêu đề bài thi / bộ đề</label>

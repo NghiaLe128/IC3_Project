@@ -78,7 +78,6 @@
           
           <!-- Tab selector -->
           <div class="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/10 overflow-x-auto max-w-full scrollbar-none">
-            <button onclick="switchStudentTab('worldmap')" id="btn-tab-worldmap" class="student-tab-btn hidden"><i class="fa-solid fa-map"></i> Bản đồ</button>
             <button onclick="switchStudentTab('battle')" id="btn-tab-battle" class="student-tab-btn active"><i class="fa-solid fa-shield-halved"></i> Kiểm tra</button>
             <button onclick="switchStudentTab('review')" id="btn-tab-review" class="student-tab-btn"><i class="fa-solid fa-book"></i> Ôn tập</button>
             <button onclick="switchStudentTab('leaderboard')" id="btn-tab-leaderboard" class="student-tab-btn"><i class="fa-solid fa-trophy"></i> Xếp hạng</button>
@@ -112,7 +111,7 @@
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 z-10">
       
       <!-- ==================== VIEW: 1. WORLD MAP (ADVENTURE MODE) ==================== -->
-      <section id="student-tab-worldmap" class="student-view-content space-y-8">
+      <section id="student-tab-worldmap" class="student-view-content space-y-8 hidden">
         
         <!-- Welcome banner -->
         <div class="p-6 rounded-3xl bg-gradient-to-r from-blue-950/80 via-indigo-950/60 to-slate-900 border border-indigo-500/20 shadow-xl relative overflow-hidden">
@@ -250,7 +249,7 @@
       </section>
 
       <!-- ==================== VIEW: 2. IC3 BATTLE (BOSS BATTLES) ==================== -->
-      <section id="student-tab-battle" class="student-view-content space-y-6 hidden">
+      <section id="student-tab-battle" class="student-view-content space-y-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/60 border border-indigo-500/10">
           <div>
             <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-shield-halved text-red-500 mr-2"></i>Đấu Trường IC3 BATTLE</h3>

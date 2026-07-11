@@ -1032,6 +1032,7 @@ function selectInventoryCompanion(pokeId) {
   alert(`🎉 Đã đổi Pokémon đồng hành thành công! Thần thú hiện tại của bạn là ${pokeId.toUpperCase()}.`);
   loadStudentProfile();
   renderInventory();
+  renderBattleArena();
 }
 
 function useInventoryItem(itemIndex) {
@@ -1162,11 +1163,15 @@ function renderZoneQuizzes(levelId, zoneTests, allScores, isZoneUnlocked = true)
       button.className = "quiz-item-btn opacity-50 cursor-not-allowed";
     }
 
+    let diffIcon = "🟢";
+    if (test.difficulty === "medium") diffIcon = "🟡";
+    if (test.difficulty === "hard") diffIcon = "🔴";
+
     button.innerHTML = `
       <div class="flex items-center gap-2.5">
         ${statusIcon}
         <div>
-          <span class="block text-white font-bold text-xs">${test.title}</span>
+          <span class="block text-white font-bold text-xs">${diffIcon} ${test.title}</span>
           <span class="text-[9px] text-slate-400 font-medium">${test.questionCount} câu hỏi • ${test.duration} phút • <span class="font-bold text-indigo-300">${bestScoreText}</span></span>
         </div>
       </div>
@@ -1183,6 +1188,94 @@ function renderZoneQuizzes(levelId, zoneTests, allScores, isZoneUnlocked = true)
 
 
 // ==================== GAME PLAYING MODE (TEST ENGINE) ====================
+
+// --- Anti-Cheat Module ---
+window._isTestActiveForAntiCheat = false;
+
+function enterAntiCheatMode() {
+  window._isTestActiveForAntiCheat = true;
+  
+  // Request Fullscreen
+  try {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+  } catch(e) {
+    console.log("Fullscreen request failed", e);
+  }
+}
+
+function exitAntiCheatMode() {
+  window._isTestActiveForAntiCheat = false;
+  
+  // Exit Fullscreen
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+  } catch(e) {
+    console.log("Exit fullscreen failed", e);
+  }
+}
+
+function showCheatToast() {
+  const toast = document.createElement("div");
+  toast.className = "fixed top-10 left-1/2 -translate-x-1/2 bg-red-600 border-2 border-red-400 text-white px-6 py-3 rounded-xl shadow-2xl z-[9999] font-bold text-sm flex items-center gap-3 animate-bounce";
+  toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-yellow-300 text-xl"></i> <span>PHÁT HIỆN GIAN LẬN! Bài thi đã bị hủy.</span>`;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 4000);
+}
+
+function handleCheatDetected() {
+  if (!window._isTestActiveForAntiCheat || isReviewingExam) return;
+  
+  showCheatToast();
+  
+  // Reset test
+  exitAntiCheatMode();
+  confirmExitGamePlayingDirectly();
+}
+
+// Anti-Cheat global listeners
+document.addEventListener('contextmenu', e => {
+  if (window._isTestActiveForAntiCheat && !isReviewingExam) e.preventDefault();
+});
+
+document.addEventListener('keydown', e => {
+  if (!window._isTestActiveForAntiCheat || isReviewingExam) return;
+  
+  if (e.key === 'F12' || e.keyCode === 123) {
+    e.preventDefault();
+    handleCheatDetected();
+  }
+  
+  if (e.ctrlKey || e.metaKey) {
+    const key = e.key ? e.key.toLowerCase() : '';
+    if (['c', 'v', 'u', 'p', 's', 'r'].includes(key)) {
+      e.preventDefault();
+      handleCheatDetected();
+    }
+    
+    if (e.shiftKey && ['i', 'j', 'c'].includes(key)) {
+      e.preventDefault();
+      handleCheatDetected();
+    }
+  }
+});
+
+window.addEventListener('blur', () => {
+  if (window._isTestActiveForAntiCheat && !isReviewingExam) {
+    handleCheatDetected();
+  }
+});
+
 function startTest(testId, mode = "practice") {
   currentTestMode = mode;
   isReviewingExam = false;
@@ -1191,6 +1284,9 @@ function startTest(testId, mode = "practice") {
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   activePlayingTest = tests.find(t => t.id === testId);
   if (!activePlayingTest) return;
+
+  // Enter anti-cheat and fullscreen when starting test
+  enterAntiCheatMode();
 
   const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   
@@ -2463,6 +2559,7 @@ function confirmExitGamePlayingDirectly() {
   clearInterval(testTimerInterval);
   document.getElementById("game-playing-screen").classList.add("hidden");
   isReviewingExam = false; // Reset reviewing state
+  exitAntiCheatMode(); // Disable anti-cheat mode
   loadStudentProfile();
   renderBattleArena();
 }
@@ -2471,6 +2568,7 @@ function confirmExitGamePlayingDirectly() {
 function finishTest() {
   clearInterval(testTimerInterval);
   document.getElementById("game-playing-screen").classList.add("hidden");
+  exitAntiCheatMode(); // Disable anti-cheat mode
 
   // Calculate final score
   const totalQ = testQuestions.length;
