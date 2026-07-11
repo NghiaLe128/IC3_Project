@@ -148,6 +148,53 @@ window.saveData = async (key, data) => {
   }
 };
 
+// --- TOAST UTILITY ---
+window.showToast = function(message, type = 'success') {
+  let toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'toast-container';
+    toastContainer.className = 'fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none';
+    document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement('div');
+  const bgClass = type === 'error' ? 'bg-red-500' : (type === 'warning' ? 'bg-yellow-500' : 'bg-green-500');
+  
+  toast.className = `${bgClass} text-white px-4 py-3 rounded shadow-lg flex items-center justify-between min-w-[250px] max-w-sm transition-all duration-300 transform translate-y-full opacity-0 pointer-events-auto`;
+  
+  const textContent = document.createElement('span');
+  textContent.className = 'text-sm font-medium leading-relaxed whitespace-pre-wrap';
+  textContent.textContent = message;
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'ml-4 text-white hover:text-gray-200 focus:outline-none';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.style.fontSize = '1.25rem';
+  closeBtn.onclick = () => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('translate-y-full', 'opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  };
+
+  toast.appendChild(textContent);
+  toast.appendChild(closeBtn);
+  toastContainer.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.remove('translate-y-full', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+  });
+
+  setTimeout(() => {
+    if (document.body.contains(toast)) {
+      toast.classList.remove('translate-y-0', 'opacity-100');
+      toast.classList.add('translate-y-full', 'opacity-0');
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 4000);
+};
+
 // Start
 initData();
 

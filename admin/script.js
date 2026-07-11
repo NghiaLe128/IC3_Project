@@ -28,7 +28,7 @@ function startAdminApp() {
 function checkAdminAuth() {
   const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   if (!currentUser || currentUser.role !== "admin") {
-    alert("Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản Admin!");
+    window.showToast("Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản Admin!", 'error');
     window.location.href = "../index.html";
     return;
   }
@@ -349,7 +349,7 @@ function handleStudentSubmit(e) {
   } else {
     // Add mode
     if (students.some(s => s.email === email)) {
-      alert("Học sinh với email này đã tồn tại!");
+      window.showToast("Học sinh với email này đã tồn tại!", 'error');
       return;
     }
 
@@ -478,7 +478,7 @@ function handleTeacherSubmit(e) {
   const users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
 
   if (teachers.some(t => t.email === email)) {
-    alert("Giáo viên này đã tồn tại trong hệ thống!");
+    window.showToast("Giáo viên này đã tồn tại trong hệ thống!", 'error');
     return;
   }
 
@@ -748,7 +748,7 @@ function handleTestSubmit(e) {
   const selectedQuestions = Array.from(select.selectedOptions).map(opt => opt.value);
 
   if (selectedQuestions.length === 0) {
-    alert("Vui lòng chọn ít nhất 1 câu hỏi cho bộ đề thi!");
+    window.showToast("Vui lòng chọn ít nhất 1 câu hỏi cho bộ đề thi!", 'error');
     return;
   }
 
@@ -948,11 +948,11 @@ function resetDatabaseToDefault() {
   if (confirm("CẢNH BÁO: Thao tác này sẽ xóa mọi dữ liệu tùy chỉnh hiện tại và khôi phục lại cấu trúc cơ sở dữ liệu mẫu gốc ban đầu của IC3 LMS. Bạn có chắc chắn muốn tiếp tục không?")) {
     localStorage.clear();
     
-    alert("Khôi phục cơ sở dữ liệu thành công! Trang web sẽ tự động tải lại.");
+    window.showToast("Khôi phục cơ sở dữ liệu thành công! Trang web sẽ tự động tải lại.");
     window.location.reload();
   }
 }
 
 function saveAdminSettings() {
-  alert("Đã lưu các cài đặt cấu hình game hóa và mức thưởng EXP/Coins thành công!");
+  window.showToast("Đã lưu các cài đặt cấu hình game hóa và mức thưởng EXP/Coins thành công!");
 }

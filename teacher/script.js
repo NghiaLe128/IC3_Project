@@ -47,7 +47,7 @@ function startTeacherApp() {
 function checkTeacherAuth() {
   const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   if (!currentUser || currentUser.role !== "teacher") {
-    alert("Bạn không có quyền truy cập trang Giáo viên. Vui lòng đăng nhập bằng tài khoản Giáo viên!");
+    window.showToast("Bạn không có quyền truy cập trang Giáo viên. Vui lòng đăng nhập bằng tài khoản Giáo viên!", 'error');
     window.location.href = "../index.html";
     return;
   }
@@ -402,11 +402,11 @@ function importStudentsExcel(e) {
       window.saveData(window.IC3_KEYS.STUDENTS, students);
       window.saveData(window.IC3_KEYS.USERS, users);
       
-      alert(`Đã nhập thành công ${count} học sinh từ file Excel! Mật khẩu đăng nhập mặc định của các em là: 123456`);
+      window.showToast(`Đã nhập thành công ${count} học sinh từ file Excel! Mật khẩu đăng nhập mặc định của các em là: 123456`);
       renderClassStudentsTable();
       renderOverview();
     } catch (err) {
-      alert("Đã xảy ra lỗi khi đọc file Excel: " + err.message);
+      window.showToast("Đã xảy ra lỗi khi đọc file Excel: "  + err.message, 'error');
     }
   };
   reader.readAsBinaryString(file);
@@ -415,7 +415,7 @@ function importStudentsExcel(e) {
 
 function openAddStudentToClassModal() {
   if (!activeClassId) {
-    alert("Vui lòng chọn lớp học hoặc tạo lớp mới trước!");
+    window.showToast("Vui lòng chọn lớp học hoặc tạo lớp mới trước!", 'error');
     return;
   }
   const modal = document.getElementById("addStudentToClassModal");
@@ -445,7 +445,7 @@ function handleStudentToClassSubmit(e) {
   e.preventDefault();
   const email = document.getElementById("studentToClassSelector").value;
   if (!email) {
-    alert("Không có học sinh hợp lệ nào được chọn!");
+    window.showToast("Không có học sinh hợp lệ nào được chọn!", 'error');
     return;
   }
 
@@ -479,7 +479,7 @@ function openStudentDetailsModal(studentEmail) {
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const student = students.find(s => s.email === studentEmail);
   if (!student) {
-    alert("Không tìm thấy thông tin học sinh!");
+    window.showToast("Không tìm thấy thông tin học sinh!", 'error');
     return;
   }
 
@@ -965,7 +965,7 @@ function resetQuestionWorkspace() {
 function setupNewQuestionForm() {
   const testId = document.getElementById("m-testSelector").value;
   if (!testId) {
-    alert("Vui lòng chọn bộ đề thám hiểm trước!");
+    window.showToast("Vui lòng chọn bộ đề thám hiểm trước!", 'error');
     return;
   }
 
@@ -1189,7 +1189,7 @@ function renderDynamicFormFields(type, qData = {}) {
     `;
   } else if (type === "table_match") {
     window.tmData = {
-        columns: qData.options || ["Nhập", "Xuất"],
+        columns: qData.options || ["Đúng", "Sai"],
         rows: qData.rows || ["Bàn phím", "Scanner", "Màn hình"],
         correctAnswers: qData.correctAnswers || [0, 0, 1]
     };
@@ -1571,7 +1571,7 @@ async function handleQuestionFormSubmit(e) {
           }
         }
       } catch (e) {
-        alert("Lỗi khi lưu câu hỏi vào bộ đề: " + e.message);
+        window.showToast("Lỗi khi lưu câu hỏi vào bộ đề: "  + e.message, 'error');
         return;
       }
     }
@@ -1590,11 +1590,11 @@ async function handleQuestionFormSubmit(e) {
   try {
     await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, finalId), qObj, { merge: true });
   } catch (err) {
-    alert("Lỗi khi lưu câu hỏi: " + err.message);
+    window.showToast("Lỗi khi lưu câu hỏi: "  + err.message, 'error');
     return;
   }
   
-  alert("Lưu câu hỏi thám hiểm thành công!");
+  window.showToast("Lưu câu hỏi thám hiểm thành công!");
 
   renderQuestionsList();
   selectActiveQuestion(finalId);
@@ -1630,7 +1630,7 @@ function deleteCurrentQuestion() {
       });
     }
 
-    alert("Đã xóa câu hỏi thành công!");
+    window.showToast("Đã xóa câu hỏi thành công!");
     renderQuestionsList();
     resetQuestionWorkspace();
   }
@@ -1652,7 +1652,7 @@ function openBlockModal(action) {
   } else {
     const blockId = document.getElementById("m-blockSelector").value;
     if (!blockId) {
-      alert("Vui lòng chọn khối lớp cần sửa!");
+      window.showToast("Vui lòng chọn khối lớp cần sửa!", 'error');
       return;
     }
     const blocks = getBlocks();
@@ -1683,7 +1683,7 @@ function handleBlockFormSubmit(e) {
 
   if (action === "add") {
     if (blocks.some(b => b.id === id)) {
-      alert("Mã định danh khối lớp này đã tồn tại!");
+      window.showToast("Mã định danh khối lớp này đã tồn tại!", 'error');
       return;
     }
     blocks.push({ id, name });
@@ -1706,7 +1706,7 @@ function handleBlockFormSubmit(e) {
 function deleteCurrentBlock() {
   const blockId = document.getElementById("m-blockSelector").value;
   if (!blockId) {
-    alert("Vui lòng chọn khối lớp cần xóa!");
+    window.showToast("Vui lòng chọn khối lớp cần xóa!", 'error');
     return;
   }
 
@@ -1724,7 +1724,7 @@ function deleteCurrentBlock() {
       window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, t.id));
     });
 
-    alert("Đã xóa khối lớp thành công!");
+    window.showToast("Đã xóa khối lớp thành công!");
     initManageTestsTab();
   }
 }
@@ -1743,7 +1743,7 @@ function openTestSetModal(action) {
   } else {
     const testId = document.getElementById("m-testSelector").value;
     if (!testId) {
-      alert("Vui lòng chọn bộ đề cần sửa!");
+      window.showToast("Vui lòng chọn bộ đề cần sửa!", 'error');
       return;
     }
     const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
@@ -1833,7 +1833,7 @@ function handleTestSetFormSubmit(e) {
 function deleteCurrentTestSet() {
   const testId = document.getElementById("m-testSelector").value;
   if (!testId) {
-    alert("Vui lòng chọn bộ đề cần xóa!");
+    window.showToast("Vui lòng chọn bộ đề cần xóa!", 'error');
     return;
   }
 
@@ -1844,7 +1844,7 @@ function deleteCurrentTestSet() {
     // Actually delete the doc from Firestore
     window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId));
 
-    alert("Đã xóa bộ đề thành công!");
+    window.showToast("Đã xóa bộ đề thành công!");
     onBlockSelectionChange();
   }
 }
@@ -1976,7 +1976,7 @@ function handleClassSubmit(e) {
 
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
   if (classes.some(c => c.id === id)) {
-    alert("Mã định danh lớp học này đã bị trùng!");
+    window.showToast("Mã định danh lớp học này đã bị trùng!", 'error');
     return;
   }
 
@@ -2115,7 +2115,7 @@ window.updateHotspotPreview = () => {
     
     const img = document.getElementById('hotspot-preview-img');
     img.onerror = () => {
-        alert("Không thể tải ảnh. Hãy chắc chắn rằng link Drive đã được chia sẻ công khai với quyền 'Anyone with the link' (Bất kỳ ai có đường liên kết đều có thể xem).");
+        window.showToast("Không thể tải ảnh. Hãy chắc chắn rằng link Drive đã được chia sẻ công khai với quyền 'Anyone with the link' (Bất kỳ ai có đường liên kết đều có thể xem).");
     };
     if (url) {
         img.src = url;
@@ -2138,14 +2138,14 @@ window.handleHotspotImgUpload = async (input) => {
         document.getElementById('hotspot-img-url').value = base64;
         window.updateHotspotPreview();
     } catch (e) {
-        alert("Lỗi đọc file hình ảnh!");
+        window.showToast("Lỗi đọc file hình ảnh!", 'error');
     }
 };
 
 window.addHotspotArea = () => {
     const url = document.getElementById('hotspot-img-url').value.trim();
     if (!url) {
-        alert("Vui lòng nhập URL hình ảnh hoặc tải ảnh lên trước.");
+        window.showToast("Vui lòng nhập URL hình ảnh hoặc tải ảnh lên trước.", 'error');
         return;
     }
     window.isDrawingHotspot = true;

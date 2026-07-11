@@ -159,7 +159,7 @@ async function checkStudentAuth() {
   const user = userStr ? JSON.parse(userStr) : null;
   
   if (!user || user.role !== "student") {
-    alert("Vui lòng đăng nhập bằng tài khoản học sinh!");
+    window.showToast("Vui lòng đăng nhập bằng tài khoản học sinh!", 'error');
     window.location.href = "../index.html";
     return;
   }
@@ -852,7 +852,7 @@ function watchLessonVideo(nodeId) {
       window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
 
-    alert("🎉 Bạn đã tiếp thu kiến thức thành công và được cộng thêm +10 EXP thám hiểm!");
+    window.showToast("🎉 Bạn đã tiếp thu kiến thức thành công và được cộng thêm +10 EXP thám hiểm!");
     loadStudentProfile();
   }, 2000);
 }
@@ -860,7 +860,7 @@ function watchLessonVideo(nodeId) {
 function submitSkillQuiz(nodeId) {
   const selectedRadio = document.querySelector(`input[name="mini-quiz-${nodeId}"]:checked`);
   if (!selectedRadio) {
-    alert("Vui lòng click chọn một đáp án trước khi nộp bài!");
+    window.showToast("Vui lòng click chọn một đáp án trước khi nộp bài!", 'error');
     return;
   }
 
@@ -868,7 +868,7 @@ function submitSkillQuiz(nodeId) {
   const data = skillLessonData[nodeId];
 
   if (ans === data.correctAnswer) {
-    alert(`🎉 CHÍNH XÁC! Chúc mừng bạn đã trả lời đúng bài học mini-quiz.\nGiải thích: ${data.explanation}\n\n🎁 PHẦN THƯỞNG: +15 EXP | +5 Coins 🪙`);
+    window.showToast(`🎉 CHÍNH XÁC! Chúc mừng bạn đã trả lời đúng bài học mini-quiz.\nGiải thích: ${data.explanation}\n\n🎁 PHẦN THƯỞNG: +15 EXP | +5 Coins 🪙`);
     
     currentStudent.exp += 15;
     currentStudent.coins += 5;
@@ -889,7 +889,7 @@ function submitSkillQuiz(nodeId) {
     loadStudentProfile();
     renderSkillTree();
   } else {
-    alert(`❌ TIẾC QUÁ! Đáp án chưa chính xác.\nGợi ý giải thích: ${data.explanation}\n\nHãy ôn tập lại Flashcard và thử lại nhé!`);
+    window.showToast(`❌ TIẾC QUÁ! Đáp án chưa chính xác.\nGợi ý giải thích: ${data.explanation}\n\nHãy ôn tập lại Flashcard và thử lại nhé!`, "error");
   }
 }
 
@@ -1049,7 +1049,7 @@ function selectInventoryCompanion(pokeId) {
     window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
-  alert(`🎉 Đã đổi Pokémon đồng hành thành công! Thần thú hiện tại của bạn là ${pokeId.toUpperCase()}.`);
+  window.showToast(`🎉 Đã đổi Pokémon đồng hành thành công! Thần thú hiện tại của bạn là ${pokeId.toUpperCase()}.`);
   loadStudentProfile();
   renderInventory();
   renderBattleArena();
@@ -1082,7 +1082,7 @@ function useInventoryItem(itemIndex) {
       window.saveData(window.IC3_KEYS.STUDENTS, students);
     }
 
-    alert(`🎁 BẠN ĐÃ MỞ HỘP QUÀ MAY MẮN THÀNH CÔNG!\nHộp quà chứa: ${chosen.msg}`);
+    window.showToast(`🎁 BẠN ĐÃ MỞ HỘP QUÀ MAY MẮN THÀNH CÔNG!\nHộp quà chứa: ${chosen.msg}`);
     loadStudentProfile();
     renderInventory();
   }
@@ -1099,12 +1099,12 @@ function triggerEvolvePokemon() {
     nextExpReq = 3000;
     nextLevelName = "Master IC3";
   } else if (currentStudent.level === "Master IC3") {
-    alert("Thần thú Pokémon của bạn đã đạt cấp tiến hóa tối cao MASTER IC3 siêu phàm! Không còn cấp tiến hóa nào hơn nữa.");
+    window.showToast("Thần thú Pokémon của bạn đã đạt cấp tiến hóa tối cao MASTER IC3 siêu phàm! Không còn cấp tiến hóa nào hơn nữa.", 'error');
     return;
   }
 
   if (currentStudent.exp < nextExpReq) {
-    alert(`❌ TIẾN HÓA THẤT BẠI!\nBạn cần tích lũy tối thiểu ${nextExpReq} EXP bằng cách khiêu chiến làm bài thi và Mini-Quiz mới đủ năng lượng siêu thú.`);
+    window.showToast(`❌ TIẾN HÓA THẤT BẠI!\nBạn cần tích lũy tối thiểu ${nextExpReq} EXP bằng cách khiêu chiến làm bài thi và Mini-Quiz mới đủ năng lượng siêu thú.`, 'error');
     return;
   }
 
@@ -1129,7 +1129,7 @@ function triggerEvolvePokemon() {
     window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
-  alert(`🔮 TIẾN HÓA THẦN THỨ THÀNH CÔNG! 🔮\n\nChúc mừng thám hiểm giả! Pokémon và trình độ kiến thức của bạn đã thăng cấp thành công từ ${previousLevel.toUpperCase()} lên ${nextLevelName.toUpperCase()}!\n\nGiao diện thám hiểm, bảng xếp hạng và danh hiệu vương giả mới đã được cập nhật!`);
+  window.showToast(`🔮 TIẾN HÓA THẦN THỨ THÀNH CÔNG! 🔮\n\nChúc mừng thám hiểm giả! Pokémon và trình độ kiến thức của bạn đã thăng cấp thành công từ ${previousLevel.toUpperCase()} lên ${nextLevelName.toUpperCase()}!\n\nGiao diện thám hiểm, bảng xếp hạng và danh hiệu vương giả mới đã được cập nhật!`);
   
   loadStudentProfile();
   renderInventory();
@@ -1314,7 +1314,7 @@ function startTest(testId, mode = "practice") {
   testQuestions = allQuestions.filter(q => activePlayingTest.questions.includes(q.id));
   
   if (testQuestions.length === 0) {
-    alert("Lỗi: Bài kiểm tra này chưa được cài đặt câu hỏi. Vui lòng thử lại sau!");
+    window.showToast("Lỗi: Bài kiểm tra này chưa được cài đặt câu hỏi. Vui lòng thử lại sau!", 'error');
     return;
   }
 
@@ -1463,7 +1463,7 @@ function runGameTimer() {
 
     if (remainingSeconds <= 0) {
       clearInterval(testTimerInterval);
-      alert("Hết thời gian làm bài! Hệ thống sẽ tự động nộp bài thi.");
+      window.showToast("Hết thời gian làm bài! Hệ thống sẽ tự động nộp bài thi.");
       if (currentTestMode === "exam") {
         executeSubmitExamCalculation();
       } else {
@@ -2190,7 +2190,7 @@ function placeDraggedText(text, btnIdx) {
   
   const emptyIdx = window.draggedTextAnswers.findIndex(ans => !ans);
   if (emptyIdx === -1) {
-    alert("Tất cả các vị trí đã điền xong! Hãy click vào ô trống cũ nếu muốn thay đổi.");
+    window.showToast("Tất cả các vị trí đã điền xong! Hãy click vào ô trống cũ nếu muốn thay đổi.");
     return;
   }
   
@@ -2242,7 +2242,7 @@ function placeDraggedImageText(text, btnIdx) {
   
   const emptyIdx = window.draggedTextAnswers.findIndex(ans => !ans);
   if (emptyIdx === -1) {
-    alert("Tất cả các hình ảnh đã được dán nhãn tên!");
+    window.showToast("Tất cả các hình ảnh đã được dán nhãn tên!");
     return;
   }
   
@@ -2489,7 +2489,7 @@ function nextGameQuestion() {
     if (type === "choice" || type === "multiple_choice" || type === "true_false" || type === "image_choice") {
       studentAns = currentSelectedAnswer;
       if (studentAns === "" || studentAns === undefined) {
-        alert("Vui lòng click chọn một đáp án trước khi bấm kiểm tra!");
+        window.showToast("Vui lòng click chọn một đáp án trước khi bấm kiểm tra!", 'error');
         return;
       }
       if (type === "choice" || type === "image_choice") {
@@ -2500,14 +2500,14 @@ function nextGameQuestion() {
     } else if (type === "fill_blank") {
       studentAns = document.getElementById("blank-input").value.trim();
       if (!studentAns) {
-        alert("Vui lòng nhập câu trả lời vào ô trống!");
+        window.showToast("Vui lòng nhập câu trả lời vào ô trống!", 'error');
         return;
       }
       isCorrect = studentAns.toLowerCase() === q.answer.toLowerCase();
     } else if (type === "drag_text" || type === "drag_image_text") {
       const unfilled = window.draggedTextAnswers.some(ans => !ans);
       if (unfilled) {
-        alert("Vui lòng điền và ghép đầy đủ tất cả các vị trí trước khi nộp!");
+        window.showToast("Vui lòng điền và ghép đầy đủ tất cả các vị trí trước khi nộp!", 'error');
         return;
       }
       studentAns = [...window.draggedTextAnswers];
@@ -2524,7 +2524,7 @@ function nextGameQuestion() {
         selectVals.push(parseInt(val));
       }
       if (!allSelected) {
-        alert("Vui lòng ghép nối đầy đủ tất cả các hàng trước khi nộp!");
+        window.showToast("Vui lòng ghép nối đầy đủ tất cả các hàng trước khi nộp!", 'error');
         return;
       }
       studentAns = selectVals;
@@ -2532,7 +2532,7 @@ function nextGameQuestion() {
     } else if (type === "hotspot") {
       studentAns = window.hotspotClicks || [];
       if (studentAns.length < (q.requiredCount || 1)) {
-        alert(`Vui lòng chọn đủ ${q.requiredCount || 1} vị trí trên ảnh!`);
+        window.showToast(`Vui lòng chọn đủ ${q.requiredCount || 1} vị trí trên ảnh!`, 'error');
         return;
       }
       let allValid = true;
@@ -2546,7 +2546,7 @@ function nextGameQuestion() {
       isCorrect = allValid;
     } else if (type === "multi_choice") {
       if (window.multiChoiceSelected.length === 0) {
-        alert("Vui lòng chọn ít nhất một đáp án trước khi nộp!");
+        window.showToast("Vui lòng chọn ít nhất một đáp án trước khi nộp!", 'error');
         return;
       }
       studentAns = [...window.multiChoiceSelected];
@@ -2794,7 +2794,7 @@ function finishTest() {
     }
     currentStudent.pokemon = "pikachu";
     setTimeout(() => {
-       alert(`⚠️ Ồ KHÔNG! Thần thú của bạn đã bị kiệt sức (0 HP) và đã bị tự động KHÓA! Bạn sẽ sử dụng Pikachu mặc định cho trận sau.`);
+       window.showToast(`⚠️ Ồ KHÔNG! Thần thú của bạn đã bị kiệt sức (0 HP) và đã bị tự động KHÓA! Bạn sẽ sử dụng Pikachu mặc định cho trận sau.`, 'error');
     }, 500);
   }
 
@@ -2987,7 +2987,7 @@ function renderRewardsStore() {
 
 function buyStoreItem(id, cost, type) {
   if (currentStudent.coins < cost) {
-    alert("Bạn không đủ Coin vàng 🪙 để thực hiện giao dịch này. Hãy thám hiểm làm thêm nhiều bài thi để kiếm thêm Coin nhé!");
+    window.showToast("Bạn không đủ Coin vàng 🪙 để thực hiện giao dịch này. Hãy thám hiểm làm thêm nhiều bài thi để kiếm thêm Coin nhé!", 'error');
     return;
   }
 
@@ -3000,9 +3000,9 @@ function buyStoreItem(id, cost, type) {
         currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
       }
       currentStudent.unlockedPokemons.push(pokeId);
-      alert(`🎉 CHÚC MỪNG: Bạn đã mở khóa thành công Pokémon ${pokeId.toUpperCase()}! Bạn có thể đổi avatar của mình ngay bây giờ.`);
+      window.showToast(`🎉 CHÚC MỪNG: Bạn đã mở khóa thành công Pokémon ${pokeId.toUpperCase()}! Bạn có thể đổi avatar của mình ngay bây giờ.`);
     } else {
-      alert("🎉 ĐỔI QUÀ THÀNH CÔNG! Hãy liên hệ với Giáo viên hoặc Admin để nhận Voucher vật phẩm của bạn nhé.");
+      window.showToast("🎉 ĐỔI QUÀ THÀNH CÔNG! Hãy liên hệ với Giáo viên hoặc Admin để nhận Voucher vật phẩm của bạn nhé.");
     }
 
     // Save updated student stats
