@@ -1478,6 +1478,7 @@ function runGameTimer() {
 }
 
 function renderGameQuestion() {
+  window.renderNavigationPanel();
   let isQuestionAnswered = false;
   if (isReviewingExam) {
     isQuestionAnswered = true;
@@ -1744,9 +1745,9 @@ function renderGameQuestion() {
       }
 
       imagesHtml += `
-        <div class="flex flex-col items-center p-4 rounded-2xl bg-slate-950 border border-slate-800/80 gap-3">
-          <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-28 w-auto object-contain rounded-lg bg-white p-2 border border-slate-800" alt="Linh kiện">
-          <div class="w-full">
+        <div class="flex flex-row items-center p-4 rounded-2xl bg-slate-950 border border-slate-800/80 gap-4">
+          <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-20 w-20 object-contain rounded-lg bg-white p-2 border border-slate-800" alt="Linh kiện">
+          <div class="flex-grow">
             <div id="drag-image-target-${idx}" onclick="clearDraggedImageText(${idx})" 
                  class="${slotClass}">
               ${slotText}
@@ -1962,8 +1963,8 @@ function renderGameQuestion() {
         window.drawClicks = drawClicks;
 
         if (!isQuestionAnswered) {
-            img.addEventListener('click', (e) => {
-                const rect = img.getBoundingClientRect();
+            overlay.addEventListener('click', (e) => {
+                const rect = overlay.getBoundingClientRect();
                 const x = ((e.clientX - rect.left) / rect.width) * 100;
                 const y = ((e.clientY - rect.top) / rect.height) * 100;
                 
@@ -3324,3 +3325,59 @@ function renderBadges() {
     container.appendChild(card);
   });
 }
+
+window.renderNavigationPanel = () => {
+  const panel = document.getElementById('question-list-grid');
+  if (!panel) return;
+  panel.innerHTML = '';
+  
+  testQuestions.forEach((q, i) => {
+    const btn = document.createElement('button');
+    btn.innerText = i + 1;
+    btn.className = "w-8 h-8 rounded flex items-center justify-center text-xs font-bold transition-all border border-slate-700 ";
+    
+    // Default: Not answered
+    btn.classList.add("bg-slate-800", "text-slate-400");
+
+    if (activeQuestionIndex === i) {
+        btn.classList.add("border-indigo-500", "text-indigo-400", "bg-indigo-500/20");
+    }
+
+    // State coloring
+    if (currentTestMode === "exam") {
+      if (examUserAnswers[i] !== undefined && examUserAnswers[i] !== "") {
+          btn.classList.remove("bg-slate-800", "text-slate-400");
+          btn.classList.add("bg-blue-600", "text-white");
+      }
+    } else {
+      // Practice / Review
+      if (userAnswers[i] !== undefined) {
+         const correct = isAnswerCorrect(q, userAnswers[i]);
+         btn.classList.remove("bg-slate-800", "text-slate-400");
+         if (correct) {
+             btn.classList.add("bg-emerald-600", "text-white");
+         } else {
+             btn.classList.add("bg-red-600", "text-white");
+         }
+      }
+    }
+    
+    btn.onclick = () => {
+      activeQuestionIndex = i;
+      renderGameQuestion();
+    }
+    
+    panel.appendChild(btn);
+  });
+}
+
+function isAnswerCorrect(q, userAnswer) {
+    const type = q.type || "choice";
+    if (type === "choice") {
+        return parseInt(userAnswer) === q.correctIndex;
+    } else if (type === "multiple_choice" || type === "true_false") {
+        return userAnswer === q.answer;
+    }
+    return false;
+}
+

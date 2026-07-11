@@ -1504,7 +1504,7 @@ async function handleQuestionFormSubmit(e) {
     qObj.correctAnswers = validPairs.map(p => p.r);
     qObj.answer = "Kéo thả chữ";
   } else if (type === "drag_image_text") {
-    const leftInputs = Array.from(document.querySelectorAll('.dit-left')).map(el => el.value.trim());
+    const leftInputs = Array.from(document.querySelectorAll('.dit-left')).map(el => convertDriveUrl(el.value.trim()));
     const rightInputs = Array.from(document.querySelectorAll('.dit-right')).map(el => el.value.trim());
     const validPairs = leftInputs.map((l, i) => ({ l, r: rightInputs[i] })).filter(p => p.l && p.r);
     
@@ -1540,6 +1540,9 @@ async function handleQuestionFormSubmit(e) {
       tests[idx].questionCount = tests[idx].questions.length;
       window.saveData(window.IC3_KEYS.TESTS, tests);
     }
+    onBlockSelectionChange();
+    document.getElementById("m-testSelector").value = testId;
+    onTestSelectionChange();
   } else {
     const idx = questions.findIndex(item => item.id === finalId);
     if (idx !== -1) {
