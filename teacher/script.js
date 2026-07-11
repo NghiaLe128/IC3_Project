@@ -2039,20 +2039,12 @@ window.tempHotspotBox = null;
 
 window.updateHotspotPreview = () => {
     let inputEl = document.getElementById('hotspot-img-url');
-    let url = inputEl.value.trim();
-    
-    // Convert Google Drive link
-    if (url.includes('drive.google.com/file/d/')) {
-        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) {
-            url = `https://drive.google.com/uc?id=${match[1]}`;
-            inputEl.value = url;
-        }
-    }
+    let url = convertDriveUrl(inputEl.value.trim());
+    inputEl.value = url;
     
     const img = document.getElementById('hotspot-preview-img');
     img.onerror = () => {
-        alert("Không thể tải ảnh từ link này. Hãy đảm bảo link Drive được chia sẻ công khai.");
+        alert("Không thể tải ảnh. Hãy chắc chắn rằng link Drive đã được chia sẻ công khai với quyền 'Anyone with the link' (Bất kỳ ai có đường liên kết đều có thể xem).");
     };
     if (url) {
         img.src = url;
@@ -2106,7 +2098,7 @@ window.renderHotspotAreas = () => {
         list.innerHTML += `
             <div class="flex justify-between items-center bg-[#131424] p-2 rounded border border-indigo-500/30">
                <span class="text-xs text-indigo-200">Khu vực ${i+1}: X=${Math.round(area.x)}%, Y=${Math.round(area.y)}%, W=${Math.round(area.w)}%, H=${Math.round(area.h)}%</span>
-               <button type="button" onclick="window.removeHotspotArea(${i})" class="text-red-400 hover:text-red-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+               <button type="button" onclick="window.removeHotspotArea(${i})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash-can"></i></button>
             </div>
         `;
     });
@@ -2117,15 +2109,38 @@ window.renderHotspotAreas = () => {
     overlay.innerHTML = '';
     window.hotspotAreas.forEach((area, i) => {
         const box = document.createElement('div');
-        box.className = 'absolute border-2 border-green-500 bg-green-500/20 pointer-events-none flex items-center justify-center text-green-300 font-bold text-xs';
+        box.className = 'absolute border-2 border-green-500 bg-green-500/20 cursor-grab flex items-center justify-center text-green-300 font-bold text-xs';
         box.style.left = `${area.x}%`;
         box.style.top = `${area.y}%`;
         box.style.width = `${area.w}%`;
         box.style.height = `${area.h}%`;
         box.innerText = i + 1;
+        
+        box.draggable = true;
+        box.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', i);
+        });
+        
         overlay.appendChild(box);
     });
-    if (window.lucide) window.lucide.createIcons();
+    
+    // Allow dropping onto the overlay to update position
+    overlay.addEventListener('dragover', (e) => e.preventDefault());
+    overlay.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const index = e.dataTransfer.getData('text/plain');
+        if (index === '') return;
+        
+        const rect = overlay.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        // Update position (centering it)
+        window.hotspotAreas[index].x = Math.max(0, Math.min(100 - window.hotspotAreas[index].w, x - (window.hotspotAreas[index].w / 2)));
+        window.hotspotAreas[index].y = Math.max(0, Math.min(100 - window.hotspotAreas[index].h, y - (window.hotspotAreas[index].h / 2)));
+        
+        window.renderHotspotAreas();
+    });
 };
 
 window.initHotspotDrawing = () => {
