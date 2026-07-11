@@ -772,20 +772,7 @@ function selectActiveQuestion(qId) {
     displayAnswer = `Xác định ${q.requiredCount || 1} khu vực trên ảnh`;
   } else if (q.type === "image_choice" && q.options) {
     displayAnswer = `Lựa chọn ${q.correctIndex + 1}`;
-  } else if (q.type === "hotspot") {
-      optionsContainer.innerHTML = `
-        <div class="space-y-3">
-          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-image mr-1"></i>Khu vực đáp án:</div>
-          <div class="relative inline-block border border-gray-600 rounded bg-black/20" style="max-width: 100%;">
-             <img src="${q.imageUrl || ''}" style="max-width: 100%; display: ${q.imageUrl ? 'block' : 'none'}; pointer-events: none;" draggable="false">
-             <div class="absolute inset-0">
-               ${(q.hotspots || []).map((area, i) => `<div class="absolute border-2 border-green-500 bg-green-500/20 flex items-center justify-center text-green-300 font-bold text-xs" style="left: ${area.x}%; top: ${area.y}%; width: ${area.w}%; height: ${area.h}%;">${i + 1}</div>`).join('')}
-             </div>
-          </div>
-          <div class="text-xs text-indigo-200">Số điểm cần nhấp đúng: <span class="font-bold text-purple-400">${q.requiredCount || 1}</span></div>
-        </div>
-      `;
-    } else if (q.type === "true_false") {
+  } else if (q.type === "true_false") {
     displayAnswer = q.answer === "true" || q.answer === true || q.answer === "đúng" || q.answer === "Đúng" ? "Đúng" : "Sai";
   }
   
@@ -827,6 +814,19 @@ function selectActiveQuestion(qId) {
           </div>
         </div>
       `;
+    } else if (q.type === "hotspot") {
+        optionsContainer.innerHTML = `
+          <div class="space-y-3">
+            <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-image mr-1"></i>Khu vực đáp án:</div>
+            <div class="relative inline-block border border-gray-600 rounded bg-black/20" style="max-width: 100%;">
+               <img src="${q.imageUrl || ''}" style="max-width: 100%; display: ${q.imageUrl ? 'block' : 'none'}; pointer-events: none;" draggable="false">
+               <div class="absolute inset-0">
+                 ${(q.hotspots || []).map((area, i) => `<div class="absolute border-2 border-green-500 bg-green-500/20 flex items-center justify-center text-green-300 font-bold text-xs" style="left: ${area.x}%; top: ${area.y}%; width: ${area.w}%; height: ${area.h}%;">${i + 1}</div>`).join('')}
+               </div>
+            </div>
+            <div class="text-xs text-indigo-200">Số điểm cần nhấp đúng: <span class="font-bold text-purple-400">${q.requiredCount || 1}</span></div>
+          </div>
+        `;
     } else if (q.type === "drag_image_text") {
       optionsContainer.innerHTML = `
         <div class="space-y-3">

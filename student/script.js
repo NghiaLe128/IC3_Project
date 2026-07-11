@@ -1889,7 +1889,7 @@ function renderGameQuestion() {
         <button type="button" onclick="window.clearHotspots()" class="text-xs text-red-400 hover:text-red-300 border border-red-400/30 rounded px-2 py-1">Clear hết</button>
       </div>
       <div id="student-hotspot-container" class="relative inline-block border-2 border-indigo-500/30 rounded bg-[#131424] max-w-full overflow-hidden" style="cursor: crosshair;">
-        <img id="student-hotspot-img" src="${q.imageUrl}" style="max-width: 100%; display: block; user-select: none;" draggable="false">
+        <img id="student-hotspot-img" src="${convertDriveUrl(q.imageUrl)}" style="max-width: 100%; display: block; user-select: none;" draggable="false">
         <div id="student-hotspot-overlay" class="absolute inset-0"></div>
       </div>
     `;
@@ -1907,6 +1907,7 @@ function renderGameQuestion() {
 
         const drawClicks = () => {
             overlay.innerHTML = '';
+            console.log('Drawing clicks. isQuestionAnswered:', isQuestionAnswered, 'hotspotClicks:', window.hotspotClicks, 'currentSelectedAnswer:', currentSelectedAnswer);
             window.hotspotClicks.forEach((click, i) => {
                 const marker = document.createElement('div');
                 marker.className = "absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 border-white bg-blue-500/80 flex items-center justify-center text-[10px] text-white font-bold cursor-grab shadow-lg z-10";
@@ -1930,6 +1931,7 @@ function renderGameQuestion() {
             });
             // Show correct answers if it's already answered
             if (isQuestionAnswered) {
+                console.log('Rendering correct hotspots:', q.hotspots);
                 (q.hotspots || []).forEach(area => {
                     const box = document.createElement('div');
                     box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
@@ -1945,24 +1947,16 @@ function renderGameQuestion() {
         overlay.addEventListener('dragover', (e) => e.preventDefault());
         overlay.addEventListener('drop', (e) => {
             e.preventDefault();
+            if (isQuestionAnswered) return;
             const index = e.dataTransfer.getData('text/plain');
+            if (index === '') return;
             const rect = overlay.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             window.hotspotClicks[index] = { x, y };
+            currentSelectedAnswer = [...window.hotspotClicks];
             drawClicks();
         });
-                (q.hotspots || []).forEach(area => {
-                    const box = document.createElement('div');
-                    box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
-                    box.style.left = `${area.x}%`;
-                    box.style.top = `${area.y}%`;
-                    box.style.width = `${area.w}%`;
-                    box.style.height = `${area.h}%`;
-                    overlay.appendChild(box);
-                });
-            }
-        };
 
         drawClicks();
         window.drawClicks = drawClicks;
