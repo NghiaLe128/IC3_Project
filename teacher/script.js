@@ -667,6 +667,7 @@ function renderQuestionsList() {
   if (!test) return;
 
   const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
+  const searchQuery = document.getElementById("m-questionSearch").value.toLowerCase();
   
   const missing = test.questions.filter(id => !questions.some(q => q.id === id));
   if (missing.length > 0) {
@@ -675,10 +676,13 @@ function renderQuestionsList() {
   
   const testQuestions = questions.filter(q => test.questions.includes(q.id));
 
-  const filteredQuestions = typeFilter ? testQuestions.filter(q => q.type === typeFilter) : testQuestions;
+  const filteredQuestions = testQuestions.filter(q => 
+    (!typeFilter || q.type === typeFilter) &&
+    (!searchQuery || q.question.toLowerCase().includes(searchQuery))
+  ).sort((a, b) => a.id.localeCompare(b.id));
 
   if (filteredQuestions.length === 0) {
-    listContainer.innerHTML = `<p class="p-4 text-center text-[11px] text-indigo-300 italic">Chưa có câu hỏi nào thuộc dạng này.</p>`;
+    listContainer.innerHTML = `<p class="p-4 text-center text-[11px] text-indigo-300 italic">Không tìm thấy câu hỏi phù hợp.</p>`;
     return;
   }
 

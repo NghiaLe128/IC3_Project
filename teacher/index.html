@@ -308,6 +308,7 @@
                 <!-- 4. Danh sách câu hỏi đã tạo bên dưới -->
                 <div id="m-questionsListContainer" class="space-y-2 hidden flex-grow flex flex-col overflow-hidden min-h-[280px]">
                   <label class="block text-xs font-bold text-indigo-300 uppercase">Danh sách câu hỏi trong bộ đề:</label>
+                  <input type="text" id="m-questionSearch" oninput="renderQuestionsList()" placeholder="Tìm kiếm câu hỏi..." class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 text-xs mb-2">
                   <div id="m-questionsList" class="flex-grow overflow-y-auto border border-indigo-500/30 rounded-xl divide-y divide-indigo-500/20 bg-slate-950/20 max-h-[380px]">
                     <!-- Dynamically populated list -->
                   </div>
