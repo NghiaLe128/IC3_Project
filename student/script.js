@@ -1864,7 +1864,150 @@ function renderGameQuestion() {
     wrapper.innerHTML = tableHtml;
     container.appendChild(wrapper);
 
-  } else if (type === "multi_choice") {
+  } else if (type === "hotspot") {
+    window.hotspotClicks = [];
+    if (isQuestionAnswered) {
+      try {
+        window.hotspotClicks = typeof currentSelectedAnswer === "string" ? JSON.parse(currentSelectedAnswer) : (currentSelectedAnswer || []);
+      } catch (e) {
+        window.hotspotClicks = [];
+      }
+    } else if (currentTestMode === "exam" && examUserAnswers[activeQuestionIndex]) {
+      try {
+        window.hotspotClicks = typeof examUserAnswers[activeQuestionIndex] === "string" ? JSON.parse(examUserAnswers[activeQuestionIndex]) : examUserAnswers[activeQuestionIndex];
+      } catch (e) {
+        window.hotspotClicks = [];
+      }
+    }
+    
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex flex-col gap-4";
+    
+    wrapper.innerHTML = `
+      <div class="flex justify-between items-center mb-2">
+        <div class="text-sm text-indigo-300">Vui lòng nhấp vào <span class="font-bold text-white">${q.requiredCount || 1}</span> vị trí tương ứng trên ảnh:</div>
+        <button type="button" onclick="window.clearHotspots()" class="text-xs text-red-400 hover:text-red-300 border border-red-400/30 rounded px-2 py-1">Clear hết</button>
+      </div>
+      <div id="student-hotspot-container" class="relative inline-block border-2 border-indigo-500/30 rounded bg-[#131424] max-w-full overflow-hidden" style="cursor: crosshair;">
+        <img id="student-hotspot-img" src="${q.imageUrl}" style="max-width: 100%; display: block; user-select: none;" draggable="false">
+        <div id="student-hotspot-overlay" class="absolute inset-0"></div>
+      </div>
+    `;
+    container.appendChild(wrapper);
+
+    setTimeout(() => {
+        const overlay = document.getElementById('student-hotspot-overlay');
+        const img = document.getElementById('student-hotspot-img');
+        if (!overlay || !img) return;
+
+        window.clearHotspots = () => {
+            window.hotspotClicks = [];
+            drawClicks();
+        }
+
+        const drawClicks = () => {
+            overlay.innerHTML = '';
+            window.hotspotClicks.forEach((click, i) => {
+                const marker = document.createElement('div');
+                marker.className = "absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 border-white bg-blue-500/80 flex items-center justify-center text-[10px] text-white font-bold cursor-grab shadow-lg z-10";
+                marker.style.left = `${click.x}%`;
+                marker.style.top = `${click.y}%`;
+                marker.innerText = i + 1;
+                marker.draggable = true;
+                marker.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', i);
+                    marker.style.opacity = '0.5';
+                });
+                marker.addEventListener('dragend', (e) => {
+                    marker.style.opacity = '1';
+                });
+                marker.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.hotspotClicks.splice(i, 1);
+                    drawClicks();
+                });
+                overlay.appendChild(marker);
+            });
+            // Show correct answers if it's already answered
+            if (isQuestionAnswered) {
+                (q.hotspots || []).forEach(area => {
+                    const box = document.createElement('div');
+                    box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
+                    box.style.left = `${area.x}%`;
+                    box.style.top = `${area.y}%`;
+                    box.style.width = `${area.w}%`;
+                    box.style.height = `${area.h}%`;
+                    overlay.appendChild(box);
+                });
+            }
+        };
+
+        overlay.addEventListener('dragover', (e) => e.preventDefault());
+        overlay.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const index = e.dataTransfer.getData('text/plain');
+            const rect = overlay.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            window.hotspotClicks[index] = { x, y };
+            drawClicks();
+        });
+                (q.hotspots || []).forEach(area => {
+                    const box = document.createElement('div');
+                    box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
+                    box.style.left = `${area.x}%`;
+                    box.style.top = `${area.y}%`;
+                    box.style.width = `${area.w}%`;
+                    box.style.height = `${area.h}%`;
+                    overlay.appendChild(box);
+                });
+            }
+        };
+
+        drawClicks();
+        window.drawClicks = drawClicks;
+
+        if (!isQuestionAnswered) {
+            img.addEventListener('click', (e) => {
+                const rect = img.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                
+                if (window.hotspotClicks.length < (q.requiredCount || 1)) {
+                    window.hotspotClicks.push({ x, y });
+                } else {
+                    // Replace the last click if over limit, or cycle. Let's replace the oldest, or just prevent.
+                    // For simplicity, cycle by removing the first if they keep clicking.
+                    window.hotspotClicks.shift();
+                    window.hotspotClicks.push({ x, y });
+                }
+                drawClicks();
+                currentSelectedAnswer = [...window.hotspotClicks];
+            });
+        }
+    }, 50);
+
+  } else if (type === "hotspot") {
+      let parsedAns = [];
+      try {
+        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
+      } catch (e) {
+        parsedAns = studentAns || [];
+      }
+      if (Array.isArray(parsedAns) && parsedAns.length >= (item.requiredCount || 1)) {
+         let allValid = true;
+         parsedAns.forEach(click => {
+            let hit = false;
+            (item.hotspots || []).forEach(area => {
+                if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
+            });
+            if (!hit) allValid = false;
+         });
+         isCorrect = allValid;
+      } else {
+         isCorrect = false;
+      }
+    } else if (type === "multi_choice") {
     let savedSelected = [];
     if (isQuestionAnswered) {
       try {
@@ -2391,6 +2534,21 @@ function nextGameQuestion() {
       }
       studentAns = selectVals;
       isCorrect = studentAns.every((val, idx) => val === q.correctAnswers[idx]);
+    } else if (type === "hotspot") {
+      studentAns = window.hotspotClicks || [];
+      if (studentAns.length < (q.requiredCount || 1)) {
+        alert(`Vui lòng chọn đủ ${q.requiredCount || 1} vị trí trên ảnh!`);
+        return;
+      }
+      let allValid = true;
+      studentAns.forEach(click => {
+          let hit = false;
+          (q.hotspots || []).forEach(area => {
+              if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
+          });
+          if (!hit) allValid = false;
+      });
+      isCorrect = allValid;
     } else if (type === "multi_choice") {
       if (window.multiChoiceSelected.length === 0) {
         alert("Vui lòng chọn ít nhất một đáp án trước khi nộp!");
@@ -2432,6 +2590,19 @@ function nextGameQuestion() {
           const sel = document.getElementById(`table-match-select-${rIdx}`);
           if (sel) sel.classList.add("border-emerald-500", "bg-emerald-500/10");
         });
+      } else if (type === "hotspot") {
+        const overlay = document.getElementById('student-hotspot-overlay');
+        if (overlay) {
+            (q.hotspots || []).forEach(area => {
+                const box = document.createElement('div');
+                box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
+                box.style.left = `${area.x}%`;
+                box.style.top = `${area.y}%`;
+                box.style.width = `${area.w}%`;
+                box.style.height = `${area.h}%`;
+                overlay.appendChild(box);
+            });
+        }
       } else if (type === "multi_choice") {
         window.multiChoiceSelected.forEach(idx => {
           const optBtns = document.querySelectorAll("#game-options-container .option-card-btn");
@@ -2524,6 +2695,19 @@ function nextGameQuestion() {
             sel.parentNode.appendChild(tip);
           }
         });
+      } else if (type === "hotspot") {
+        const overlay = document.getElementById('student-hotspot-overlay');
+        if (overlay) {
+            (q.hotspots || []).forEach(area => {
+                const box = document.createElement('div');
+                box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
+                box.style.left = `${area.x}%`;
+                box.style.top = `${area.y}%`;
+                box.style.width = `${area.w}%`;
+                box.style.height = `${area.h}%`;
+                overlay.appendChild(box);
+            });
+        }
       } else if (type === "multi_choice") {
         const optBtns = document.querySelectorAll("#game-options-container .option-card-btn");
         optBtns.forEach((btn, idx) => {

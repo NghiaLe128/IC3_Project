@@ -768,9 +768,24 @@ function selectActiveQuestion(qId) {
     displayAnswer = (q.correctAnswers || []).map((ansIdx, rIdx) => `${(q.rows || [])[rIdx] || ""} -> ${(q.options || [])[ansIdx] || ""}`).join(" | ");
   } else if (q.type === "multi_choice" && q.options) {
     displayAnswer = (q.correctIndices || []).map(idx => `${String.fromCharCode(65 + idx)}. ${q.options[idx]}`).join(" | ");
+  } else if (q.type === "hotspot") {
+    displayAnswer = `Xác định ${q.requiredCount || 1} khu vực trên ảnh`;
   } else if (q.type === "image_choice" && q.options) {
     displayAnswer = `Lựa chọn ${q.correctIndex + 1}`;
-  } else if (q.type === "true_false") {
+  } else if (q.type === "hotspot") {
+      optionsContainer.innerHTML = `
+        <div class="space-y-3">
+          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-image mr-1"></i>Khu vực đáp án:</div>
+          <div class="relative inline-block border border-gray-600 rounded bg-black/20" style="max-width: 100%;">
+             <img src="${q.imageUrl || ''}" style="max-width: 100%; display: ${q.imageUrl ? 'block' : 'none'}; pointer-events: none;" draggable="false">
+             <div class="absolute inset-0">
+               ${(q.hotspots || []).map((area, i) => `<div class="absolute border-2 border-green-500 bg-green-500/20 flex items-center justify-center text-green-300 font-bold text-xs" style="left: ${area.x}%; top: ${area.y}%; width: ${area.w}%; height: ${area.h}%;">${i + 1}</div>`).join('')}
+             </div>
+          </div>
+          <div class="text-xs text-indigo-200">Số điểm cần nhấp đúng: <span class="font-bold text-purple-400">${q.requiredCount || 1}</span></div>
+        </div>
+      `;
+    } else if (q.type === "true_false") {
     displayAnswer = q.answer === "true" || q.answer === true || q.answer === "đúng" || q.answer === "Đúng" ? "Đúng" : "Sai";
   }
   
@@ -1211,6 +1226,50 @@ function renderDynamicFormFields(type, qData = {}) {
       </div>
     `;
     setTimeout(() => { window.renderTableMatchUI(); }, 50);
+} else if (type === "hotspot") {
+    html = `
+      <div class="p-5 rounded-2xl border border-purple-500/30 bg-[#1a1c2e]">
+         <div class="flex items-center justify-between mb-4">
+             <h3 class="text-sm font-bold text-purple-400">Cấu hình Xác định khu vực (Hotspot):</h3>
+         </div>
+         <div class="mb-4">
+            <label class="${labelClass}">Hình ảnh gốc (URL hoặc Tải lên):</label>
+            <div class="flex gap-2">
+                <input type="text" id="hotspot-img-url" class="${inputClass}" placeholder="Nhập URL hình ảnh..." value="${qData.imageUrl || ''}" onchange="window.updateHotspotPreview()">
+                <button type="button" onclick="window.updateHotspotPreview()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap text-sm flex items-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4"></i>Load</button>
+                <button type="button" onclick="window.triggerHotspotUpload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap text-sm flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i>Tải lên</button>
+            </div>
+            <input type="file" id="hotspot-img-upload" accept="image/*" class="hidden" onchange="window.handleHotspotImgUpload(this)">
+         </div>
+         <div class="mb-4">
+            <label class="${labelClass}">Số lượng khu vực cần xác định đúng (Số lần click của học sinh):</label>
+            <input type="number" id="hotspot-req-count" class="${inputClass} w-32" value="${qData.requiredCount || 1}" min="1">
+         </div>
+         
+         <div class="flex justify-between items-center mb-2">
+             <label class="${labelClass} mb-0">Các khu vực đáp án:</label>
+             <button type="button" onclick="window.addHotspotArea()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors">
+                <i data-lucide="plus" class="w-3.5 h-3.5 inline-block mb-0.5"></i> Vẽ khu vực mới
+             </button>
+         </div>
+         <p class="text-[11px] text-yellow-400 mb-4" id="hotspot-instruction">Nhấn "Vẽ khu vực mới" rồi kéo chuột trên ảnh dưới đây để tạo vùng chọn đúng.</p>
+
+         <div id="hotspot-img-container" class="relative inline-block border border-gray-600 bg-black/20 rounded max-w-full overflow-hidden" style="min-height: 100px;">
+             <img id="hotspot-preview-img" src="${qData.imageUrl || ''}" style="max-width: 100%; display: ${qData.imageUrl ? 'block' : 'none'}; pointer-events: none;" draggable="false">
+             <div id="hotspot-overlay" class="absolute inset-0 cursor-crosshair"></div>
+         </div>
+         
+         <div id="hotspot-list" class="mt-4 flex flex-col gap-2">
+         </div>
+      </div>
+    `;
+    setTimeout(() => { 
+        window.hotspotAreas = qData.hotspots ? JSON.parse(JSON.stringify(qData.hotspots)) : [];
+        window.renderHotspotAreas(); 
+        window.initHotspotDrawing();
+        if (window.lucide) window.lucide.createIcons();
+    }, 50);
+
 } else if (type === "drag_text") {
       html = `
       <div class="space-y-4 p-5 bg-[#131424]/80/80 rounded-2xl border border-indigo-500/30 shadow-sm">
@@ -1367,6 +1426,7 @@ function adjustFormQuestionOptions() {
       if(type === "choice") hintEl.innerText = "Học sinh sẽ được chọn một trong 4 phương án liệt kê bên dưới.";
       else if(type === "multi_choice") hintEl.innerText = "Học sinh có thể tích chọn một hoặc nhiều đáp án đúng tùy ý, sau đó nhấn nút xác nhận để kiểm tra kết quả.";
       else if(type === "image_choice") hintEl.innerText = "Các đáp án là hình ảnh (URL/Links). Học sinh sẽ tích chọn các hình ảnh đúng (hỗ trợ cả dạng chọn một hay chọn nhiều hình ảnh đúng).";
+      else if(type === "hotspot") hintEl.innerText = "Học sinh sẽ nhấp chuột vào các khu vực trên hình ảnh để đánh dấu (Ví dụ: Tìm điểm sai).";
       else if(type === "drag_text") hintEl.innerText = "Học sinh sẽ kéo các từ/cụm từ vào các ô trống tương ứng trên màn hình.";
       else if(type === "table_match") hintEl.innerText = "Học sinh sẽ ghép nối các mục ở cột trái với các mục tương ứng ở cột phải.";
       else if(type === "true_false") hintEl.innerText = "Học sinh sẽ chọn Đúng hoặc Sai cho nhận định được đưa ra.";
@@ -1453,6 +1513,11 @@ async function handleQuestionFormSubmit(e) {
     qObj.options = [...validPairs.map(p => p.r)].sort(() => Math.random() - 0.5); // Shuffle options
     qObj.correctAnswers = validPairs.map(p => p.r);
     qObj.answer = "Kéo thả hình ảnh";
+  } else if (type === "hotspot") {
+    qObj.imageUrl = document.getElementById('hotspot-img-url').value.trim();
+    qObj.requiredCount = parseInt(document.getElementById('hotspot-req-count').value) || 1;
+    qObj.hotspots = window.hotspotAreas;
+    qObj.answer = "Xác định khu vực trên ảnh";
   } else if (type === "true_false") {
     qObj.options = ["Đúng", "Sai"];
     qObj.answer = document.getElementById("form-q-answer").value;
@@ -1964,4 +2029,178 @@ window.removeTmRow = function(idx) {
 };
 window.updateTmAnswer = function(rIdx, cIdx) {
     tmData.correctAnswers[rIdx] = cIdx;
+};
+
+// === HOTSPOT QUESTION LOGIC ===
+window.hotspotAreas = [];
+window.isDrawingHotspot = false;
+window.hotspotStartPos = { x: 0, y: 0 };
+window.tempHotspotBox = null;
+
+window.updateHotspotPreview = () => {
+    let inputEl = document.getElementById('hotspot-img-url');
+    let url = inputEl.value.trim();
+    
+    // Convert Google Drive link
+    if (url.includes('drive.google.com/file/d/')) {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+            url = `https://drive.google.com/uc?id=${match[1]}`;
+            inputEl.value = url;
+        }
+    }
+    
+    const img = document.getElementById('hotspot-preview-img');
+    img.onerror = () => {
+        alert("Không thể tải ảnh từ link này. Hãy đảm bảo link Drive được chia sẻ công khai.");
+    };
+    if (url) {
+        img.src = url;
+        img.style.display = 'block';
+    } else {
+        img.src = '';
+        img.style.display = 'none';
+    }
+    window.renderHotspotAreas();
+};
+
+window.triggerHotspotUpload = () => {
+    document.getElementById('hotspot-img-upload').click();
+};
+
+window.handleHotspotImgUpload = async (input) => {
+    if (!input.files || !input.files[0]) return;
+    try {
+        const base64 = await readFileAsBase64(input.files[0]);
+        document.getElementById('hotspot-img-url').value = base64;
+        window.updateHotspotPreview();
+    } catch (e) {
+        alert("Lỗi đọc file hình ảnh!");
+    }
+};
+
+window.addHotspotArea = () => {
+    const url = document.getElementById('hotspot-img-url').value.trim();
+    if (!url) {
+        alert("Vui lòng nhập URL hình ảnh hoặc tải ảnh lên trước.");
+        return;
+    }
+    window.isDrawingHotspot = true;
+    document.getElementById('hotspot-instruction').innerText = "Đang ở chế độ vẽ: Kéo chuột trên ảnh để vẽ khu vực.";
+    document.getElementById('hotspot-instruction').classList.add('text-green-400');
+    document.getElementById('hotspot-instruction').classList.remove('text-yellow-400');
+    document.getElementById('hotspot-overlay').style.pointerEvents = 'auto';
+};
+
+window.removeHotspotArea = (index) => {
+    window.hotspotAreas.splice(index, 1);
+    window.renderHotspotAreas();
+};
+
+window.renderHotspotAreas = () => {
+    // Render list
+    const list = document.getElementById('hotspot-list');
+    if (!list) return;
+    list.innerHTML = '';
+    window.hotspotAreas.forEach((area, i) => {
+        list.innerHTML += `
+            <div class="flex justify-between items-center bg-[#131424] p-2 rounded border border-indigo-500/30">
+               <span class="text-xs text-indigo-200">Khu vực ${i+1}: X=${Math.round(area.x)}%, Y=${Math.round(area.y)}%, W=${Math.round(area.w)}%, H=${Math.round(area.h)}%</span>
+               <button type="button" onclick="window.removeHotspotArea(${i})" class="text-red-400 hover:text-red-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        `;
+    });
+    
+    // Render boxes on overlay
+    const overlay = document.getElementById('hotspot-overlay');
+    if (!overlay) return;
+    overlay.innerHTML = '';
+    window.hotspotAreas.forEach((area, i) => {
+        const box = document.createElement('div');
+        box.className = 'absolute border-2 border-green-500 bg-green-500/20 pointer-events-none flex items-center justify-center text-green-300 font-bold text-xs';
+        box.style.left = `${area.x}%`;
+        box.style.top = `${area.y}%`;
+        box.style.width = `${area.w}%`;
+        box.style.height = `${area.h}%`;
+        box.innerText = i + 1;
+        overlay.appendChild(box);
+    });
+    if (window.lucide) window.lucide.createIcons();
+};
+
+window.initHotspotDrawing = () => {
+    const overlay = document.getElementById('hotspot-overlay');
+    if (!overlay) return;
+    
+    let isDragging = false;
+    
+    overlay.addEventListener('mousedown', (e) => {
+        if (!window.isDrawingHotspot) return;
+        isDragging = true;
+        const rect = overlay.getBoundingClientRect();
+        window.hotspotStartPos = {
+            x: ((e.clientX - rect.left) / rect.width) * 100,
+            y: ((e.clientY - rect.top) / rect.height) * 100
+        };
+        
+        window.tempHotspotBox = document.createElement('div');
+        window.tempHotspotBox.className = 'absolute border-2 border-blue-500 bg-blue-500/30 pointer-events-none';
+        window.tempHotspotBox.style.left = `${window.hotspotStartPos.x}%`;
+        window.tempHotspotBox.style.top = `${window.hotspotStartPos.y}%`;
+        window.tempHotspotBox.style.width = '0%';
+        window.tempHotspotBox.style.height = '0%';
+        overlay.appendChild(window.tempHotspotBox);
+    });
+    
+    overlay.addEventListener('mousemove', (e) => {
+        if (!isDragging || !window.tempHotspotBox) return;
+        const rect = overlay.getBoundingClientRect();
+        let currX = ((e.clientX - rect.left) / rect.width) * 100;
+        let currY = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        // Clamp to 0-100
+        currX = Math.max(0, Math.min(100, currX));
+        currY = Math.max(0, Math.min(100, currY));
+        
+        const x = Math.min(window.hotspotStartPos.x, currX);
+        const y = Math.min(window.hotspotStartPos.y, currY);
+        const w = Math.abs(currX - window.hotspotStartPos.x);
+        const h = Math.abs(currY - window.hotspotStartPos.y);
+        
+        window.tempHotspotBox.style.left = `${x}%`;
+        window.tempHotspotBox.style.top = `${y}%`;
+        window.tempHotspotBox.style.width = `${w}%`;
+        window.tempHotspotBox.style.height = `${h}%`;
+    });
+    
+    overlay.addEventListener('mouseup', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        
+        const rect = overlay.getBoundingClientRect();
+        let currX = ((e.clientX - rect.left) / rect.width) * 100;
+        let currY = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        currX = Math.max(0, Math.min(100, currX));
+        currY = Math.max(0, Math.min(100, currY));
+        
+        const x = Math.min(window.hotspotStartPos.x, currX);
+        const y = Math.min(window.hotspotStartPos.y, currY);
+        const w = Math.abs(currX - window.hotspotStartPos.x);
+        const h = Math.abs(currY - window.hotspotStartPos.y);
+        
+        if (w > 2 && h > 2) { // Minimum size to avoid accidental clicks
+            window.hotspotAreas.push({ x, y, w, h });
+        }
+        
+        window.isDrawingHotspot = false;
+        document.getElementById('hotspot-instruction').innerText = "Đã lưu khu vực. Bạn có thể thêm tiếp hoặc lưu câu hỏi.";
+        document.getElementById('hotspot-instruction').classList.remove('text-green-400');
+        document.getElementById('hotspot-instruction').classList.add('text-yellow-400');
+        
+        window.renderHotspotAreas();
+    });
+    
+    // Prevent default drag
+    overlay.addEventListener('dragstart', e => e.preventDefault());
 };
