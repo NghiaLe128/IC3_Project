@@ -3372,58 +3372,173 @@ function renderBadges() {
   });
 }
 
+window.toggleMobileNavPanel = (forceState) => {
+  const drawer = document.getElementById('mobile-nav-drawer');
+  if (!drawer) return;
+  const container = drawer.querySelector('.absolute');
+  
+  const show = forceState !== undefined ? forceState : drawer.classList.contains('hidden');
+  
+  if (show) {
+    drawer.classList.remove('hidden');
+    // Force reflow
+    drawer.offsetHeight;
+    drawer.classList.remove('opacity-0');
+    if (container) {
+      container.classList.remove('translate-y-full');
+    }
+  } else {
+    drawer.classList.add('opacity-0');
+    if (container) {
+      container.classList.add('translate-y-full');
+    }
+    setTimeout(() => {
+      drawer.classList.add('hidden');
+    }, 300);
+  }
+};
+
 window.renderNavigationPanel = () => {
   const panel = document.getElementById('question-list-grid');
+  const mobilePanel = document.getElementById('mobile-question-list-grid');
   if (!panel) return;
+  
   panel.innerHTML = '';
+  if (mobilePanel) mobilePanel.innerHTML = '';
+  
+  let doneCount = 0;
+  let todoCount = 0;
   
   testQuestions.forEach((q, i) => {
-    const btn = document.createElement('button');
-    btn.innerText = i + 1;
-    btn.className = "w-8 h-8 rounded flex items-center justify-center text-xs font-bold transition-all border border-slate-700 ";
+    // Determine state
+    const isCurrent = (activeQuestionIndex === i);
+    let isAnswered = false;
+    let isCorrect = false;
     
-    // Default: Not answered
-    btn.classList.add("bg-slate-800", "text-slate-400");
-
-    if (activeQuestionIndex === i) {
-        btn.classList.add("border-indigo-500", "text-indigo-400", "bg-indigo-500/20");
-    }
-
-    // State coloring
     if (currentTestMode === "exam") {
       if (examUserAnswers[i] !== undefined && examUserAnswers[i] !== "") {
-          btn.classList.remove("bg-slate-800", "text-slate-400");
-          btn.classList.add("bg-blue-600", "text-white");
+        isAnswered = true;
       }
     } else {
-      // Practice / Review
       if (userAnswers[i] !== undefined) {
-         const correct = isAnswerCorrect(q, userAnswers[i]);
-         btn.classList.remove("bg-slate-800", "text-slate-400");
-         if (correct) {
-             btn.classList.add("bg-emerald-600", "text-white");
-         } else {
-             btn.classList.add("bg-red-600", "text-white");
-         }
+        isAnswered = true;
+        isCorrect = isAnswerCorrect(q, userAnswers[i]);
       }
     }
     
-    btn.onclick = () => {
-      activeQuestionIndex = i;
-      renderGameQuestion();
+    if (isAnswered) {
+      doneCount++;
+    } else {
+      todoCount++;
     }
     
-    panel.appendChild(btn);
+    // Create button function helper
+    const createBtn = (isMobile) => {
+      const btn = document.createElement('button');
+      btn.innerText = i + 1;
+      
+      // Modern base styling
+      let baseClass = "w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black transition-all duration-200 border cursor-pointer select-none relative shadow-sm ";
+      
+      if (isCurrent) {
+        // Current question: vibrant indigo background with a pulsing border
+        baseClass += "bg-indigo-500/25 border-indigo-500 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)] ring-2 ring-indigo-500/20 ";
+      } else if (currentTestMode === "exam") {
+        if (isAnswered) {
+          // Exam Answered: clean blue filled button
+          baseClass += "bg-blue-600 hover:bg-blue-500 border-blue-500 text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)] ";
+        } else {
+          // Exam Unanswered: slate hollow button
+          baseClass += "bg-slate-900/60 hover:bg-slate-900/95 hover:border-slate-700 border-slate-800 text-slate-400 ";
+        }
+      } else {
+        // Practice / Review
+        if (isAnswered) {
+          if (isCorrect) {
+            // Practice Correct: emerald green with high legibility
+            baseClass += "bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500 text-emerald-400 shadow-[0_2px_8px_rgba(16,185,129,0.15)] ";
+          } else {
+            // Practice Incorrect: rose red with high legibility
+            baseClass += "bg-rose-500/15 hover:bg-rose-500/25 border-rose-500 text-rose-400 shadow-[0_2px_8px_rgba(244,63,94,0.15)] ";
+          }
+        } else {
+          // Practice Unanswered: slate hollow button
+          baseClass += "bg-slate-900/60 hover:bg-slate-900/95 hover:border-slate-700 border-slate-800 text-slate-400 ";
+        }
+      }
+      
+      btn.className = baseClass;
+      
+      btn.onclick = () => {
+        activeQuestionIndex = i;
+        renderGameQuestion();
+        if (isMobile) {
+          window.toggleMobileNavPanel(false); // Close drawer on selection
+        }
+      };
+      
+      return btn;
+    };
+    
+    panel.appendChild(createBtn(false));
+    if (mobilePanel) {
+      mobilePanel.appendChild(createBtn(true));
+    }
   });
-}
+  
+  // Update Statistics & Progress
+  const total = testQuestions.length;
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+  
+  // Update desktop views
+  const progressText = document.getElementById('game-nav-progress-text');
+  const progressBar = document.getElementById('game-nav-progress-bar');
+  const statDone = document.getElementById('game-nav-stat-done');
+  const statTodo = document.getElementById('game-nav-stat-todo');
+  
+  if (progressText) progressText.innerText = `Tiến trình làm bài: ${pct}%`;
+  if (progressBar) progressBar.style.width = `${pct}%`;
+  if (statDone) statDone.innerText = doneCount;
+  if (statTodo) statTodo.innerText = todoCount;
+  
+  // Update mobile views
+  const mobProgressText = document.getElementById('mobile-game-nav-progress-text');
+  const mobProgressBar = document.getElementById('mobile-game-nav-progress-bar');
+  const mobStatDone = document.getElementById('mobile-stat-done');
+  const mobStatTodo = document.getElementById('mobile-stat-todo');
+  
+  if (mobProgressText) mobProgressText.innerText = `Tiến trình làm bài: ${pct}%`;
+  if (mobProgressBar) mobProgressBar.style.width = `${pct}%`;
+  if (mobStatDone) mobStatDone.innerText = doneCount;
+  if (mobStatTodo) mobStatTodo.innerText = todoCount;
+};
 
 function isAnswerCorrect(q, userAnswer) {
-    const type = q.type || "choice";
-    if (type === "choice") {
-        return parseInt(userAnswer) === q.correctIndex;
-    } else if (type === "multiple_choice" || type === "true_false") {
-        return userAnswer === q.answer;
-    }
-    return false;
+  const type = q.type || "choice";
+  if (type === "choice" || type === "image_choice") {
+    return parseInt(userAnswer) === q.correctIndex;
+  } else if (type === "multiple_choice" || type === "true_false") {
+    return userAnswer === q.answer;
+  } else if (type === "fill_blank") {
+    return (userAnswer || "").toString().trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
+  } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
+    if (!Array.isArray(userAnswer)) return false;
+    return userAnswer.every((val, idx) => val === q.correctAnswers[idx]);
+  } else if (type === "hotspot") {
+    if (!Array.isArray(userAnswer) || userAnswer.length < (q.requiredCount || 1)) return false;
+    let allValid = true;
+    userAnswer.forEach(click => {
+      let hit = false;
+      (q.hotspots || []).forEach(area => {
+        if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
+      });
+      if (!hit) allValid = false;
+    });
+    return allValid;
+  } else if (type === "multi_choice") {
+    if (!Array.isArray(userAnswer)) return false;
+    return userAnswer.length === q.correctIndices.length && userAnswer.every(val => q.correctIndices.includes(val));
+  }
+  return false;
 }
 

@@ -632,10 +632,18 @@
             <span id="game-test-level-badge" class="text-[10px] font-black px-2.5 py-1 rounded bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 uppercase tracking-wider">Level 1</span>
           </div>
           
-          <!-- Timer -->
-          <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-mono text-sm sm:text-base font-black shadow-inner">
-            <i class="fa-solid fa-hourglass-half text-xs animate-spin" style="animation-duration: 3s"></i>
-            <span id="game-timer">15:00</span>
+          <div class="flex items-center gap-2">
+            <!-- Mobile Menu Toggle Button (hidden on md and larger) -->
+            <button onclick="toggleMobileNavPanel()" class="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 active:scale-95 border border-indigo-500/25 text-indigo-300 font-black text-xs transition-all cursor-pointer">
+              <i class="fa-solid fa-list-ol"></i>
+              <span>Mục lục</span>
+            </button>
+
+            <!-- Timer -->
+            <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-mono text-sm sm:text-base font-black shadow-inner">
+              <i class="fa-solid fa-hourglass-half text-xs animate-spin" style="animation-duration: 3s"></i>
+              <span id="game-timer">15:00</span>
+            </div>
           </div>
         </header>
 
@@ -745,10 +753,124 @@
       </div>
 
       <!-- Navigation Sidebar -->
-      <div id="game-navigation-panel" class="hidden md:flex flex-col w-64 bg-slate-950 border-l border-indigo-500/20 p-5 shrink-0 overflow-y-auto">
-        <h4 class="font-bold text-slate-300 text-sm mb-4">Mục lục câu hỏi</h4>
-        <div id="question-list-grid" class="grid grid-cols-4 gap-2">
-          <!-- Question number buttons go here -->
+      <div id="game-navigation-panel" class="hidden md:flex flex-col w-72 bg-[#0c1224]/90 border-l border-indigo-500/20 p-6 shrink-0 overflow-y-auto justify-between select-none shadow-2xl">
+        <div class="space-y-6">
+          <!-- Sidebar Header -->
+          <div class="border-b border-indigo-950 pb-4">
+            <div class="flex items-center gap-2.5 mb-2">
+              <span class="text-indigo-400 text-base"><i class="fa-solid fa-list-check"></i></span>
+              <h4 class="font-poppins font-black text-slate-200 text-sm uppercase tracking-wider">Mục lục câu hỏi</h4>
+            </div>
+            <p id="game-nav-progress-text" class="text-[11px] font-bold text-slate-400">Tiến trình làm bài: 0%</p>
+            <div class="w-full h-1.5 bg-slate-950 rounded-full mt-2 overflow-hidden border border-white/5">
+              <div id="game-nav-progress-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Stats mini cards -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-indigo-950/25 border border-indigo-500/10 p-2.5 rounded-xl text-center shadow-inner">
+              <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wide">Đã làm</span>
+              <span id="game-nav-stat-done" class="text-base font-mono font-black text-indigo-400">0</span>
+            </div>
+            <div class="bg-indigo-950/25 border border-indigo-500/10 p-2.5 rounded-xl text-center shadow-inner">
+              <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wide">Chưa làm</span>
+              <span id="game-nav-stat-todo" class="text-base font-mono font-black text-slate-300">0</span>
+            </div>
+          </div>
+
+          <!-- Question Grid Container -->
+          <div class="space-y-3">
+            <span class="text-[10px] font-black text-indigo-300 block uppercase tracking-wider">Danh sách câu:</span>
+            <div id="question-list-grid" class="grid grid-cols-5 gap-2.5">
+              <!-- Question number buttons go here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar Legend Guide -->
+        <div class="mt-8 border-t border-indigo-950 pt-5 space-y-3">
+          <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider mb-2">Chú thích trạng thái:</span>
+          <div class="grid grid-cols-2 gap-x-2 gap-y-2.5 text-[10px] font-bold text-slate-400">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></span>
+              <span>Đúng</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]"></span>
+              <span>Sai</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]"></span>
+              <span>Đã làm</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#131b2e] border-2 border-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.5)] animate-pulse"></span>
+              <span>Đang làm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Navigation Drawer Overlay -->
+      <div id="mobile-nav-drawer" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm hidden transition-all duration-300 opacity-0" onclick="toggleMobileNavPanel()">
+        <!-- Drawer Container -->
+        <div class="absolute bottom-0 inset-x-0 bg-[#0d1424] border-t border-indigo-500/30 rounded-t-[2.5rem] p-6 max-h-[80vh] overflow-y-auto transform translate-y-full transition-transform duration-300" onclick="event.stopPropagation()">
+          <div class="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4"></div>
+          <div class="flex items-center justify-between mb-5 border-b border-indigo-950 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-indigo-400 text-lg"><i class="fa-solid fa-list-check"></i></span>
+              <h4 class="font-poppins font-black text-white text-base">Mục lục câu hỏi</h4>
+            </div>
+            <button onclick="toggleMobileNavPanel()" class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center hover:text-white transition-colors cursor-pointer">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          
+          <!-- Progress bar inside mobile drawer -->
+          <div class="mb-5 bg-indigo-950/20 border border-indigo-900/30 p-4 rounded-2xl">
+            <p id="mobile-game-nav-progress-text" class="text-xs font-bold text-slate-300 mb-2">Tiến trình làm bài: 0%</p>
+            <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+              <div id="mobile-game-nav-progress-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Question buttons grid -->
+          <div id="mobile-question-list-grid" class="grid grid-cols-5 gap-3.5 mb-6">
+            <!-- Question buttons go here -->
+          </div>
+
+          <!-- Mobile stats & legend combined -->
+          <div class="grid grid-cols-2 gap-4 bg-[#131b2e]/60 p-4 rounded-2xl border border-indigo-950">
+            <div>
+              <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider mb-2">Thống kê:</span>
+              <div class="space-y-1 text-xs">
+                <div class="text-indigo-300 font-bold">Đã làm: <span id="mobile-stat-done" class="font-mono font-black">0</span></div>
+                <div class="text-slate-400 font-bold">Chưa làm: <span id="mobile-stat-todo" class="font-mono font-black">0</span></div>
+              </div>
+            </div>
+            <div>
+              <span class="text-[10px] font-black text-slate-400 block uppercase tracking-wider mb-2">Chú thích:</span>
+              <div class="grid grid-cols-2 gap-1.5 text-[9px] font-bold text-slate-400">
+                <div class="flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>Đúng</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                  <span>Sai</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span>Đã làm</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-[#131b2e] border border-indigo-500"></span>
+                  <span>Đang làm</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
