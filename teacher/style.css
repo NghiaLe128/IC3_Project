@@ -2,7 +2,7 @@
 
 body {
   background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%) !important;
-  font-family: 'Nunito', sans-serif;
+  font-family: 'Be Vietnam Pro', sans-serif;
   color: #f8fafc !important;
 }
 
@@ -41,7 +41,7 @@ body {
   width: 100%;
   padding: 11px 16px;
   border-radius: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Be Vietnam Pro', sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.6);

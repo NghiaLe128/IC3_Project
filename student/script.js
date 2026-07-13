@@ -485,6 +485,32 @@ function renderBattleArena() {
   // Filter tests belonging to this specific grade block
   const gradeTests = tests.filter(t => t.blockId === studentBlockId);
 
+  // Custom sort: Ôn tập 1, 2, 3, 4, 5, ..., Tổng hợp, Bổ sung
+  gradeTests.sort((a, b) => {
+    const getTestSortScore = (title) => {
+      const lowerTitle = (title || "").toLowerCase();
+      if (lowerTitle.includes("bổ sung") || lowerTitle.includes("bo sung")) {
+        return 10000;
+      }
+      if (lowerTitle.includes("tổng hợp") || lowerTitle.includes("tong hop")) {
+        return 9000;
+      }
+      const numberMatch = lowerTitle.match(/\d+/);
+      if (numberMatch) {
+        return parseInt(numberMatch[0], 10);
+      }
+      return 1000;
+    };
+
+    const scoreA = getTestSortScore(a.title);
+    const scoreB = getTestSortScore(b.title);
+
+    if (scoreA !== scoreB) {
+      return scoreA - scoreB;
+    }
+    return (a.title || "").localeCompare(b.title || "", 'vi');
+  });
+
   if (gradeTests.length === 0) {
     container.innerHTML = `
       <div class="col-span-full bg-slate-900/40 border border-white/5 p-8 rounded-3xl text-center space-y-3">
@@ -497,36 +523,56 @@ function renderBattleArena() {
   }
 
   const bossesDef = gradeTests.map((t, idx) => {
-    let name = t.title;
-    let avatar = "🌳";
-    let desc = "Trấn giữ bộ đề ôn tập và kiểm tra tin học dành cho khối lớp của bạn.";
-    let accent = "from-emerald-950/40 via-slate-900/50 to-slate-900/60 border-emerald-500/25";
-    let reward = "Nhận 250+ EXP & 50+ Coins 🪙";
+    const titleLower = (t.title || "").toLowerCase();
     
-    if (idx === 0) {
+    let avatar = "🌟";
+    let name = `${t.title} (Thử Thách Đặc Biệt) 🌟`;
+    let desc = "Bộ đề thi tùy chỉnh do thầy cô thiết kế dành riêng cho bạn.";
+    let accent = "from-indigo-950/45 via-slate-900/50 to-slate-900/60 border-indigo-500/25";
+    let reward = "Nhận 300+ EXP & 60+ Coins 🪙";
+    
+    if (titleLower.includes("tổng hợp") || titleLower.includes("tong hop")) {
+      avatar = "👑";
+      name = `${t.title} (Vua Thống Lĩnh IC3) 👑`;
+      desc = "Bài thi tổng hợp mọi kiến thức để chứng minh bạn xứng đáng với danh hiệu tối cao Master!";
+      accent = "from-yellow-950/45 via-slate-900/50 to-slate-900/60 border-yellow-500/30";
+      reward = "Nhận 800+ EXP & 200+ Coins 🪙";
+    } else if (titleLower.includes("bổ sung") || titleLower.includes("bo sung")) {
+      avatar = "⚡";
+      name = `${t.title} (Chiến Thần Sấm Sét) ⚡`;
+      desc = "Bộ đề ôn tập bổ sung năng lượng, củng cố vững chắc tất cả các lỗ hổng kiến thức.";
+      accent = "from-cyan-950/45 via-slate-900/50 to-slate-900/60 border-cyan-500/30";
+      reward = "Nhận 400+ EXP & 90+ Coins 🪙";
+    } else if (titleLower.includes("1") || (!titleLower.includes("2") && !titleLower.includes("3") && !titleLower.includes("4") && !titleLower.includes("5") && idx === 0)) {
       avatar = "🌳";
       name = `${t.title} (Thần Cây Dữ Liệu) 🌳`;
       desc = "Đối đầu trực tiếp với Thần Cây để kiểm tra năng lực tin học căn bản của khối lớp.";
-      accent = "from-emerald-950/40 via-slate-900/50 to-slate-900/60 border-emerald-500/25";
+      accent = "from-emerald-950/45 via-slate-900/50 to-slate-900/60 border-emerald-500/30";
       reward = "Nhận 250+ EXP & 50+ Coins 🪙";
-    } else if (idx === 1) {
+    } else if (titleLower.includes("2") || (idx === 1)) {
       avatar = "🤖";
       name = `${t.title} (Người Máy Word & Excel) 🤖`;
       desc = "Thử thách tư duy logic văn phòng và ứng dụng của khối lớp cùng Người Máy Siêu Việt.";
-      accent = "from-blue-950/40 via-slate-900/50 to-slate-900/60 border-blue-500/25";
+      accent = "from-blue-950/45 via-slate-900/50 to-slate-900/60 border-blue-500/30";
       reward = "Nhận 350+ EXP & 80+ Coins 🪙";
-    } else if (idx === 2) {
+    } else if (titleLower.includes("3") || (idx === 2)) {
       avatar = "👾";
       name = `${t.title} (Rồng Hỏa Ngục An Ninh Mạng) 👾`;
       desc = "Trận chiến đỉnh cao vượt qua các chướng ngại vật bảo mật và hiểu biết internet số.";
-      accent = "from-purple-950/40 via-slate-900/50 to-slate-900/60 border-purple-500/25";
+      accent = "from-purple-950/45 via-slate-900/50 to-slate-900/60 border-purple-500/30";
       reward = "Nhận 450+ EXP & 100+ Coins 🪙";
-    } else {
-      avatar = "🌟";
-      name = `${t.title} (Thử Thách Đặc Biệt) 🌟`;
-      desc = "Bộ đề thi tùy chỉnh do thầy cô thiết kế dành riêng cho bạn.";
-      accent = "from-slate-900 via-slate-950 to-indigo-950 border-indigo-500/20";
-      reward = "Nhận 300+ EXP & 60+ Coins 🪙";
+    } else if (titleLower.includes("4")) {
+      avatar = "🔮";
+      name = `${t.title} (Phù Thủy Thuật Toán) 🔮`;
+      desc = "Vượt qua các câu hỏi hóc búa để khai sáng tư duy công nghệ mới.";
+      accent = "from-pink-950/45 via-slate-900/50 to-slate-900/60 border-pink-500/30";
+      reward = "Nhận 500+ EXP & 120+ Coins 🪙";
+    } else if (titleLower.includes("5")) {
+      avatar = "🐉";
+      name = `${t.title} (Kim Giáp Long Vương) 🐉`;
+      desc = "Thách thức bản lĩnh đỉnh cao cùng rồng thần bảo hộ vương quốc số.";
+      accent = "from-amber-950/45 via-slate-900/50 to-slate-900/60 border-amber-500/30";
+      reward = "Nhận 600+ EXP & 150+ Coins 🪙";
     }
 
     return {
@@ -1604,15 +1650,15 @@ function renderGameQuestion() {
         }
       }
 
-      btn.className = "option-card-btn flex items-center p-4 w-full bg-slate-900 hover:bg-slate-800 border border-slate-800/80 rounded-2xl transition-all duration-200 text-left cursor-pointer group text-slate-200" + extraClass;
+      btn.className = "option-card-btn flex items-center p-5 sm:p-6 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-2xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
       btn.innerHTML = `
-        <span class="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-xs font-black mr-4 bg-white/5 shrink-0 transition-all group-hover:border-indigo-500">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
-        <span class="text-sm font-semibold">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</span>
+        <span class="w-10 h-10 rounded-full bg-indigo-950/80 border-2 border-indigo-500/30 text-indigo-400 flex items-center justify-center text-base font-black mr-4 shrink-0 transition-all group-hover:border-indigo-500 group-hover:text-indigo-300 shadow-inner">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
+        <span class="text-base sm:text-lg font-semibold leading-relaxed">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</span>
       `;
       btn.onclick = () => {
         if (isAnswerChecked) return;
-        document.querySelectorAll(".option-card-btn").forEach(el => el.classList.remove("selected", "border-indigo-500", "bg-indigo-500/10"));
-        btn.classList.add("selected", "border-indigo-500", "bg-indigo-500/10");
+        document.querySelectorAll(".option-card-btn").forEach(el => el.classList.remove("selected", "border-indigo-500", "bg-indigo-500/10", "shadow-[0_0_15px_rgba(99,102,241,0.2)]"));
+        btn.classList.add("selected", "border-indigo-500", "bg-indigo-500/10", "shadow-[0_0_15px_rgba(99,102,241,0.2)]");
         currentSelectedAnswer = label;
         if (currentTestMode === "exam") {
           examUserAnswers[activeQuestionIndex] = currentSelectedAnswer;
@@ -1645,27 +1691,27 @@ function renderGameQuestion() {
     q.rows.forEach((row, rIdx) => {
       const placed = savedAnswers[rIdx];
       const correct = q.correctAnswers[rIdx];
-      let slotClass = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-xs font-bold text-indigo-400 cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
+      let slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all";
       let slotText = "Nhấp từ khóa để điền...";
       let tipHtml = "";
 
       if (isQuestionAnswered) {
         if (placed === correct) {
-          slotClass = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border border-emerald-500 bg-emerald-500/10 text-xs font-bold text-emerald-400";
+          slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border border-emerald-500 bg-emerald-500/15 text-sm font-black text-emerald-400";
           slotText = placed;
         } else {
-          slotClass = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-red-400";
+          slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border border-red-500 bg-red-500/15 text-sm font-black text-red-400";
           slotText = placed || "(Trống)";
-          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đáp án đúng: ${correct}</span>`;
+          tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5">✓ Đáp án đúng: ${correct}</span>`;
         }
       } else if (placed) {
-        slotClass = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border border-indigo-500 bg-indigo-500/10 text-xs font-bold text-white cursor-pointer hover:bg-indigo-500/20 transition-all";
+        slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border-2 border-indigo-500 bg-indigo-500/15 text-sm font-black text-white cursor-pointer hover:bg-indigo-500/25 transition-all";
         slotText = placed;
       }
 
       rowsHtml += `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800/80 gap-3">
-          <span class="text-sm font-bold text-slate-300">${row.label}</span>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-slate-950 border border-slate-800/80 gap-3">
+          <span class="text-base font-black text-slate-200">${row.label}</span>
           <div>
             <div id="drag-text-target-${rIdx}" onclick="clearDraggedText(${rIdx})" 
                  class="${slotClass}">
@@ -1681,15 +1727,15 @@ function renderGameQuestion() {
     let poolHtml = "";
     if (!isQuestionAnswered) {
       poolHtml = `
-        <div class="p-4 rounded-2xl bg-indigo-950/20 border border-indigo-900/30 mt-4">
-          <span class="text-[10px] font-bold text-indigo-300 block uppercase tracking-wider mb-2">Thẻ từ khóa có sẵn (nhấp để xếp vào ô):</span>
-          <div class="flex flex-wrap gap-2" id="drag-text-pool">
+        <div class="p-5 rounded-2xl bg-indigo-950/20 border border-indigo-900/30 mt-4">
+          <span class="text-xs font-black text-indigo-300 block uppercase tracking-wider mb-3">Thẻ từ khóa có sẵn (nhấp để xếp vào ô):</span>
+          <div class="flex flex-wrap gap-2.5" id="drag-text-pool">
             ${q.options.map((opt, idx) => {
               const isUsed = savedAnswers.includes(opt);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
                 <button id="drag-text-pool-btn-${idx}" onclick="placeDraggedText('${opt.replace(/'/g, "\\'")}', ${idx})" 
-                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow cursor-pointer${disabledClass}">
+                        class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150${disabledClass}">
                   ${opt}
                 </button>
               `;
@@ -1726,27 +1772,27 @@ function renderGameQuestion() {
     q.leftImages.forEach((imgUrl, idx) => {
       const placed = savedAnswers[idx];
       const correct = q.correctAnswers[idx];
-      let slotClass = "w-full h-11 px-3 rounded-xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-xs font-bold text-indigo-400 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
+      let slotClass = "w-full h-14 px-4 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all";
       let slotText = "Nhấp nhãn để ghép...";
       let tipHtml = "";
 
       if (isQuestionAnswered) {
         if (placed === correct) {
-          slotClass = "w-full h-11 px-3 rounded-xl border border-emerald-500 bg-emerald-500/10 text-xs font-bold text-emerald-400 flex items-center justify-center";
+          slotClass = "w-full h-14 px-4 rounded-2xl border border-emerald-500 bg-emerald-500/15 text-sm font-black text-emerald-400 flex items-center justify-center";
           slotText = placed;
         } else {
-          slotClass = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-red-400 flex items-center justify-center";
+          slotClass = "w-full h-14 px-4 rounded-2xl border border-red-500 bg-red-500/15 text-sm font-black text-red-400 flex items-center justify-center";
           slotText = placed || "(Trống)";
-          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1 text-center">✓ Đúng: ${correct}</span>`;
+          tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5 text-center">✓ Đúng: ${correct}</span>`;
         }
       } else if (placed) {
-        slotClass = "w-full h-11 px-3 rounded-xl border border-indigo-500 bg-indigo-500/10 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/20 transition-all";
+        slotClass = "w-full h-14 px-4 rounded-2xl border-2 border-indigo-500 bg-indigo-500/15 text-sm font-black text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/25 transition-all";
         slotText = placed;
       }
 
       imagesHtml += `
-        <div class="flex flex-row items-center p-4 rounded-2xl bg-slate-950 border border-slate-800/80 gap-4">
-          <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-20 w-20 object-contain rounded-lg bg-white p-2 border border-slate-800" alt="Linh kiện">
+        <div class="flex flex-row items-center p-5 rounded-2xl bg-slate-950 border border-slate-800/80 gap-4">
+          <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-24 w-24 object-contain rounded-xl bg-white p-2 border border-slate-800" alt="Linh kiện">
           <div class="flex-grow">
             <div id="drag-image-target-${idx}" onclick="clearDraggedImageText(${idx})" 
                  class="${slotClass}">
@@ -1762,15 +1808,15 @@ function renderGameQuestion() {
     let poolHtml = "";
     if (!isQuestionAnswered) {
       poolHtml = `
-        <div class="p-4 rounded-2xl bg-indigo-950/20 border border-indigo-900/30 mt-4">
-          <span class="text-[10px] font-bold text-indigo-300 block uppercase tracking-wider mb-2">Nhãn tên linh kiện:</span>
-          <div class="flex flex-wrap gap-2" id="drag-image-pool">
+        <div class="p-5 rounded-2xl bg-indigo-950/20 border border-indigo-900/30 mt-4">
+          <span class="text-xs font-black text-indigo-300 block uppercase tracking-wider mb-3">Nhãn tên linh kiện:</span>
+          <div class="flex flex-wrap gap-2.5" id="drag-image-pool">
             ${q.options.map((opt, idx) => {
               const isUsed = savedAnswers.includes(opt);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
                 <button id="drag-image-pool-btn-${idx}" onclick="placeDraggedImageText('${opt.replace(/'/g, "\\'")}', ${idx})" 
-                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow cursor-pointer${disabledClass}">
+                        class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150${disabledClass}">
                   ${opt}
                 </button>
               `;
@@ -1800,14 +1846,14 @@ function renderGameQuestion() {
     }
 
     const wrapper = document.createElement("div");
-    wrapper.className = "w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950";
+    wrapper.className = "w-full overflow-hidden rounded-3xl border border-slate-800 bg-[#0d1424]/80 shadow-2xl";
     
     let tableHtml = `
       <table class="w-full text-left border-collapse">
         <thead>
-          <tr class="bg-slate-900 border-b border-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-            <th class="p-4 w-1/2">${q.headers ? q.headers[0] : "Khái niệm"}</th>
-            <th class="p-4 w-1/2">${q.headers ? q.headers[1] : "Đặc tính ghép nối"}</th>
+          <tr class="bg-indigo-950/40 border-b border-slate-800 text-xs font-black text-indigo-300 uppercase tracking-wider">
+            <th class="p-5 w-1/2">${q.headers ? q.headers[0] : "Khái niệm"}</th>
+            <th class="p-5 w-1/2">${q.headers ? q.headers[1] : "Đặc tính ghép nối"}</th>
           </tr>
         </thead>
         <tbody>
@@ -1817,29 +1863,29 @@ function renderGameQuestion() {
       const placedIdx = savedAnswers[rIdx];
       const correctIdx = q.correctAnswers[rIdx];
       
-      let selectClass = "w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 text-xs font-semibold text-white rounded-xl p-2.5 outline-none transition-all cursor-pointer";
+      let selectClass = "w-full bg-[#131b2e]/60 border-2 border-slate-800/90 focus:border-indigo-500 text-sm font-bold text-slate-100 rounded-2xl p-3.5 outline-none transition-all cursor-pointer";
       let disabledAttr = "";
       let tipHtml = "";
 
       if (isQuestionAnswered) {
         disabledAttr = "disabled";
         if (placedIdx === correctIdx) {
-          selectClass = "w-full bg-slate-900 border border-emerald-500 text-emerald-400 focus:border-indigo-500 text-xs font-semibold rounded-xl p-2.5 outline-none transition-all";
+          selectClass = "w-full bg-[#131b2e]/60 border-2 border-emerald-500 text-emerald-400 focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all";
         } else {
-          selectClass = "w-full bg-slate-900 border border-red-500 text-red-400 focus:border-indigo-500 text-xs font-semibold rounded-xl p-2.5 outline-none transition-all";
-          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đúng: ${q.options[correctIdx]}</span>`;
+          selectClass = "w-full bg-[#131b2e]/60 border-2 border-red-500 text-red-400 focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all";
+          tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5">✓ Đúng: ${q.options[correctIdx]}</span>`;
         }
       } else {
         // If has value chosen
         if (placedIdx !== undefined && placedIdx !== "") {
-          selectClass = "w-full bg-slate-900 border border-indigo-500 text-white focus:border-indigo-500 text-xs font-semibold rounded-xl p-2.5 outline-none transition-all cursor-pointer";
+          selectClass = "w-full bg-[#131b2e]/60 border-2 border-indigo-500 text-white focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all cursor-pointer";
         }
       }
 
       tableHtml += `
         <tr class="border-b border-slate-900 hover:bg-white/2 transition-colors">
-          <td class="p-4 text-xs font-bold text-slate-200">${row}</td>
-          <td class="p-4">
+          <td class="p-5 text-sm font-black text-slate-200">${row}</td>
+          <td class="p-5">
             <select id="table-match-select-${rIdx}" onchange="changeTableMatchSelect(${rIdx})" ${disabledAttr}
                     class="${selectClass}">
               <option value="">-- Chọn đáp án --</option>
@@ -2025,30 +2071,30 @@ function renderGameQuestion() {
       const isCorrect = q.correctIndices.includes(idx);
       
       let extraClass = "";
-      let boxClass = "w-5 h-5 rounded-lg border-2 border-slate-600 flex items-center justify-center text-xs font-black mr-4 transition-all";
+      let boxClass = "w-6 h-6 rounded-lg border-2 border-slate-600/80 flex items-center justify-center text-xs font-black mr-4 bg-slate-950/80 transition-all";
       let boxInner = "";
 
       if (isQuestionAnswered) {
         if (isCorrect) {
           extraClass = " correct";
-          boxClass = "w-5 h-5 rounded-lg border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
+          boxClass = "w-6 h-6 rounded-lg border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
           boxInner = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
         } else if (isSelected) {
           extraClass = " wrong";
-          boxClass = "w-5 h-5 rounded-lg border-2 border-red-500 bg-red-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
+          boxClass = "w-6 h-6 rounded-lg border-2 border-red-500 bg-red-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
           boxInner = `<i class="fa-solid fa-xmark text-[10px] text-white"></i>`;
         }
       } else if (isSelected) {
         extraClass = " selected border-indigo-500 bg-indigo-500/10";
-        boxClass = "w-5 h-5 rounded-lg border-2 border-indigo-500 bg-indigo-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
+        boxClass = "w-6 h-6 rounded-lg border-2 border-indigo-500 bg-indigo-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
         boxInner = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
       }
 
-      btn.className = "option-card-btn flex items-center justify-between p-4 w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-2xl transition-all duration-200 text-left cursor-pointer group text-slate-200" + extraClass;
+      btn.className = "option-card-btn flex items-center justify-between p-5 sm:p-6 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-2xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
       btn.innerHTML = `
         <div class="flex items-center">
           <span id="multi-check-box-${idx}" class="${boxClass}">${boxInner}</span>
-          <span class="text-sm font-semibold text-slate-200">${opt}</span>
+          <span class="text-base sm:text-lg font-semibold text-slate-100 leading-relaxed">${opt}</span>
         </div>
       `;
       btn.onclick = () => {
@@ -2057,14 +2103,14 @@ function renderGameQuestion() {
         const idxOf = window.multiChoiceSelected.indexOf(idx);
         if (idxOf !== -1) {
           window.multiChoiceSelected.splice(idxOf, 1);
-          btn.classList.remove("selected", "border-indigo-500", "bg-indigo-500/10");
+          btn.classList.remove("selected", "border-indigo-500", "bg-indigo-500/10", "shadow-[0_0_15px_rgba(99,102,241,0.2)]");
           box.innerHTML = "";
-          box.className = "w-5 h-5 rounded-lg border-2 border-slate-600 flex items-center justify-center text-xs font-black mr-4 transition-all";
+          box.className = "w-6 h-6 rounded-lg border-2 border-slate-600/80 flex items-center justify-center text-xs font-black mr-4 bg-slate-950/80 transition-all";
         } else {
           window.multiChoiceSelected.push(idx);
-          btn.classList.add("selected", "border-indigo-500", "bg-indigo-500/10");
+          btn.classList.add("selected", "border-indigo-500", "bg-indigo-500/10", "shadow-[0_0_15px_rgba(99,102,241,0.2)]");
           box.innerHTML = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
-          box.className = "w-5 h-5 rounded-lg border-2 border-indigo-500 bg-indigo-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
+          box.className = "w-6 h-6 rounded-lg border-2 border-indigo-500 bg-indigo-500 flex items-center justify-center text-xs font-black mr-4 transition-all";
         }
         currentSelectedAnswer = JSON.stringify(window.multiChoiceSelected);
         if (currentTestMode === "exam") {
@@ -2076,61 +2122,61 @@ function renderGameQuestion() {
 
   } else if (type === "image_choice") {
     const grid = document.createElement("div");
-    grid.className = "grid grid-cols-2 gap-4 w-full";
+    grid.className = "grid grid-cols-2 gap-5 w-full";
     
     q.options.forEach((optImgUrl, idx) => {
       const card = document.createElement("div");
       
       let extraClass = "";
-      let badgeClass = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-slate-600 flex items-center justify-center bg-slate-950/80";
+      let badgeClass = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-slate-600 flex items-center justify-center bg-slate-950/80 transition-all";
       let badgeInner = "";
 
       if (isQuestionAnswered) {
         const isUserSelected = currentSelectedAnswer !== "" && parseInt(currentSelectedAnswer) === idx;
         const isCorrect = idx === q.correctIndex;
         if (isUserSelected && isCorrect) {
-          extraClass = " border-emerald-500 bg-emerald-500/10 selected";
-          badgeClass = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-emerald-500 bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black";
+          extraClass = " border-emerald-500 bg-emerald-500/15 selected shadow-[0_0_15px_rgba(16,185,129,0.2)]";
+          badgeClass = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-emerald-500 bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-md";
           badgeInner = "✓";
         } else if (isUserSelected && !isCorrect) {
-          extraClass = " border-red-500 bg-red-500/10 selected";
-          badgeClass = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-red-500 bg-red-500 text-white flex items-center justify-center text-[10px] font-black";
+          extraClass = " border-red-500 bg-red-500/15 selected shadow-[0_0_15px_rgba(239,68,68,0.2)]";
+          badgeClass = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-red-500 bg-red-500 text-white flex items-center justify-center text-xs font-black shadow-md";
           badgeInner = "✗";
         } else if (isCorrect) {
-          extraClass = " border-emerald-500 bg-emerald-500/10";
-          badgeClass = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-emerald-500 bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black";
+          extraClass = " border-emerald-500 bg-emerald-500/15";
+          badgeClass = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-emerald-500 bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-md";
           badgeInner = "✓";
         }
       } else {
         // If not checked but it is currently selected (for Exam mode)
         const isCurrentlySelected = currentSelectedAnswer !== "" && parseInt(currentSelectedAnswer) === idx;
         if (isCurrentlySelected) {
-          extraClass = " border-indigo-500 bg-indigo-500/10 selected";
-          badgeClass = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-indigo-500 bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black";
+          extraClass = " border-indigo-500 bg-indigo-500/15 selected shadow-[0_0_15px_rgba(99,102,241,0.2)]";
+          badgeClass = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-indigo-500 bg-indigo-500 text-white flex items-center justify-center text-xs font-black shadow-md";
           badgeInner = "✓";
         }
       }
 
-      card.className = "image-choice-card border border-slate-800 bg-slate-900/60 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-800/40 transition-all relative overflow-hidden group h-40" + extraClass;
+      card.className = "image-choice-card border-2 border-slate-800/95 bg-[#131b2e]/60 p-6 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-[#1c2742]/85 transition-all relative overflow-hidden group h-44 shadow-lg" + extraClass;
       card.innerHTML = `
-        <img src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-24 w-auto object-contain transition-transform duration-300 group-hover:scale-105" alt="Lựa chọn">
-        <div class="absolute bottom-2 left-2 text-[9px] font-black uppercase text-slate-500">Lựa chọn ${idx + 1}</div>
+        <img src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-28 w-auto object-contain transition-transform duration-300 group-hover:scale-105" alt="Lựa chọn">
+        <div class="absolute bottom-3 left-3 text-xs font-black uppercase text-slate-400 tracking-wider">Lựa chọn ${idx + 1}</div>
         <div id="image-choice-badge-${idx}" class="${badgeClass}">${badgeInner}</div>
       `;
       card.onclick = () => {
         if (isAnswerChecked) return;
         document.querySelectorAll(".image-choice-card").forEach(el => {
-          el.classList.remove("selected", "border-indigo-500", "bg-indigo-500/10");
+          el.classList.remove("selected", "border-indigo-500", "bg-indigo-500/10", "shadow-[0_0_15px_rgba(99,102,241,0.2)]");
         });
         document.querySelectorAll("[id^='image-choice-badge-']").forEach(el => {
           el.innerHTML = "";
-          el.className = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-slate-600 flex items-center justify-center bg-slate-950/80";
+          el.className = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-slate-600 flex items-center justify-center bg-slate-950/80 transition-all";
         });
         
-        card.classList.add("selected", "border-indigo-500", "bg-indigo-500/10");
+        card.classList.add("selected", "border-indigo-500", "bg-indigo-500/10", "shadow-[0_0_15px_rgba(99,102,241,0.2)]");
         const badge = document.getElementById(`image-choice-badge-${idx}`);
         badge.innerHTML = "✓";
-        badge.className = "absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-indigo-500 bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black";
+        badge.className = "absolute top-4 right-4 w-6 h-6 rounded-full border-2 border-indigo-500 bg-indigo-500 text-white flex items-center justify-center text-xs font-black shadow-md";
         
         currentSelectedAnswer = idx;
         if (currentTestMode === "exam") {
@@ -2157,7 +2203,7 @@ function renderGameQuestion() {
     wrapper.innerHTML = `
       <input type="text" id="blank-input" placeholder="Gõ câu trả lời chính xác của bạn vào đây..." ${valueAttr}
         oninput="saveBlankInput(this.value)"
-        class="w-full bg-slate-900 border-2 border-indigo-950 focus:border-indigo-500 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:outline-none transition-all${extraClass}">
+        class="w-full bg-[#131b2e]/60 border-2 border-indigo-950 focus:border-indigo-500 rounded-2xl px-6 py-5 text-white font-bold text-base sm:text-lg focus:outline-none transition-all${extraClass}">
     `;
     if (isQuestionAnswered && currentSelectedAnswer.toLowerCase() !== q.answer.toLowerCase()) {
       const tip = document.createElement("p");
