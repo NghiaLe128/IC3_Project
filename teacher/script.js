@@ -1830,6 +1830,136 @@ function handleTestSetFormSubmit(e) {
   onTestSelectionChange();
 }
 
+function openCombineTestsModal() {
+  const activeBlockId = document.getElementById("m-blockSelector").value;
+  if (!activeBlockId) {
+    window.showToast("Vui lòng chọn khối lớp trước khi gộp đề!", "error");
+    return;
+  }
+
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const blockTests = tests.filter(t => t.blockId === activeBlockId);
+
+  const container = document.getElementById("combineTestsListContainer");
+  if (!container) return;
+
+  if (blockTests.length === 0) {
+    container.innerHTML = `<p class="text-[11px] text-slate-400 italic text-center py-2">Khối lớp này chưa có bộ đề nào khả dụng.</p>`;
+  } else {
+    container.innerHTML = "";
+    blockTests.forEach(t => {
+      let diffIcon = "🟢 Dễ";
+      if (t.difficulty === "medium") diffIcon = "🟡 Trung bình";
+      if (t.difficulty === "hard") diffIcon = "🔴 Khó";
+
+      const itemDiv = document.createElement("label");
+      itemDiv.className = "flex items-start gap-3 p-2.5 rounded-lg bg-slate-950/40 hover:bg-slate-950/80 border border-indigo-500/10 cursor-pointer transition-colors select-none";
+      itemDiv.innerHTML = `
+        <input type="checkbox" name="combineTestCheck" value="${t.id}" class="mt-1 accent-indigo-500 cursor-pointer">
+        <div class="flex-1 text-xs text-left">
+          <div class="font-bold text-slate-200">${t.title}</div>
+          <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+            <span>Độ khó: ${diffIcon}</span>
+            <span>•</span>
+            <span class="text-indigo-300 font-bold">${(t.questions || []).length} câu hỏi</span>
+          </div>
+        </div>
+      `;
+      container.appendChild(itemDiv);
+    });
+  }
+
+  document.getElementById("combineTestTitleInput").value = "Đề ôn tập tổng hợp";
+  document.getElementById("combineTestDurationInput").value = "45";
+  document.getElementById("combineTestDifficultyInput").value = "medium";
+
+  document.getElementById("combineTestsModal").classList.remove("hidden");
+}
+
+function closeCombineTestsModal() {
+  document.getElementById("combineTestsModal").classList.add("hidden");
+}
+
+function handleCombineTestsFormSubmit(e) {
+  e.preventDefault();
+
+  const title = document.getElementById("combineTestTitleInput").value.trim();
+  const duration = parseInt(document.getElementById("combineTestDurationInput").value) || 45;
+  const difficulty = document.getElementById("combineTestDifficultyInput").value;
+
+  const checkboxes = document.querySelectorAll('input[name="combineTestCheck"]:checked');
+  if (checkboxes.length === 0) {
+    window.showToast("Vui lòng chọn ít nhất một bộ đề để gộp!", "error");
+    return;
+  }
+
+  const selectedTestIds = Array.from(checkboxes).map(cb => cb.value);
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  
+  // Merge questions without duplicates
+  const mergedQuestionIdsSet = new Set();
+  selectedTestIds.forEach(testId => {
+    const test = tests.find(t => t.id === testId);
+    if (test && Array.isArray(test.questions)) {
+      test.questions.forEach(qId => mergedQuestionIdsSet.add(qId));
+    }
+  });
+
+  const mergedQuestionIds = Array.from(mergedQuestionIdsSet);
+  if (mergedQuestionIds.length === 0) {
+    window.showToast("Các bộ đề được chọn không chứa câu hỏi nào!", "error");
+    return;
+  }
+
+  const activeBlockId = document.getElementById("m-blockSelector").value;
+  let calculatedLevel = "level_1";
+  if (activeBlockId.includes("level_2") || activeBlockId.includes("2")) {
+    calculatedLevel = "level_2";
+  } else if (activeBlockId.includes("level_3") || activeBlockId.includes("3")) {
+    calculatedLevel = "level_3";
+  }
+
+  const id = `test_${Date.now().toString().slice(-6)}`;
+  const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)) || { email: "teacher@gmail.com" };
+
+  const testObj = {
+    id,
+    title,
+    blockId: activeBlockId,
+    level: calculatedLevel,
+    difficulty,
+    duration,
+    questions: mergedQuestionIds,
+    questionCount: mergedQuestionIds.length,
+    scoreVal: 100,
+    createdBY: currentUser.email
+  };
+
+  tests.push(testObj);
+
+  // Save to Firestore
+  window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, id), testObj, { merge: true })
+    .then(() => {
+      window.showToast("Đã tạo đề ôn tập tổng hợp thành công!");
+      closeCombineTestsModal();
+
+      // Reload block tests
+      onBlockSelectionChange();
+
+      // Auto-select modified test
+      document.getElementById("m-testSelector").value = id;
+      onTestSelectionChange();
+    })
+    .catch((err) => {
+      console.error("Error creating combined test: ", err);
+      window.showToast("Gộp đề thất bại, vui lòng thử lại!", "error");
+    });
+}
+
+window.openCombineTestsModal = openCombineTestsModal;
+window.closeCombineTestsModal = closeCombineTestsModal;
+window.handleCombineTestsFormSubmit = handleCombineTestsFormSubmit;
+
 function deleteCurrentTestSet() {
   const testId = document.getElementById("m-testSelector").value;
   if (!testId) {

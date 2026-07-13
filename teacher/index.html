@@ -272,8 +272,9 @@
                 <div id="m-testSelectorContainer" class="space-y-2 hidden">
                   <div class="flex justify-between items-center">
                     <label class="block text-xs font-bold text-indigo-300 uppercase">Bộ đề thám hiểm:</label>
-                    <div class="flex gap-1">
+                    <div class="flex flex-wrap gap-1">
                       <button onclick="openTestSetModal('add')" class="text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded cursor-pointer" title="Tạo bộ đề mới"><i class="fa-solid fa-plus mr-1"></i>Tạo bộ đề</button>
+                      <button onclick="openCombineTestsModal()" class="text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded cursor-pointer" title="Gộp nhiều bộ đề thành bộ đề tổng hợp"><i class="fa-solid fa-object-group mr-1"></i>Tạo đề tổng hợp</button>
                       <button onclick="openTestSetModal('edit')" class="text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-1 rounded cursor-pointer" title="Sửa bộ đề"><i class="fa-solid fa-pen"></i></button>
                       <button onclick="deleteCurrentTestSet()" class="text-[10px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded cursor-pointer" title="Xóa bộ đề"><i class="fa-solid fa-trash"></i></button>
                     </div>
@@ -648,6 +649,45 @@
           <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
             <button type="button" onclick="closeTestSetModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold cursor-pointer">Hủy bỏ</button>
             <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm cursor-pointer">Xác nhận</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Combine/Merge Test Sets (Gộp đề tổng hợp) -->
+    <div id="combineTestsModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative">
+        <button onclick="closeCombineTestsModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4"><i class="fa-solid fa-object-group text-indigo-400 mr-2"></i>Tạo Đề Ôn Tập Tổng Hợp</h3>
+        <form id="combineTestsForm" class="space-y-4" onsubmit="handleCombineTestsFormSubmit(event)">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Cấp độ đề tổng hợp</label>
+            <select id="combineTestDifficultyInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
+              <option value="easy">🟢 Dễ</option>
+              <option value="medium" selected>🟡 Trung bình</option>
+              <option value="hard">🔴 Khó</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tiêu đề bài thi tổng hợp</label>
+            <input type="text" id="combineTestTitleInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" value="Đề ôn tập tổng hợp" placeholder="Ví dụ: Ôn tập tổng hợp Học kỳ I">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Thời gian làm bài (Phút)</label>
+            <input type="number" id="combineTestDurationInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" value="45" min="5" max="120">
+          </div>
+          
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-indigo-300 uppercase">Chọn các bộ đề muốn gộp:</label>
+            <div id="combineTestsListContainer" class="space-y-2.5 max-h-48 overflow-y-auto bg-[#131424]/85 border border-indigo-500/20 rounded-xl p-3 shadow-inner">
+              <!-- Dynamically populated list of checkboxes of existing tests -->
+              <p class="text-[11px] text-slate-400 italic text-center py-2">Không có bộ đề nào khả dụng.</p>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
+            <button type="button" onclick="closeCombineTestsModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold cursor-pointer">Hủy bỏ</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold shadow-sm cursor-pointer"><i class="fa-solid fa-code-merge mr-1"></i>Xác nhận gộp</button>
           </div>
         </form>
       </div>
