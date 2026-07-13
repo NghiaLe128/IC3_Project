@@ -1,0 +1,36 @@
+            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-arrows-spin mr-2 text-yellow-400"></i>Tiến Hóa Pokemon:</h4>
+            <div class="bg-game-card border border-white/10 p-5 rounded-2xl space-y-4">
+              
+              <div id="evolution-slideshow" class="flex items-center justify-between">
+                <button onclick="window.prevEvolution()" class="text-slate-400 hover:text-white p-2 text-xl hover:scale-110 transition-transform"><i class="fa-solid fa-chevron-left"></i></button>
+                <div class="text-center py-2 relative flex-grow">
+                  <div class="h-28 flex justify-center mb-2 items-center relative">
+                    <img id="evolution-target-avatar" src="" class="w-24 h-24 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all duration-300">
+                    <div id="evolution-lock-overlay" class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl mx-auto w-24 h-24 backdrop-blur-[2px] hidden">
+                      <i class="fa-solid fa-lock text-3xl text-red-500 drop-shadow-lg"></i>
+                    </div>
+                  </div>
+                  <h5 id="evolution-target-title" class="font-black text-xs text-white uppercase">IC3 Mega Master Dragon</h5>
+                  <span id="evolution-stage-text" class="text-[9px] font-bold text-slate-400 block mt-0.5 uppercase tracking-widest">Stage 3 - Tiến hóa</span>
+                </div>
+                <button onclick="window.nextEvolution()" class="text-slate-400 hover:text-white p-2 text-xl hover:scale-110 transition-transform"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+
+              <div class="space-y-2 border-t border-white/5 pt-3 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Yêu cầu Cấp độ:</span>
+                  <span id="evolution-req-level" class="font-mono font-bold text-emerald-400">Lv.1</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Yêu cầu Tiền (Vàng):</span>
+                  <span id="evolution-req-coins" class="font-mono font-bold text-yellow-400">100 🪙</span>
+                </div>
+                <div class="w-full h-1 bg-slate-950 rounded-full overflow-hidden mt-1">
+                  <div id="evolution-req-bar" class="h-full bg-yellow-400" style="width: 100%"></div>
+                </div>
+              </div>
+              
+              <button onclick="window.triggerEvolvePokemon()" id="evolve-poke-btn" class="w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-600 hover:to-amber-700 transition-all text-center uppercase tracking-widest">
+                🔮 KIỂM TRA TIẾN HÓA
+              </button>
+            </div>

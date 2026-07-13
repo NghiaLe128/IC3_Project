@@ -68,6 +68,9 @@
           <button onclick="switchTab('ranking')" id="nav-ranking" class="nav-btn">
             <i class="fa-solid fa-trophy w-5"></i> Xếp hạng lớp
           </button>
+          <button onclick="switchTab('rewards')" id="nav-rewards" class="nav-btn">
+            <i class="fa-solid fa-store w-5"></i> Quản lý quà tặng
+          </button>
         </nav>
       </div>
 
@@ -483,6 +486,20 @@
             </div>
           </div>
         </section>
+        <!-- ==================== TAB: REWARDS MANAGEMENT ==================== -->
+        <section id="tab-rewards" class="tab-content space-y-6 hidden">
+          <div class="bg-indigo-950/30 border border-indigo-500/20 p-5 rounded-2xl shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-poppins font-bold text-lg text-indigo-50"><i class="fa-solid fa-gift text-pink-500 mr-2"></i>Quản lý Phần thưởng / Pokémon</h3>
+              <p class="text-xs text-indigo-300">Khóa hoặc mở các phần thưởng để giới hạn thời gian học sinh đổi quà.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="teacher-rewards-grid">
+              <!-- JS Injected List -->
+            </div>
+          </div>
+        </section>
+
 
       </main>
 

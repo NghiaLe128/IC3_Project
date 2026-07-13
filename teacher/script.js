@@ -123,7 +123,8 @@ function switchTab(tabId) {
     "students-list": "Quản lý thành viên lớp học",
     "manage-tests": "Quản lý Đề thi & Câu hỏi",
     results: "Xem kết quả bài kiểm tra học sinh",
-    ranking: "Bảng vàng vinh danh thi đua học tập"
+    ranking: "Bảng vàng vinh danh thi đua học tập",
+    rewards: "Quản lý Cửa hàng Quà tặng"
   };
   document.getElementById("currentTabTitle").innerText = titles[tabId] || "Cổng giáo viên";
 
@@ -133,6 +134,7 @@ function switchTab(tabId) {
   else if (tabId === "manage-tests") initManageTestsTab();
   else if (tabId === "results") renderResultsTable();
   else if (tabId === "ranking") renderClassRanking();
+  else if (tabId === "rewards") renderTeacherRewards();
 }
 
 // ==================== OVERVIEW RENDERING ====================
@@ -2420,3 +2422,60 @@ window.initHotspotDrawing = () => {
     // Prevent default drag
     overlay.addEventListener('dragstart', e => e.preventDefault());
 };
+
+// ==================== REWARDS MANAGEMENT ====================
+async function renderTeacherRewards() {
+  const grid = document.getElementById("teacher-rewards-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+  
+  if (rewards.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-4">Chưa có phần thưởng nào trong hệ thống. Hãy đăng nhập bên học sinh để khởi tạo phần thưởng.</div>';
+    return;
+  }
+
+  rewards.forEach(r => {
+    let imgRender = `<div class="text-3xl">${r.image}</div>`;
+    if (r.image.startsWith("http")) {
+      imgRender = `<img src="${r.image}" class="w-16 h-16 object-contain filter drop-shadow-md" alt="${r.name}">`;
+    }
+
+    const isLocked = r.isLocked === true;
+    const lockBtnClass = isLocked ? "bg-emerald-600 hover:bg-emerald-500" : "bg-red-600 hover:bg-red-500";
+    const lockBtnText = isLocked ? '<i class="fa-solid fa-lock-open mr-1"></i> Mở khóa' : '<i class="fa-solid fa-lock mr-1"></i> Khóa quà';
+
+    const div = document.createElement("div");
+    div.className = `bg-indigo-950/50 border ${isLocked ? 'border-red-500/50 opacity-75' : 'border-indigo-500/30'} rounded-xl p-4 flex flex-col justify-between`;
+    div.innerHTML = `
+      <div>
+        <div class="w-full h-24 rounded-lg bg-slate-900/80 flex items-center justify-center border border-indigo-900/50 mb-3 shadow-inner relative">
+          ${isLocked ? '<div class="absolute inset-0 bg-red-900/20 rounded-lg flex items-center justify-center"><i class="fa-solid fa-lock text-3xl text-red-500/50"></i></div>' : ''}
+          ${imgRender}
+        </div>
+        <h4 class="font-bold text-xs text-indigo-50 mb-1">${r.name}</h4>
+        <p class="text-[10px] text-indigo-300 mb-2">Giá: 🪙 ${r.cost}</p>
+      </div>
+      <button onclick="toggleRewardLock('${r.id}')" class="w-full py-2 rounded-lg text-[10px] font-bold text-white transition-all ${lockBtnClass}">
+        ${lockBtnText}
+      </button>
+    `;
+    grid.appendChild(div);
+  });
+}
+
+window.toggleRewardLock = async function(rewardId) {
+  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+  const idx = rewards.findIndex(r => r.id === rewardId);
+  if (idx > -1) {
+    rewards[idx].isLocked = !rewards[idx].isLocked;
+    const res = await window.saveData(window.IC3_KEYS.REWARDS, rewards);
+    if (res && res.success) {
+      window.showToast(rewards[idx].isLocked ? "Đã khóa phần thưởng!" : "Đã mở khóa phần thưởng!");
+      renderTeacherRewards();
+    } else {
+      window.showToast("Lỗi khi lưu trạng thái", "error");
+    }
+  }
+}

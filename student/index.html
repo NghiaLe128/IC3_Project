@@ -56,7 +56,7 @@
             </div>
           </div>
 
-          <div>
+          <div title="Hồ sơ và điểm EXP: Thăng hạng khi đạt đủ mốc EXP tích lũy. Thử thách thám hiểm giúp Pokémon của bạn tiến hóa mạnh mẽ hơn!" class="cursor-help">
             <!-- Name & Rank -->
             <div class="flex items-center gap-2">
               <h2 id="playerName" class="font-poppins font-black text-sm text-white tracking-wide">Nguyễn Minh Anh</h2>
@@ -78,8 +78,8 @@
           
           <!-- Tab selector -->
           <div class="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/10 overflow-x-auto max-w-full scrollbar-none">
-            <button onclick="switchStudentTab('battle')" id="btn-tab-battle" class="student-tab-btn active"><i class="fa-solid fa-shield-halved"></i> Kiểm tra</button>
-            <button onclick="switchStudentTab('review')" id="btn-tab-review" class="student-tab-btn"><i class="fa-solid fa-book"></i> Ôn tập</button>
+            <button onclick="switchStudentTab('dashboard')" id="btn-tab-dashboard" class="student-tab-btn active"><i class="fa-solid fa-chart-pie"></i> Bảng Tin</button>
+            <button onclick="switchStudentTab('battle')" id="btn-tab-battle" class="student-tab-btn"><i class="fa-solid fa-shield-halved"></i> Kiểm tra</button>
             <button onclick="switchStudentTab('leaderboard')" id="btn-tab-leaderboard" class="student-tab-btn"><i class="fa-solid fa-trophy"></i> Xếp hạng</button>
             <button onclick="switchStudentTab('badges')" id="btn-tab-badges" class="student-tab-btn"><i class="fa-solid fa-award"></i> Huy hiệu</button>
             <button onclick="switchStudentTab('inventory')" id="btn-tab-inventory" class="student-tab-btn"><i class="fa-solid fa-briefcase"></i> Túi đồ</button>
@@ -88,7 +88,11 @@
 
           <!-- Currency/Coins Wallet -->
           <div class="flex items-center gap-3">
-            <div class="flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/15 px-3 py-1.5 rounded-xl shadow-inner">
+            <div class="flex items-center gap-1.5 bg-yellow-500/5 border border-yellow-500/15 px-3 py-1.5 rounded-xl shadow-inner cursor-help" title="Chuối Vàng Thần Kỳ 🍌: Kiếm được khi hoàn thành xuất sắc các bài ôn tập kiểm tra (Đạt chuẩn: +1 🍌, Đạt điểm cao >= 90: +2 🍌). Dùng chuối để cho Pokémon ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp dũng sĩ!">
+              <span class="text-lg">🍌</span>
+              <span id="playerBananasCount" class="font-mono text-sm font-black text-yellow-300">0</span>
+            </div>
+            <div class="flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/15 px-3 py-1.5 rounded-xl shadow-inner cursor-help" title="Coins Vàng 🪙: Tích lũy từ các bài làm đạt yêu cầu. Bạn có thể sử dụng Coins vàng trong Cửa Hàng để mua sắm thêm Pokémon mới và Chuối Vàng Thần Kỳ!">
               <span class="text-lg">🪙</span>
               <span id="playerCoinsCount" class="font-mono text-sm font-black text-yellow-400">250</span>
             </div>
@@ -249,7 +253,7 @@
       </section>
 
       <!-- ==================== VIEW: 2. IC3 BATTLE (BOSS BATTLES) ==================== -->
-      <section id="student-tab-battle" class="student-view-content space-y-6">
+      <section id="student-tab-battle" class="student-view-content space-y-6 hidden">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/60 border border-indigo-500/10">
           <div>
             <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-shield-halved text-red-500 mr-2"></i>Đấu Trường IC3 BATTLE</h3>
@@ -390,70 +394,84 @@
         </div>
       </section>
 
-      <!-- ==================== VIEW: 3. ÔN TẬP (SKILL TREE PRACTICE) ==================== -->
-      <section id="student-tab-review" class="student-view-content space-y-6 hidden">
-        <div class="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-book text-emerald-400 mr-2"></i>Cây Kỹ Năng Tri Thức (Skill Tree)</h3>
-            <p class="text-xs text-slate-400">Mở rộng cây tri thức của bạn bằng cách ôn luyện từng mốc bài học để mở khóa Video, Flashcards và nhận +15 EXP thám hiểm!</p>
+      <!-- ==================== SCREEN: DASHBOARD ==================== -->
+      <section id="student-tab-dashboard" class="student-view-content space-y-6">
+        
+        <!-- Hero/Header section of Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="col-span-2 bg-gradient-to-r from-indigo-900/40 to-blue-900/20 border border-indigo-500/20 rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+            <div>
+              <h3 class="font-poppins font-black text-2xl text-white mb-2"><i class="fa-solid fa-crown text-yellow-400 mr-2"></i>Vinh Quang Huyền Thoại</h3>
+              <p class="text-sm text-indigo-200">Bảng vàng vinh danh Top 3 cao thủ dẫn đầu toàn khối.</p>
+            </div>
+            
+            <div class="flex items-center gap-4 mt-6 z-10">
+              <label class="text-xs font-bold text-indigo-300 uppercase">Bộ đề thi:</label>
+              <select id="dashboard-test-filter" onchange="renderStudentDashboard()" class="bg-[#050811] text-xs font-bold text-white border border-indigo-500/30 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all cursor-pointer shadow-inner">
+                <option value="all">🏆 Tất cả Bộ Đề</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="col-span-1 bg-slate-900/60 border border-white/10 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-center items-center shadow-lg">
+             <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5"></div>
+             <div class="z-10 text-center w-full">
+               <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Hồ Sơ Cá Nhân</h4>
+               <div class="flex flex-col items-center gap-3">
+                 <div class="relative">
+                   <img id="dashboard-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=default" class="w-20 h-20 rounded-full border-4 border-indigo-500/50 bg-slate-800 shadow-xl" alt="avatar">
+                   <span id="dashboard-level-badge" class="absolute -bottom-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full border border-indigo-400 shadow-md">Lv.1</span>
+                 </div>
+                 <h2 id="dashboard-name" class="font-poppins font-black text-lg text-white">Nguyễn Văn A</h2>
+                 
+                 <div class="w-full mt-2 space-y-2">
+                   <div class="flex justify-between text-[10px] font-bold text-slate-300">
+                     <span>EXP</span>
+                     <span id="dashboard-exp-text" class="text-indigo-400">0/1000</span>
+                   </div>
+                   <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                     <div id="dashboard-exp-bar" class="h-full bg-indigo-500" style="width: 0%"></div>
+                   </div>
+                 </div>
+               </div>
+             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Top 3 Podiums -->
+        <div class="bg-game-card border border-white/5 rounded-3xl p-8 pt-28 md:pt-36 mt-6 relative shadow-2xl">
+          <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#050811] px-6 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)] text-yellow-400 font-bold text-sm uppercase tracking-widest z-20">
+            <i class="fa-solid fa-medal mr-2"></i> Bảng Xếp Hạng Khối
+          </div>
           
-          <!-- Left: Cây kỹ năng SVG/CSS Nodes -->
-          <div class="lg:col-span-5 bg-slate-900/60 border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[450px] shadow-2xl relative overflow-hidden">
-            <div class="absolute -top-12 -left-12 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl"></div>
-            
-            <div class="text-center mb-6 z-10">
-              <span class="text-2xl">🌳</span>
-              <h4 class="font-poppins font-bold text-xs text-white mt-1 uppercase tracking-widest">Hành trình kỹ năng</h4>
-              <p class="text-[9px] text-slate-400">Nhấp chọn các mốc dưới đây để ôn tập nhanh</p>
-            </div>
-
-            <!-- Vertical Skill Tree Layout -->
-            <div class="flex flex-col items-center gap-10 relative w-full z-10">
-              
-              <!-- Line Connector helper background -->
-              <div class="absolute top-8 bottom-8 w-1 bg-gradient-to-b from-emerald-500 via-blue-500 to-purple-500 rounded-full"></div>
-
-              <!-- Node 1: Computer Basics -->
-              <button onclick="selectSkillTreeNode('basics')" id="skill-node-basics" class="skill-node-btn active z-10 bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)] text-slate-950 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
-                💻
-                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-black text-white">Computer Basics <span class="block text-[9px] text-emerald-400">Đang học • Mở khóa</span></span>
-              </button>
-
-              <!-- Node 2: Hardware -->
-              <button onclick="selectSkillTreeNode('hardware')" id="skill-node-hardware" class="skill-node-btn z-10 bg-slate-850 hover:bg-slate-800 text-slate-400 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
-                ⚙️
-                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-bold text-slate-400">Hardware Parts <span class="block text-[9px] text-slate-500">Mở khóa</span></span>
-              </button>
-
-              <!-- Node 3: Operating System -->
-              <button onclick="selectSkillTreeNode('os')" id="skill-node-os" class="skill-node-btn z-10 bg-slate-850 hover:bg-slate-800 text-slate-400 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
-                💿
-                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-bold text-slate-400">Operating System <span class="block text-[9px] text-slate-500">Mở khóa</span></span>
-              </button>
-
-              <!-- Node 4: Cybersecurity -->
-              <button onclick="selectSkillTreeNode('security')" id="skill-node-security" class="skill-node-btn z-10 bg-slate-850 hover:bg-slate-800 text-slate-400 font-black rounded-full w-14 h-14 border-4 border-slate-900 flex items-center justify-center text-xl transition-all relative">
-                🛡️
-                <span class="absolute left-16 text-left whitespace-nowrap text-xs font-bold text-slate-400">Cyber Security <span class="block text-[9px] text-slate-500">Mở khóa</span></span>
-              </button>
-
-            </div>
+          <div class="flex flex-col md:flex-row justify-center items-end gap-6 md:gap-10 min-h-[350px] pb-6" id="dashboard-top3-container">
+            <!-- JS Injected Top 3 -->
           </div>
-
-          <!-- Right: Interactive Learning Content panel -->
-          <div class="lg:col-span-7 space-y-6" id="skill-details-panel">
-            <!-- Populated dynamically based on selected skill tree node -->
-            <div class="bg-game-card border border-white/10 rounded-3xl p-6 text-center py-20 text-slate-400">
-              <span class="text-4xl">🎯</span>
-              <h4 class="font-poppins font-black text-white mt-4">Chọn Một Nhánh Tri Thức để ôn tập</h4>
-              <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Mỗi nhánh chứa video bài giảng hoạt họa mô phỏng, Flashcard ghi nhớ nhanh lật mặt 3D và Quiz mini rinh quà!</p>
-            </div>
-          </div>
-
+        </div>
+        
+        <!-- Full Table List -->
+        <div class="bg-game-card border border-white/5 rounded-2xl p-6 mt-6">
+           <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+             <h4 class="font-bold text-sm text-indigo-50"><i class="fa-solid fa-list-ol text-indigo-400 mr-2"></i>Chi tiết xếp hạng các bài thi</h4>
+           </div>
+           
+           <div class="overflow-x-auto">
+             <table class="w-full text-left text-xs text-slate-300">
+               <thead>
+                 <tr class="text-slate-500 bg-white/5 uppercase tracking-wider">
+                   <th class="py-3 px-4 rounded-l-lg">Hạng</th>
+                   <th class="py-3 px-4">Học Sinh</th>
+                   <th class="py-3 px-4">Bộ Đề</th>
+                   <th class="py-3 px-4 text-right">Điểm</th>
+                   <th class="py-3 px-4 text-right rounded-r-lg">Thời Gian</th>
+                 </tr>
+               </thead>
+               <tbody id="dashboard-all-scores" class="divide-y divide-white/5">
+                 <!-- JS Injected All Scores -->
+               </tbody>
+             </table>
+           </div>
         </div>
       </section>
 
@@ -538,37 +556,55 @@
 
           <!-- Right Column: Evolution Tracker & Quick Actions -->
           <div class="lg:col-span-4 space-y-5">
-            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-arrows-spin mr-2 text-yellow-400"></i>Điều kiện Tiến Hóa:</h4>
-            <div class="bg-game-card border border-white/10 p-5 rounded-2xl space-y-4">
-              <div class="text-center py-2">
-                <span class="text-4xl animate-bounce inline-block mb-2" id="evolution-target-avatar">🐲</span>
-                <h5 id="evolution-target-title" class="font-black text-xs text-white">IC3 Mega Master Dragon</h5>
-                <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Stage 3 - Tiến hóa tối thượng</span>
+            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-arrows-spin mr-2 text-yellow-400"></i>Tiến Hóa Pokemon:</h4>
+            <div class="bg-game-card border border-white/10 p-5 rounded-3xl space-y-5 shadow-2xl relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
+              
+              <div id="evolution-slideshow" class="flex items-center justify-between relative z-10">
+                <button onclick="window.prevEvolution()" class="text-slate-400 hover:text-white p-2 text-xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all duration-200"><i class="fa-solid fa-chevron-left"></i></button>
+                
+                <div class="text-center py-2 relative flex-grow">
+                  <div class="h-32 flex justify-center mb-3 items-center relative perspective-500">
+                    <!-- Subtle ambient aura behind pokemon -->
+                    <div class="absolute w-24 h-24 rounded-full bg-gradient-to-tr from-yellow-500/10 to-indigo-500/20 blur-xl animate-pulse"></div>
+                    
+                    <img id="evolution-target-avatar" src="" class="w-24 h-24 object-contain drop-shadow-[0_4px_20px_rgba(253,224,71,0.3)] transition-all duration-500 transform hover:scale-110 hover:rotate-6 relative z-10">
+                    
+                    <!-- 3D Locked badge in the top-right corner, letting them preview the full beautiful 3D sprite -->
+                    <div id="evolution-lock-overlay" class="absolute top-1 right-4 bg-red-950/80 border border-red-500/40 px-2 py-0.5 rounded-lg backdrop-blur-sm shadow-md flex items-center gap-1 z-20 hidden">
+                      <i class="fa-solid fa-lock text-[10px] text-red-500 animate-pulse"></i>
+                      <span class="text-[8px] font-black text-red-400 tracking-wider uppercase">KHÓA 3D</span>
+                    </div>
+                  </div>
+                  <h5 id="evolution-target-title" class="font-poppins font-black text-sm text-white uppercase tracking-wider drop-shadow-md">IC3 Mega Master Dragon</h5>
+                  <span id="evolution-stage-text" class="text-[9px] font-bold text-slate-400 block mt-1 uppercase tracking-widest bg-white/5 border border-white/5 py-0.5 px-2 rounded-full w-max mx-auto">Stage 3 - Tiến hóa</span>
+                </div>
+                
+                <button onclick="window.nextEvolution()" class="text-slate-400 hover:text-white p-2 text-xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all duration-200"><i class="fa-solid fa-chevron-right"></i></button>
               </div>
 
-              <div class="space-y-2 border-t border-white/5 pt-3 text-xs">
-                <div class="flex justify-between">
-                  <span class="text-slate-400">Yêu cầu EXP:</span>
-                  <span id="evolution-req-exp" class="font-mono font-bold text-slate-200">1500 EXP</span>
+              <div class="space-y-3 border-t border-white/5 pt-3 text-xs relative z-10">
+                <div class="flex justify-between items-center py-1">
+                  <span class="text-slate-400 font-medium">Bậc Thám Hiểm Hiện Tại:</span>
+                  <span id="evolution-current-rank" class="font-mono font-black text-emerald-400 text-right bg-emerald-500/10 border border-emerald-500/10 py-0.5 px-2 rounded-lg">Beginner</span>
                 </div>
-                <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
-                  <div id="evolution-bar-exp" class="h-full bg-yellow-400" style="width: 50%"></div>
+                <div class="flex justify-between items-center py-1">
+                  <span class="text-slate-400 font-medium">Tiến độ ăn Chuối Vàng:</span>
+                  <span id="evolution-req-bananas" class="font-mono font-black text-yellow-300 text-right bg-yellow-500/10 border border-yellow-500/10 py-0.5 px-2 rounded-lg">0 / 5 🍌</span>
                 </div>
-
-                <div class="flex justify-between mt-2">
-                  <span class="text-slate-400">Chiến thắng Boss Level 1:</span>
-                  <span id="evolution-req-boss1" class="font-black text-emerald-400 uppercase text-[9px]"><i class="fa-solid fa-circle-check"></i> Đạt</span>
-                </div>
-
-                <div class="flex justify-between">
-                  <span class="text-slate-400">Chiến thắng Boss Level 2:</span>
-                  <span id="evolution-req-boss2" class="font-black text-slate-500 uppercase text-[9px]">Chưa đạt</span>
+                <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden p-[1px] border border-white/5">
+                  <div id="evolution-req-bar" class="h-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
               </div>
               
-              <button onclick="triggerEvolvePokemon()" id="evolve-poke-btn" class="w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-600 hover:to-amber-700 transition-all text-center">
-                🔮 KIỂM TRA TIẾN HÓA
-              </button>
+              <div class="grid grid-cols-2 gap-2 relative z-10">
+                <button onclick="window.feedBananaToPokemon()" id="feed-poke-btn" class="w-full py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider">
+                  🍌 Cho Ăn
+                </button>
+                <button onclick="window.triggerEvolvePokemon()" id="evolve-poke-btn" class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.2)]">
+                  🔮 Tiến Hóa
+                </button>
+              </div>
             </div>
           </div>
 
@@ -608,8 +644,13 @@
             <p class="text-xs text-slate-400">Dùng số Coins vàng tích lũy được từ các bài thi để rước Thần thú Pokémon mới hoặc đổi quà xịn!</p>
           </div>
           <!-- Live Balance display -->
-          <div class="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 text-sm font-bold text-yellow-400 rounded-xl">
-            🪙 Balance: <span id="store-coins-balance">250</span>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 text-sm font-bold text-yellow-300 rounded-xl">
+              🍌 Chuối: <span id="store-bananas-balance">0</span>
+            </div>
+            <div class="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-sm font-bold text-yellow-400 rounded-xl">
+              🪙 Coins: <span id="store-coins-balance">250</span>
+            </div>
           </div>
         </div>
 
@@ -913,6 +954,11 @@
             <span id="victory-coins" class="font-mono font-black text-yellow-400">+50 🪙</span>
           </div>
 
+          <div class="flex items-center justify-between text-xs px-2">
+            <span class="text-slate-400 font-semibold">Chuối Vàng Thần Kỳ:</span>
+            <span id="victory-bananas" class="font-mono font-black text-yellow-300">+0 🍌</span>
+          </div>
+
           <!-- Level/Rank Up notification (Shown optionally) -->
           <div id="victory-lvl-up-badge" class="hidden p-2 rounded bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 font-bold text-[10px] animate-pulse">
             ⭐ CHÚC MỪNG: BẠN ĐÃ ĐỦ EXP ĐỂ THĂNG CẤP! ⭐
@@ -941,7 +987,7 @@
         <p class="text-[11px] text-slate-400 text-center mb-6">Mở khóa thêm thật nhiều Pokémon đáng yêu bằng cách tích lũy và đổi Coins trong Cửa hàng nhé!</p>
 
         <!-- Unlocked Pokemon selection list -->
-        <div class="grid grid-cols-2 gap-3" id="pokemon-avatar-selector-grid">
+        <div class="grid grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-indigo-600/50 scrollbar-track-transparent" id="pokemon-avatar-selector-grid">
           <!-- Populated by script based on unlocked status -->
         </div>
 
