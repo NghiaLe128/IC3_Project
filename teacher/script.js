@@ -1757,6 +1757,7 @@ function openTestSetModal(action) {
     document.getElementById("testSetTitleInput").value = test.title;
     document.getElementById("testSetDurationInput").value = test.duration || 15;
     document.getElementById("testSetDifficultyInput").value = test.difficulty || "easy";
+    document.getElementById("testSetBossPokeInput").value = test.bossPoke || "trevenant";
   }
 
   modal.classList.remove("hidden");
@@ -1779,6 +1780,7 @@ function handleTestSetFormSubmit(e) {
   const title = document.getElementById("testSetTitleInput").value.trim();
   const duration = parseInt(document.getElementById("testSetDurationInput").value) || 15;
   const difficulty = document.getElementById("testSetDifficultyInput").value;
+  const bossPoke = document.getElementById("testSetBossPokeInput").value;
 
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const activeBlockId = document.getElementById("m-blockSelector").value;
@@ -1800,6 +1802,7 @@ function handleTestSetFormSubmit(e) {
       level: calculatedLevel,
       difficulty,
       duration,
+      bossPoke,
       questions: [],
       questionCount: 0,
       scoreVal: 100,
@@ -1813,6 +1816,7 @@ function handleTestSetFormSubmit(e) {
       tests[idx].duration = duration;
       tests[idx].level = calculatedLevel;
       tests[idx].difficulty = difficulty;
+      tests[idx].bossPoke = bossPoke;
       testObj = tests[idx];
     }
   }

@@ -553,6 +553,97 @@ function saveBlankInput(val) {
   }
 }
 
+function initBattleSceneVisuals(testId) {
+  const bossesProfile = {
+    test_l1: { name: "Thần Cây Trevenant", avatar: "🌳", poke: "trevenant" },
+    test_l2: { name: "Siêu Máy Tính Porygon-Z", avatar: "🤖", poke: "porygonz" },
+    test_l3: { name: "Chúa Tể Groudon", avatar: "🌋", poke: "groudon" },
+    level_1: { name: "Thần Cây Trevenant", avatar: "🌳", poke: "trevenant" },
+    level_2: { name: "Siêu Máy Tính Porygon-Z", avatar: "🤖", poke: "porygonz" },
+    level_3: { name: "Chúa Tể Groudon", avatar: "🌋", poke: "groudon" }
+  };
+
+  const bossPokeMap = {
+    trevenant: { name: "Thần Cây Trevenant", avatar: "🌳" },
+    porygonz: { name: "Siêu Máy Tính Porygon-Z", avatar: "🤖" },
+    groudon: { name: "Chúa Tể Groudon", avatar: "🌋" },
+    exeggutor: { name: "Hộ Vệ Rừng Xanh", avatar: "🌴" },
+    mewtwo: { name: "Siêu Pokemon Mewtwo", avatar: "🧬" },
+    rayquaza: { name: "Rồng Thiên Rayquaza", avatar: "🐉" },
+    darkrai: { name: "Ác Mộng Darkrai", avatar: "🌑" },
+    lucario: { name: "Võ Sĩ Lucario", avatar: "👊" },
+    charizard: { name: "Rồng Lửa Charizard", avatar: "🔥" },
+    blastoise: { name: "Thần Rùa Blastoise", avatar: "🌊" },
+    venusaur: { name: "Quái Thú Venusaur", avatar: "🌿" }
+  };
+
+  const activePoke = currentStudent.pokemon || "pikachu";
+  
+  let bossProf = bossesProfile[testId] || { name: "Hộ Vệ Rừng Xanh", avatar: "🌳", poke: "exeggutor" };
+  
+  // Override with test-specific boss if set by admin
+  if (activePlayingTest && activePlayingTest.bossPoke) {
+    const customBoss = bossPokeMap[activePlayingTest.bossPoke];
+    if (customBoss) {
+      bossProf = { ...customBoss, poke: activePlayingTest.bossPoke };
+    }
+  }
+
+  const pokemonAvatars = {
+    pikachu: "⚡",
+    charmander: "🔥",
+    bulbasaur: "🌱",
+    squirtle: "💧",
+    eevee: "🦊"
+  };
+
+  const pokemonNames = {
+    pikachu: "Pikachu",
+    charmander: "Charmander",
+    bulbasaur: "Bulbasaur",
+    squirtle: "Squirtle",
+    eevee: "Eevee"
+  };
+
+  const pokemonElements = {
+    pikachu: { color: "bg-yellow-500/10 border-yellow-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(250,204,21,0.3)]" },
+    charmander: { color: "bg-orange-500/10 border-orange-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,146,60,0.3)]" },
+    bulbasaur: { color: "bg-emerald-500/10 border-emerald-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(52,211,153,0.3)]" },
+    squirtle: { color: "bg-blue-500/10 border-blue-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(96,165,250,0.3)]" },
+    eevee: { color: "bg-amber-500/10 border-amber-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,191,36,0.3)]" }
+  };
+  const scenePokeData = pokemonElements[activePoke] || pokemonElements.pikachu;
+
+  // Render initial titles to RPG Battle Arena
+  const sceneAvatar = document.getElementById("battle-scene-player-avatar");
+  if(sceneAvatar) {
+    sceneAvatar.className = `text-3xl h-10 w-10 flex items-center justify-center rounded-xl border shrink-0 ${scenePokeData.color} ${scenePokeData.shadow}`;
+    sceneAvatar.innerText = pokemonAvatars[activePoke] || "⚡";
+  }
+  document.getElementById("battle-scene-player-name").innerText = pokemonNames[activePoke] || "Pikachu";
+  document.getElementById("battle-scene-player-status").innerText = "SẴN SÀNG!";
+
+  // Set animated sprites for Battle Scene
+  const scenePlayerImg = document.getElementById("battle-scene-player-img");
+  if (scenePlayerImg) {
+    scenePlayerImg.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+    scenePlayerImg.onerror = function() { this.src = `https://projectpokemon.org/images/normal-sprite/${activePoke}.gif`; };
+  }
+
+  const sceneBossImg = document.getElementById("battle-scene-boss-img");
+  if (sceneBossImg) {
+    const bossPoke = bossProf.poke || "exeggutor";
+    sceneBossImg.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(bossPoke)}.gif`;
+    sceneBossImg.onerror = function() { this.src = `https://projectpokemon.org/images/normal-sprite/${bossPoke}.gif`; };
+    // Boss in Test mode faces left, so flip it
+    sceneBossImg.style.transform = "scaleX(-1)";
+  }
+
+  document.getElementById("battle-scene-boss-avatar").innerText = bossProf.avatar;
+  document.getElementById("battle-scene-boss-name").innerText = bossProf.name;
+  document.getElementById("battle-scene-boss-status").innerText = "GỪ RỪ...";
+}
+
 function reviewExamAnswers() {
   const modal = document.getElementById("game-victory-screen");
   if (modal) {
@@ -561,6 +652,10 @@ function reviewExamAnswers() {
   
   isReviewingExam = true;
   activeQuestionIndex = 0;
+  
+  if (activePlayingTest) {
+    initBattleSceneVisuals(activePlayingTest.id);
+  }
   
   // Load and render first question in review mode
   renderGameQuestion();
@@ -2815,6 +2910,15 @@ window.addEventListener('popstate', (event) => {
   }
 });
 
+// Utility to shuffle arrays
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
 function startTest(testId, mode = "practice") {
   currentTestMode = mode;
   isReviewingExam = false;
@@ -2834,12 +2938,73 @@ function startTest(testId, mode = "practice") {
   const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   
   // Filter questions that are in the test list
-  testQuestions = allQuestions.filter(q => activePlayingTest.questions.includes(q.id));
+  let rawQuestions = allQuestions.filter(q => activePlayingTest.questions.includes(q.id));
   
-  if (testQuestions.length === 0) {
+  if (rawQuestions.length === 0) {
     window.showToast("Lỗi: Bài kiểm tra này chưa được cài đặt câu hỏi. Vui lòng thử lại sau!", 'error');
     return;
   }
+
+  // Shuffle questions and their options for freshness
+  testQuestions = shuffleArray([...rawQuestions]).map(q => {
+    const clonedQ = JSON.parse(JSON.stringify(q));
+    if (clonedQ.options && Array.isArray(clonedQ.options)) {
+      // Map original indices to track correct answers after shuffling
+      const optionsWithMetadata = clonedQ.options.map((opt, i) => ({
+        text: opt,
+        originalIndex: i
+      }));
+
+      shuffleArray(optionsWithMetadata);
+      clonedQ.options = optionsWithMetadata.map(item => item.text);
+
+      // Update correctIndex for choice and image_choice
+      if ((clonedQ.type === "choice" || clonedQ.type === "image_choice") && typeof clonedQ.correctIndex === "number") {
+        clonedQ.correctIndex = optionsWithMetadata.findIndex(item => item.originalIndex === clonedQ.correctIndex);
+      } 
+      // Update correctIndices for multi_choice
+      else if (clonedQ.type === "multi_choice" && Array.isArray(clonedQ.correctIndices)) {
+        clonedQ.correctIndices = clonedQ.correctIndices.map(oldIdx => 
+          optionsWithMetadata.findIndex(item => item.originalIndex === oldIdx)
+        );
+      }
+    }
+
+    // Shuffle rows for table_match and update correctAnswers
+    if (clonedQ.type === "table_match" && Array.isArray(clonedQ.rows) && Array.isArray(clonedQ.correctAnswers)) {
+      const rowsWithAnswers = clonedQ.rows.map((row, i) => ({
+        rowText: row,
+        answer: clonedQ.correctAnswers[i]
+      }));
+      shuffleArray(rowsWithAnswers);
+      clonedQ.rows = rowsWithAnswers.map(item => item.rowText);
+      clonedQ.correctAnswers = rowsWithAnswers.map(item => item.answer);
+    }
+
+    // Shuffle rows for drag_text and update correctAnswers
+    if (clonedQ.type === "drag_text" && Array.isArray(clonedQ.rows) && Array.isArray(clonedQ.correctAnswers)) {
+      const rowsWithAnswers = clonedQ.rows.map((row, i) => ({
+        rowText: row,
+        answer: clonedQ.correctAnswers[i]
+      }));
+      shuffleArray(rowsWithAnswers);
+      clonedQ.rows = rowsWithAnswers.map(item => item.rowText);
+      clonedQ.correctAnswers = rowsWithAnswers.map(item => item.answer);
+    }
+
+    // Shuffle leftImages for drag_image_text and update correctAnswers
+    if (clonedQ.type === "drag_image_text" && Array.isArray(clonedQ.leftImages) && Array.isArray(clonedQ.correctAnswers)) {
+      const itemsWithAnswers = clonedQ.leftImages.map((img, i) => ({
+        image: img,
+        answer: clonedQ.correctAnswers[i]
+      }));
+      shuffleArray(itemsWithAnswers);
+      clonedQ.leftImages = itemsWithAnswers.map(item => item.image);
+      clonedQ.correctAnswers = itemsWithAnswers.map(item => item.answer);
+    }
+
+    return clonedQ;
+  });
 
   document.getElementById("game-navigation-panel").classList.remove("hidden");
 
@@ -2853,31 +3018,9 @@ function startTest(testId, mode = "practice") {
   isAnswerChecked = false;
 
   // Initialize RPG Live Battle HP and Arena
-  const pokemonAvatars = {
-    pikachu: "⚡",
-    charmander: "🔥",
-    bulbasaur: "🌱",
-    squirtle: "💧",
-    eevee: "🦊"
-  };
-
-  const pokemonNames = {
-    pikachu: "Pikachu",
-    charmander: "Charmander",
-    bulbasaur: "Bulbasaur",
-    squirtle: "Squirtle",
-    eevee: "Eevee"
-  };
-
-  const bossesProfile = {
-    test_l1: { name: "Thần Cây Dữ Liệu", avatar: "🌳" },
-    test_l2: { name: "Office Robot", avatar: "🤖" },
-    test_l3: { name: "Rồng Hỏa Ngục", avatar: "👾" }
-  };
+  initBattleSceneVisuals(testId);
 
   const activePoke = currentStudent.pokemon || "pikachu";
-  const bossProf = bossesProfile[testId] || { name: "Guardian", avatar: "🌳" };
-
   const baseHp = activePoke === "bulbasaur" ? 140 : activePoke === "squirtle" ? 130 : 100;
   playerMaxHP = baseHp + Math.floor(currentStudent.exp / 15);
   playerCurrentHP = playerMaxHP;
@@ -2885,31 +3028,11 @@ function startTest(testId, mode = "practice") {
   bossMaxHP = testQuestions.length * 100;
   bossCurrentHP = bossMaxHP;
 
-  const pokemonElements = {
-    pikachu: { color: "bg-yellow-500/10 border-yellow-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(250,204,21,0.3)]" },
-    charmander: { color: "bg-orange-500/10 border-orange-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,146,60,0.3)]" },
-    bulbasaur: { color: "bg-emerald-500/10 border-emerald-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(52,211,153,0.3)]" },
-    squirtle: { color: "bg-blue-500/10 border-blue-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(96,165,250,0.3)]" },
-    eevee: { color: "bg-amber-500/10 border-amber-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,191,36,0.3)]" }
-  };
-  const scenePokeData = pokemonElements[activePoke] || pokemonElements.pikachu;
-
-  // Render initial health and titles to RPG Battle Arena
-  const sceneAvatar = document.getElementById("battle-scene-player-avatar");
-  if(sceneAvatar) {
-    sceneAvatar.className = `text-3xl h-10 w-10 flex items-center justify-center rounded-xl border shrink-0 ${scenePokeData.color} ${scenePokeData.shadow}`;
-    sceneAvatar.innerText = pokemonAvatars[activePoke] || "⚡";
-  }
-  document.getElementById("battle-scene-player-name").innerText = pokemonNames[activePoke] || "Pikachu";
   document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
   document.getElementById("battle-scene-player-hp-bar").style.width = "100%";
-  document.getElementById("battle-scene-player-status").innerText = "SẴN SÀNG!";
 
-  document.getElementById("battle-scene-boss-avatar").innerText = bossProf.avatar;
-  document.getElementById("battle-scene-boss-name").innerText = bossProf.name;
   document.getElementById("battle-scene-boss-hp-val").innerText = `${bossCurrentHP}/${bossMaxHP}`;
   document.getElementById("battle-scene-boss-hp-bar").style.width = "100%";
-  document.getElementById("battle-scene-boss-status").innerText = "GỪ RỪ...";
 
   if (currentTestMode === "exam") {
     document.getElementById("battle-scene-log").innerText = "Chế độ Kiểm tra thám hiểm: Hãy suy nghĩ kỹ và trả lời tất cả các câu hỏi. Sát thương lên Boss sẽ được tổng hợp khi bạn nộp bài!";
@@ -3190,9 +3313,9 @@ function renderGameQuestion() {
       }
 
       rowsHtml += `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-slate-950 border border-slate-800/80 gap-3">
-          <span class="text-base font-black text-slate-200">${row.label}</span>
-          <div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#0f172a]/60 border border-slate-800/60 gap-3">
+          <span class="text-sm font-bold text-slate-200 flex-grow">${row}</span>
+          <div class="shrink-0">
             <div id="drag-text-target-${rIdx}" onclick="clearDraggedText(${rIdx})" 
                  class="${slotClass}">
               ${slotText}
@@ -3430,6 +3553,10 @@ function renderGameQuestion() {
         window.clearHotspots = () => {
             window.hotspotClicks = [];
             drawClicks();
+            currentSelectedAnswer = [];
+            if (currentTestMode === "exam") {
+                examUserAnswers[activeQuestionIndex] = JSON.stringify(currentSelectedAnswer);
+            }
         }
 
         const drawClicks = () => {
@@ -3482,6 +3609,9 @@ function renderGameQuestion() {
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             window.hotspotClicks[index] = { x, y };
             currentSelectedAnswer = [...window.hotspotClicks];
+            if (currentTestMode === "exam") {
+                examUserAnswers[activeQuestionIndex] = JSON.stringify(currentSelectedAnswer);
+            }
             drawClicks();
         });
 
@@ -3504,31 +3634,14 @@ function renderGameQuestion() {
                 }
                 drawClicks();
                 currentSelectedAnswer = [...window.hotspotClicks];
+                if (currentTestMode === "exam") {
+                    examUserAnswers[activeQuestionIndex] = JSON.stringify(currentSelectedAnswer);
+                }
             });
         }
     }, 50);
 
-  } else if (type === "hotspot") {
-      let parsedAns = [];
-      try {
-        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-      } catch (e) {
-        parsedAns = studentAns || [];
-      }
-      if (Array.isArray(parsedAns) && parsedAns.length >= (item.requiredCount || 1)) {
-         let allValid = true;
-         parsedAns.forEach(click => {
-            let hit = false;
-            (item.hotspots || []).forEach(area => {
-                if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
-            });
-            if (!hit) allValid = false;
-         });
-         isCorrect = allValid;
-      } else {
-         isCorrect = false;
-      }
-    } else if (type === "multi_choice") {
+  } else if (type === "multi_choice") {
     let savedSelected = [];
     if (isQuestionAnswered) {
       try {
@@ -3724,7 +3837,7 @@ function placeDraggedText(text, btnIdx) {
   
   const slot = document.getElementById(`drag-text-target-${emptyIdx}`);
   slot.innerText = text;
-  slot.className = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border border-indigo-500 bg-indigo-500/10 text-xs font-bold text-white cursor-pointer hover:bg-indigo-500/20 transition-all";
+  slot.className = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border border-indigo-500 bg-indigo-500/10 text-sm font-black text-white cursor-pointer hover:bg-indigo-500/20 transition-all";
   
   const poolBtn = document.getElementById(`drag-text-pool-btn-${btnIdx}`);
   poolBtn.classList.add("opacity-30", "pointer-events-none");
@@ -3748,7 +3861,7 @@ function clearDraggedText(slotIdx) {
   window.draggedTextAnswers[slotIdx] = "";
   
   slot.innerText = "Nhấp từ khóa để điền...";
-  slot.className = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-xs font-bold text-indigo-400 cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
+  slot.className = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-sm font-black text-indigo-400 cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
   
   if (btnIdx !== undefined) {
     const poolBtn = document.getElementById(`drag-text-pool-btn-${btnIdx}`);
@@ -3776,7 +3889,7 @@ function placeDraggedImageText(text, btnIdx) {
   
   const slot = document.getElementById(`drag-image-target-${emptyIdx}`);
   slot.innerText = text;
-  slot.className = "w-full h-11 px-3 rounded-xl border border-indigo-500 bg-indigo-500/10 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/20 transition-all";
+  slot.className = "w-full h-14 px-4 rounded-2xl border border-indigo-500 bg-indigo-500/10 text-sm font-black text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/20 transition-all";
   
   const poolBtn = document.getElementById(`drag-image-pool-btn-${btnIdx}`);
   poolBtn.classList.add("opacity-30", "pointer-events-none");
@@ -3800,7 +3913,7 @@ function clearDraggedImageText(slotIdx) {
   window.draggedTextAnswers[slotIdx] = "";
   
   slot.innerText = "Nhấp nhãn để ghép...";
-  slot.className = "w-full h-11 px-3 rounded-xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-xs font-bold text-indigo-400 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
+  slot.className = "w-full h-14 px-4 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-sm font-black text-indigo-400 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
   
   if (btnIdx !== undefined) {
     const poolBtn = document.getElementById(`drag-image-pool-btn-${btnIdx}`);
@@ -3941,6 +4054,26 @@ function executeSubmitExamCalculation() {
         parsedAns = studentAns || [];
       }
       isCorrect = Array.isArray(parsedAns) && parsedAns.length === item.correctIndices.length && parsedAns.every(val => item.correctIndices.includes(val));
+    } else if (type === "hotspot") {
+      let parsedAns = [];
+      try {
+        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
+      } catch (e) {
+        parsedAns = studentAns || [];
+      }
+      if (Array.isArray(parsedAns) && parsedAns.length >= (item.requiredCount || 1)) {
+         let allValid = true;
+         parsedAns.forEach(click => {
+            let hit = false;
+            (item.hotspots || []).forEach(area => {
+                if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
+            });
+            if (!hit) allValid = false;
+         });
+         isCorrect = allValid;
+      } else {
+         isCorrect = false;
+      }
     }
 
     if (isCorrect) {
@@ -3971,6 +4104,62 @@ function executeSubmitExamCalculation() {
   }
 
   finishTest();
+}
+
+function triggerGameBattleEffect(isPlayerAttacking) {
+  const playerImg = document.getElementById("battle-scene-player-img");
+  const bossImg = document.getElementById("battle-scene-boss-img");
+  const projectile = document.getElementById("spell-projectile");
+  
+  if (!playerImg || !bossImg || !projectile) return;
+
+  if (isPlayerAttacking) {
+    // Player attacks boss
+    projectile.className = "absolute w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 z-30 bg-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.8)]";
+    projectile.innerHTML = '<i class="fa-solid fa-bolt text-white text-xs"></i>';
+    
+    // Start position (Player)
+    projectile.style.left = "20%";
+    projectile.style.bottom = "40%";
+    projectile.classList.remove("hidden");
+    
+    // Animate to boss
+    setTimeout(() => {
+      projectile.style.left = "80%";
+      projectile.style.bottom = "45%";
+      
+      setTimeout(() => {
+        projectile.classList.add("hidden");
+        // Shake boss
+        bossImg.classList.remove("animate-shake", "animate-flash-red");
+        void bossImg.offsetWidth;
+        bossImg.classList.add("animate-flash-red", "animate-shake");
+      }, 300);
+    }, 50);
+  } else {
+    // Boss attacks player
+    projectile.className = "absolute w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 z-30 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)]";
+    projectile.innerHTML = '<i class="fa-solid fa-fire text-white text-xs"></i>';
+    
+    // Start position (Boss)
+    projectile.style.left = "80%";
+    projectile.style.bottom = "45%";
+    projectile.classList.remove("hidden");
+    
+    // Animate to player
+    setTimeout(() => {
+      projectile.style.left = "20%";
+      projectile.style.bottom = "40%";
+      
+      setTimeout(() => {
+        projectile.classList.add("hidden");
+        // Shake player
+        playerImg.classList.remove("animate-shake", "animate-flash-red");
+        void playerImg.offsetWidth;
+        playerImg.classList.add("animate-flash-red", "animate-shake");
+      }, 300);
+    }, 50);
+  }
 }
 
 function nextGameQuestion() {
@@ -4137,6 +4326,8 @@ function nextGameQuestion() {
       document.getElementById("battle-scene-boss-hp-val").innerText = `${bossCurrentHP}/${bossMaxHP}`;
       document.getElementById("battle-scene-boss-hp-bar").style.width = `${bossHpPct}%`;
       
+      triggerGameBattleEffect(true);
+
       document.getElementById("battle-scene-player-status").innerText = "ĐÒN SẤM SÉT! ⚡";
       document.getElementById("battle-scene-boss-status").innerText = "-100 HP! ÁI!";
       document.getElementById("battle-scene-log").innerHTML = `🎉 <span class="text-emerald-400 font-bold">CHÍNH XÁC!</span> Thần thú <span class="text-yellow-400">${pokeName}</span> của bạn ra đòn chí mạng gây <span class="text-red-400 font-black">100 Sát thương</span> lên Boss!`;
@@ -4247,6 +4438,8 @@ function nextGameQuestion() {
       document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
       const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
       document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
+
+      triggerGameBattleEffect(false);
 
       if (playerCurrentHP === 0) {
         window.showToast("Thần thú của bạn đã kiệt sức! Kết thúc săn Boss.", 'error');
