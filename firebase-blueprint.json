@@ -128,6 +128,20 @@
         "date": { "type": "string" }
       },
       "required": ["id", "title", "message"]
+    },
+    "Boss": {
+      "title": "Boss",
+      "description": "Boss monster for hunting mode",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "hp": { "type": "number" },
+        "maxHp": { "type": "number" },
+        "avatar": { "type": "string" },
+        "desc": { "type": "string" }
+      },
+      "required": ["id", "name", "hp", "maxHp"]
     }
   },
   "firestore": {
@@ -139,6 +153,7 @@
     "tests/{testId}": { "schema": "Test", "description": "Tests" },
     "scores/{scoreId}": { "schema": "Score", "description": "Scores" },
     "rewards/{rewardId}": { "schema": "Reward", "description": "Rewards" },
-    "notifications/{notifId}": { "schema": "Notification", "description": "Notifications" }
+    "notifications/{notifId}": { "schema": "Notification", "description": "Notifications" },
+    "bosses/{bossId}": { "schema": "Boss", "description": "Bosses" }
   }
 }

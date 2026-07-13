@@ -492,6 +492,22 @@ let isReviewingExam = false;
 let examUserAnswers = [];
 let selectedTestIdToStart = "";
 
+// Boss Hunt States
+let bossActivePlayingTest = null;
+let bossTestQuestions = [];
+let bossActiveQuestionIndex = 0;
+let bossUserAnswers = [];
+let bossCorrectAnswersCount = 0;
+let bossTestTimerInterval = null;
+let bossRemainingSeconds = 0;
+let bossIsAnswerChecked = false;
+let bossCurrentSelectedAnswer = "";
+let bossHuntCombo = 0;
+let bossPlayerMaxHP = 100;
+let bossPlayerCurrentHP = 100;
+let bhBossMaxHP = 5000;
+let bhBossCurrentHP = 5000;
+
 // RPG Battle States
 let playerMaxHP = 100;
 let playerCurrentHP = 100;
@@ -585,6 +601,7 @@ function applySavedTheme() {
 }
 
 function toggleTheme() {
+  if (window._isTestActiveForAntiCheat) return;
   const isLight = document.documentElement.classList.contains("light-mode");
   const newTheme = isLight ? "dark" : "light";
   localStorage.setItem("ic3_student_theme", newTheme);
@@ -853,6 +870,10 @@ function logoutStudent() {
 
 // 2. Tab Switching Engine
 function switchStudentTab(tabId) {
+  if (window._isTestActiveForAntiCheat) {
+    handleCheatDetected();
+    return;
+  }
   document.querySelectorAll(".student-view-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".student-tab-btn").forEach(el => el.classList.remove("active"));
 
@@ -869,6 +890,976 @@ function switchStudentTab(tabId) {
   else if (tabId === "badges") renderBadges();
   else if (tabId === "inventory") renderInventory();
   else if (tabId === "rewards") renderRewardsStore();
+  else if (tabId === "bosshunt") renderBossHuntTab();
+}
+
+function renderBossHuntTab() {
+  const container = document.getElementById("boss-hunt-container");
+  container.innerHTML = "";
+  const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+  
+  bosses.forEach(boss => {
+    const bossCard = document.createElement("div");
+    bossCard.className = "bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/50 transition-all cursor-pointer";
+    bossCard.innerHTML = `
+      <div class="flex flex-col items-center gap-3">
+        <img src="${boss.avatar}" alt="${boss.name}" class="w-64 h-64 rounded-2xl object-contain shadow-lg" referrerPolicy="no-referrer" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">
+        <h4 class="font-bold text-white text-lg">${boss.name}</h4>
+        <span class="text-xs bg-red-900 text-red-200 px-3 py-1.5 rounded-full font-bold">HP: ${boss.hp}/${boss.maxHp}</span>
+      </div>
+      <p class="text-sm text-slate-400 text-center flex-grow">${boss.desc}</p>
+      <button onclick="startBossHunt('${boss.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-md mt-2 transition-all shadow-lg hover:shadow-red-900/50">Săn Boss</button>
+    `;
+    container.appendChild(bossCard);
+  });
+}
+
+async function startBossHunt(bossId) {
+  const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+  const boss = bosses.find(b => b.id === bossId);
+  if (!boss) return;
+
+  // Check 2 hunts/day limit
+  const today = new Date().toISOString().split('T')[0];
+  const huntRecord = JSON.parse(localStorage.getItem(`bossHunt_${currentStudent.email}_${today}`) || "0");
+  if (huntRecord >= 2) {
+    window.showToast("Bạn đã hết lượt săn Boss hôm nay!", 'error');
+    return;
+  }
+
+  // Get questions from "Ôn tập tổng hợp" pool
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const studentBlockId = currentStudent.blockId || "block_3";
+  
+  // Try to find tests specifically for review, or use all tests in block as fallback
+  const reviewTests = tests.filter(t => t.blockId === studentBlockId && (t.title.toLowerCase().includes("ôn tập") || t.title.toLowerCase().includes("tổng hợp")));
+  
+  let poolQIds = [];
+  if (reviewTests.length > 0) {
+    reviewTests.forEach(t => { poolQIds = poolQIds.concat(t.questions || []); });
+  } else {
+    const blockTests = tests.filter(t => t.blockId === studentBlockId);
+    blockTests.forEach(t => { poolQIds = poolQIds.concat(t.questions || []); });
+  }
+  
+  poolQIds = [...new Set(poolQIds)]; // Unique IDs
+  const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+  const selectedQuestions = allQuestions.filter(q => poolQIds.includes(q.id)).sort(() => 0.5 - Math.random());
+
+  if (selectedQuestions.length === 0) {
+    window.showToast("Không tìm thấy bộ đề ôn tập tổng hợp cho khối của bạn!", 'error');
+    return;
+  }
+
+  // Set up boss hunt game state
+  bossActivePlayingTest = {
+    id: "boss_hunt_" + bossId,
+    questions: selectedQuestions.map(q => q.id),
+    isBossHunt: true,
+    bossId: bossId
+  };
+  
+  bossTestQuestions = selectedQuestions;
+  bossActiveQuestionIndex = 0;
+  bossUserAnswers = [];
+  bossCorrectAnswersCount = 0;
+  bossHuntCombo = 0;
+  bossIsAnswerChecked = false;
+  bossCurrentSelectedAnswer = "";
+  
+  bossPlayerMaxHP = 100;
+  bossPlayerCurrentHP = 100;
+  bhBossMaxHP = boss.maxHp || 5000;
+  bhBossCurrentHP = boss.hp !== undefined ? boss.hp : (boss.maxHp || 5000);
+
+  // Show boss game screen
+  document.getElementById("boss-hunting-screen").classList.remove("hidden");
+  
+  enterAntiCheatMode();
+
+  // Initialize UI with boss info
+  const bossImg = document.getElementById("boss-battle-scene-boss-img");
+  if (bossImg) {
+    bossImg.src = boss.avatar;
+    bossImg.referrerPolicy = "no-referrer";
+    bossImg.onerror = function() { this.src = 'https://api.dicebear.com/7.x/bottts/svg?seed=fallback'; };
+  }
+  
+  document.getElementById("boss-battle-scene-boss-name").innerText = boss.name;
+  document.getElementById("boss-battle-scene-boss-hp-val").innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
+  document.getElementById("boss-battle-scene-boss-hp-bar").style.width = `${Math.round((bhBossCurrentHP/bhBossMaxHP)*100)}%`;
+  
+  // Set player info
+  const activePoke = currentStudent.pokemon || "pikachu";
+  const playerImg = document.getElementById("boss-battle-scene-player-img");
+  if (playerImg) {
+    playerImg.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+  }
+  document.getElementById("boss-battle-scene-player-name").innerText = pokemonNames[activePoke] || "Pikachu";
+  document.getElementById("boss-battle-scene-player-avatar").innerText = window.pokemonAvatars[activePoke] || "⚡";
+  document.getElementById("boss-battle-scene-player-hp-val").innerText = `${bossPlayerCurrentHP}/${bossPlayerMaxHP}`;
+  document.getElementById("boss-battle-scene-player-hp-bar").style.width = "100%";
+
+  // Start timer
+  bossRemainingSeconds = 300; // 5 minutes for boss hunt
+  runBossTimer();
+
+  // Initial render
+  renderBossQuestion();
+  
+  window.showToast(`Săn Boss ${boss.name} bắt đầu!`, 'success');
+}
+
+function runBossTimer() {
+  if (bossTestTimerInterval) clearInterval(bossTestTimerInterval);
+  const timerEl = document.getElementById("boss-timer");
+  
+  bossTestTimerInterval = setInterval(() => {
+    bossRemainingSeconds--;
+    if (bossRemainingSeconds <= 0) {
+      clearInterval(bossTestTimerInterval);
+      Swal.fire({
+        title: 'THẤT BẠI!',
+        text: 'Bạn đã hết thời gian săn Boss. Lần sau hãy nhanh tay hơn nhé!',
+        icon: 'error',
+        confirmButtonText: 'Rút lui',
+        confirmButtonColor: '#dc2626',
+        background: '#0f172a',
+        color: '#fff'
+      }).then(() => {
+        confirmExitBossHuntDirectly();
+      });
+      return;
+    }
+    
+    const mins = Math.floor(bossRemainingSeconds / 60);
+    const secs = bossRemainingSeconds % 60;
+    if (timerEl) {
+      timerEl.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+  }, 1000);
+}
+
+function confirmExitBossHunt() {
+  // Use the same modal but different confirm action?
+  // Or just exit directly for now to keep it simple, but user might want confirmation.
+  // Let's use the existing modal but change the onclick of the confirm button temporarily or have a separate modal.
+  const modal = document.getElementById("exitConfirmationModal");
+  if (modal) {
+    const confirmBtn = modal.querySelector("button[onclick='confirmExitGamePlayingDirectly()']");
+    if (confirmBtn) {
+      confirmBtn.setAttribute("onclick", "confirmExitBossHuntDirectly()");
+    }
+    modal.classList.remove("hidden");
+  }
+}
+
+function confirmExitBossHuntDirectly() {
+  const modal = document.getElementById("exitConfirmationModal");
+  if (modal) {
+    modal.classList.add("hidden");
+    const confirmBtn = modal.querySelector("button[onclick='confirmExitBossHuntDirectly()']");
+    if (confirmBtn) {
+      confirmBtn.setAttribute("onclick", "confirmExitGamePlayingDirectly()");
+    }
+  }
+  
+  // Save Boss persistent HP if match was in progress
+  if (bossActivePlayingTest && bossActivePlayingTest.bossId) {
+    const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+    const bIdx = bosses.findIndex(b => b.id === bossActivePlayingTest.bossId);
+    if (bIdx !== -1) {
+      bosses[bIdx].hp = bhBossCurrentHP;
+      window.saveData(window.IC3_KEYS.BOSSES, bosses);
+    }
+  }
+
+  // Hide screens
+  document.getElementById("boss-hunting-screen").classList.add("hidden");
+  const revivalScreen = document.getElementById("boss-revival-screen");
+  if (revivalScreen) revivalScreen.classList.add("hidden");
+
+  clearInterval(bossTestTimerInterval);
+  exitAntiCheatMode();
+  
+  // Reset states
+  bossActivePlayingTest = null;
+  
+  loadStudentProfile();
+  renderBattleArena();
+  renderBossHuntTab();
+}
+
+function triggerBossBattleAnimation(isPlayerAttacking, isHit) {
+  const projectile = document.getElementById("boss-spell-projectile");
+  const playerImg = document.getElementById("boss-battle-scene-player-img");
+  const bossImg = document.getElementById("boss-battle-scene-boss-img");
+  
+  if (!projectile || !playerImg || !bossImg) return;
+
+  const playerColumn = playerImg.closest('.flex-col');
+  const bossColumn = bossImg.closest('.flex-col');
+  
+  if (!playerColumn || !bossColumn) return;
+
+  if (isPlayerAttacking) {
+    // Apply burning effect if combo is high
+    if (bossHuntCombo >= 2) {
+      playerImg.classList.add("animate-fire-burn");
+    } else {
+      playerImg.classList.remove("animate-fire-burn");
+    }
+
+    // Player jumps and attacks Boss
+    playerImg.classList.remove("animate-jump-attack");
+    void playerImg.offsetWidth; // Force reflow
+    playerImg.classList.add("animate-jump-attack");
+    setTimeout(() => playerImg.classList.remove("animate-jump-attack"), 600);
+
+    projectile.className = "absolute block w-16 h-16 rounded-full blur-[2px] bg-gradient-to-r from-yellow-300 to-orange-500 shadow-[0_0_40px_#f59e0b] z-30 transition-all duration-500 ease-in";
+    projectile.style.left = "15%";
+    projectile.style.top = "50%";
+    projectile.classList.remove("hidden");
+
+    setTimeout(() => {
+      projectile.style.left = "85%";
+      setTimeout(() => {
+        projectile.classList.add("hidden");
+        if (isHit) {
+          bossColumn.classList.add("animate-shake");
+          setTimeout(() => bossColumn.classList.remove("animate-shake"), 500);
+        }
+      }, 500);
+    }, 50);
+  } else {
+    // Boss jumps and attacks Player (Wrong answer)
+    playerImg.classList.remove("animate-fire-burn"); // Reset combo effect on fail
+    bossImg.classList.remove("animate-jump-attack");
+    void bossImg.offsetWidth; // Force reflow
+    bossImg.classList.add("animate-jump-attack");
+    setTimeout(() => bossImg.classList.remove("animate-jump-attack"), 600);
+
+    projectile.className = "absolute block w-16 h-16 rounded-full blur-[2px] bg-gradient-to-l from-red-600 to-orange-600 shadow-[0_0_40px_#ef4444] z-30 transition-all duration-500 ease-in";
+    projectile.style.left = "85%";
+    projectile.style.top = "50%";
+    projectile.classList.remove("hidden");
+
+    setTimeout(() => {
+      projectile.style.left = "15%";
+      setTimeout(() => {
+        projectile.classList.add("hidden");
+        playerColumn.classList.add("animate-shake");
+        setTimeout(() => playerColumn.classList.remove("animate-shake"), 500);
+      }, 500);
+    }, 50);
+  }
+}
+
+function saveBossBlankInput(val) {
+  bossCurrentSelectedAnswer = val.trim();
+}
+
+function placeBossDraggedText(text, btnIdx) {
+  if (bossIsAnswerChecked) return;
+  const emptyIdx = bossDraggedTextAnswers.findIndex(ans => !ans);
+  if (emptyIdx === -1) {
+    window.showToast("Tất cả các vị trí đã điền xong!");
+    return;
+  }
+  bossDraggedTextAnswers[emptyIdx] = text;
+  const slot = document.getElementById(`boss-drag-text-target-${emptyIdx}`);
+  slot.innerText = text;
+  slot.className = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-white cursor-pointer hover:bg-red-500/20 transition-all";
+  const poolBtn = document.getElementById(`boss-drag-text-pool-btn-${btnIdx}`);
+  poolBtn.classList.add("opacity-30", "pointer-events-none");
+  slot.dataset.btnIdx = btnIdx;
+  bossCurrentSelectedAnswer = JSON.stringify(bossDraggedTextAnswers);
+}
+
+function clearBossDraggedText(slotIdx) {
+  if (bossIsAnswerChecked) return;
+  const text = bossDraggedTextAnswers[slotIdx];
+  if (!text) return;
+  const slot = document.getElementById(`boss-drag-text-target-${slotIdx}`);
+  const btnIdx = slot.dataset.btnIdx;
+  bossDraggedTextAnswers[slotIdx] = "";
+  slot.innerText = "Nhấp từ khóa để điền...";
+  slot.className = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+  if (btnIdx !== undefined) {
+    const poolBtn = document.getElementById(`boss-drag-text-pool-btn-${btnIdx}`);
+    if (poolBtn) poolBtn.classList.remove("opacity-30", "pointer-events-none");
+  }
+  bossCurrentSelectedAnswer = JSON.stringify(bossDraggedTextAnswers);
+}
+
+function placeBossDraggedImageText(text, btnIdx) {
+  if (bossIsAnswerChecked) return;
+  const emptyIdx = bossDraggedTextAnswers.findIndex(ans => !ans);
+  if (emptyIdx === -1) {
+    window.showToast("Tất cả các hình ảnh đã được dán nhãn tên!");
+    return;
+  }
+  bossDraggedTextAnswers[emptyIdx] = text;
+  const slot = document.getElementById(`boss-drag-image-target-${emptyIdx}`);
+  slot.innerText = text;
+  slot.className = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-red-500/20 transition-all";
+  const poolBtn = document.getElementById(`boss-drag-image-pool-btn-${btnIdx}`);
+  poolBtn.classList.add("opacity-30", "pointer-events-none");
+  slot.dataset.btnIdx = btnIdx;
+  bossCurrentSelectedAnswer = JSON.stringify(bossDraggedTextAnswers);
+}
+
+function clearBossDraggedImageText(slotIdx) {
+  if (bossIsAnswerChecked) return;
+  const text = bossDraggedTextAnswers[slotIdx];
+  if (!text) return;
+  const slot = document.getElementById(`boss-drag-image-target-${slotIdx}`);
+  const btnIdx = slot.dataset.btnIdx;
+  bossDraggedTextAnswers[slotIdx] = "";
+  slot.innerText = "Nhấp nhãn để ghép...";
+  slot.className = "w-full h-11 px-3 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+  if (btnIdx !== undefined) {
+    const poolBtn = document.getElementById(`boss-drag-image-pool-btn-${btnIdx}`);
+    if (poolBtn) poolBtn.classList.remove("opacity-30", "pointer-events-none");
+  }
+  bossCurrentSelectedAnswer = JSON.stringify(bossDraggedTextAnswers);
+}
+
+function changeBossTableMatchSelect(rowIdx) {
+  if (bossIsAnswerChecked) return;
+  const q = bossTestQuestions[bossActiveQuestionIndex];
+  const matchedIndices = [];
+  for (let r = 0; r < q.rows.length; r++) {
+    const val = document.getElementById(`boss-table-match-select-${r}`).value;
+    matchedIndices.push(val === "" ? "" : parseInt(val));
+  }
+  bossCurrentSelectedAnswer = JSON.stringify(matchedIndices);
+}
+
+let bossDraggedTextAnswers = [];
+let bossHotspotClicks = [];
+let bossMultiChoiceSelected = [];
+
+function renderBossQuestion() {
+  let isQuestionAnswered = bossActiveQuestionIndex < bossUserAnswers.length;
+  bossIsAnswerChecked = isQuestionAnswered;
+
+  const q = bossTestQuestions[bossActiveQuestionIndex];
+  if (!q) return;
+  
+  // Infinite questions UI: show current question count instead of progress bar
+  document.getElementById("boss-progress-text").innerText = `Câu hỏi số: ${bossCorrectAnswersCount + bossUserAnswers.length - bossCorrectAnswersCount + 1}`;
+  // Progress bar now reflects Boss HP for better visual feedback
+  const bossHpPercent = Math.round((bhBossCurrentHP / bhBossMaxHP) * 100);
+  document.getElementById("boss-progress-bar").style.width = `${bossHpPercent}%`;
+  document.getElementById("boss-progress-bar").className = "h-full bg-gradient-to-r from-red-600 to-rose-400 transition-all duration-700";
+
+  const encouragers = [
+    "Chiến đi nào!", "Tiến lên Pokémon!", "Đừng bỏ cuộc!", "Đòn này chí mạng đấy!", 
+    "Gần hạ gục rồi!", "Bạn làm được mà!", "Sức mạnh của tri thức!", "Boss sắp gục rồi!",
+    "Một đòn nữa thôi!", "Pokémon của bạn đang hừng hực khí thế!", "Hãy cho Boss thấy bản lĩnh!",
+    "Bình tĩnh suy nghĩ nhé!", "Bạn là nhà vô địch!", "Tỏa sáng đi nào!", "Không gì cản bước được ta!"
+  ];
+  document.getElementById("boss-pokemon-encourager-text").innerText = encouragers[Math.floor(Math.random() * encouragers.length)];
+
+  document.getElementById("boss-next-btn").innerHTML = isQuestionAnswered 
+    ? `Câu tiếp theo <i class="fa-solid fa-angle-right ml-1.5"></i>`
+    : `KHAI HỎA! <i class="fa-solid fa-bolt-lightning ml-1.5"></i>`;
+
+  document.getElementById("boss-question-text").innerText = q.question;
+
+  const qImgContainer = document.getElementById("boss-question-image-container");
+  const qImgElement = document.getElementById("boss-question-image");
+  if (qImgContainer && qImgElement) {
+    if (q.image) {
+      qImgElement.src = convertDriveUrl(q.image);
+      qImgContainer.classList.remove("hidden");
+    } else {
+      qImgContainer.classList.add("hidden");
+    }
+  }
+
+  const container = document.getElementById("boss-options-container");
+  container.innerHTML = "";
+  
+  if (isQuestionAnswered) {
+    bossCurrentSelectedAnswer = bossUserAnswers[bossActiveQuestionIndex];
+  } else {
+    bossCurrentSelectedAnswer = "";
+  }
+  
+  bossDraggedTextAnswers = [];
+  bossHotspotClicks = [];
+  bossMultiChoiceSelected = [];
+
+  const type = q.type || "choice";
+
+  if (type === "choice" || type === "multiple_choice" || type === "true_false") {
+    const options = q.options || [];
+    options.forEach((opt, idx) => {
+      const isLegacyMultChoice = type === "multiple_choice";
+      const label = isLegacyMultChoice ? opt.charAt(0) : idx;
+      const btn = document.createElement("button");
+      let extraClass = "";
+      
+      if (isQuestionAnswered) {
+        const isUserSelected = bossCurrentSelectedAnswer === label;
+        let isCorrect = false;
+        if (type === "choice") isCorrect = idx === q.correctIndex;
+        else isCorrect = opt.startsWith(q.answer) || opt === q.answer;
+
+        if (isUserSelected && isCorrect) extraClass = " border-emerald-500 bg-emerald-500/20 text-emerald-300";
+        else if (isUserSelected && !isCorrect) extraClass = " border-rose-500 bg-rose-500/20 text-rose-300";
+        else if (isCorrect) extraClass = " border-emerald-500/50 text-emerald-400/50";
+      } else if (bossCurrentSelectedAnswer === label) {
+        extraClass = " border-red-500 bg-red-500/10";
+      }
+
+      btn.className = "group flex items-center p-4 w-full bg-slate-900/60 border-2 border-slate-800 rounded-[1.5rem] transition-all text-left cursor-pointer text-slate-100 hover:border-red-500/50" + extraClass;
+      btn.innerHTML = `
+        <span class="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 text-slate-500 flex items-center justify-center text-[10px] font-black mr-3 shrink-0 group-hover:bg-red-600 group-hover:text-white transition-colors">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
+        <span class="text-sm font-bold">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</span>
+      `;
+      btn.onclick = () => {
+        if (bossIsAnswerChecked) return;
+        container.querySelectorAll("button").forEach(el => el.classList.remove("border-red-500", "bg-red-500/10"));
+        btn.classList.add("border-red-500", "bg-red-500/10");
+        bossCurrentSelectedAnswer = label;
+      };
+      container.appendChild(btn);
+    });
+  } else if (type === "drag_text") {
+    let savedAnswers = new Array(q.rows.length).fill("");
+    if (isQuestionAnswered) {
+      try { savedAnswers = typeof bossCurrentSelectedAnswer === "string" ? JSON.parse(bossCurrentSelectedAnswer) : bossCurrentSelectedAnswer; } catch (e) { savedAnswers = bossCurrentSelectedAnswer || new Array(q.rows.length).fill(""); }
+    }
+    bossDraggedTextAnswers = savedAnswers;
+    const wrapper = document.createElement("div");
+    wrapper.className = "space-y-4 w-full col-span-full";
+    let rowsHtml = `<div class="grid grid-cols-1 gap-3">`;
+    q.rows.forEach((row, rIdx) => {
+      const placed = savedAnswers[rIdx];
+      const correct = q.correctAnswers[rIdx];
+      const rowLabel = row.label || row.text || row;
+      let slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+      let slotText = "Nhấp từ khóa để điền...";
+      let tipHtml = "";
+      if (isQuestionAnswered) {
+        if (placed === correct) {
+          slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border border-emerald-500 bg-emerald-500/15 text-xs font-bold text-emerald-400";
+          slotText = placed;
+        } else {
+          slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-red-400";
+          slotText = placed || "(Trống)";
+          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đúng: ${correct}</span>`;
+        }
+      } else if (placed) {
+        slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-white cursor-pointer hover:bg-red-500/25 transition-all";
+        slotText = placed;
+      }
+      rowsHtml += `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-900/50 border border-slate-800 gap-3">
+          <span class="text-sm font-bold text-slate-200">${rowLabel}</span>
+          <div>
+            <div id="boss-drag-text-target-${rIdx}" onclick="clearBossDraggedText(${rIdx})" class="${slotClass}">${slotText}</div>
+            ${tipHtml}
+          </div>
+        </div>`;
+    });
+    rowsHtml += `</div>`;
+    let poolHtml = "";
+    if (!isQuestionAnswered) {
+      poolHtml = `
+        <div class="p-4 rounded-2xl bg-red-950/20 border border-red-900/30 mt-3">
+          <span class="text-[10px] font-black text-red-300 block uppercase tracking-wider mb-2">Thẻ từ khóa:</span>
+          <div class="flex flex-wrap gap-2">
+            ${q.options.map((opt, idx) => {
+              const isUsed = savedAnswers.includes(opt);
+              const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
+              return `<button id="boss-drag-text-pool-btn-${idx}" onclick="placeBossDraggedText('${opt.replace(/'/g, "\\'")}', ${idx})" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer${disabledClass}">${opt}</button>`;
+            }).join("")}
+          </div>
+        </div>`;
+    }
+    wrapper.innerHTML = rowsHtml + poolHtml;
+    container.appendChild(wrapper);
+  } else if (type === "drag_image_text") {
+    let savedAnswers = new Array(q.leftImages.length).fill("");
+    if (isQuestionAnswered) {
+      try { savedAnswers = typeof bossCurrentSelectedAnswer === "string" ? JSON.parse(bossCurrentSelectedAnswer) : bossCurrentSelectedAnswer; } catch (e) { savedAnswers = bossCurrentSelectedAnswer || new Array(q.leftImages.length).fill(""); }
+    }
+    bossDraggedTextAnswers = savedAnswers;
+    const wrapper = document.createElement("div");
+    wrapper.className = "grid grid-cols-1 sm:grid-cols-2 gap-3 col-span-full";
+    q.leftImages.forEach((imgUrl, idx) => {
+      const placed = savedAnswers[idx];
+      const correct = q.correctAnswers[idx];
+      let slotClass = "w-full h-11 px-3 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+      let slotText = "Ghép nhãn...";
+      let tipHtml = "";
+      if (isQuestionAnswered) {
+        if (placed === correct) {
+          slotClass = "w-full h-11 px-3 rounded-xl border border-emerald-500 bg-emerald-500/15 text-xs font-bold text-emerald-400 flex items-center justify-center";
+          slotText = placed;
+        } else {
+          slotClass = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-red-400 flex items-center justify-center";
+          slotText = placed || "(Trống)";
+          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1 text-center">✓ Đúng: ${correct}</span>`;
+        }
+      } else if (placed) {
+        slotClass = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-red-500/25 transition-all";
+        slotText = placed;
+      }
+      const itemDiv = document.createElement("div");
+      itemDiv.className = "flex flex-row items-center p-3 rounded-2xl bg-slate-900/50 border border-slate-800 gap-3";
+      itemDiv.innerHTML = `
+        <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-16 w-16 object-contain rounded-lg bg-white p-1 border border-slate-800">
+        <div class="flex-grow">
+          <div id="boss-drag-image-target-${idx}" onclick="clearBossDraggedImageText(${idx})" class="${slotClass}">${slotText}</div>
+          ${tipHtml}
+        </div>`;
+      wrapper.appendChild(itemDiv);
+    });
+    if (!isQuestionAnswered) {
+      const poolDiv = document.createElement("div");
+      poolDiv.className = "col-span-full p-4 rounded-2xl bg-red-950/20 border border-red-900/30 mt-2";
+      poolDiv.innerHTML = `
+        <span class="text-[10px] font-black text-red-300 block uppercase tracking-wider mb-2">Nhãn tên:</span>
+        <div class="flex flex-wrap gap-2">
+          ${q.options.map((opt, idx) => {
+            const isUsed = savedAnswers.includes(opt);
+            const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
+            return `<button id="boss-drag-image-pool-btn-${idx}" onclick="placeBossDraggedImageText('${opt.replace(/'/g, "\\'")}', ${idx})" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer${disabledClass}">${opt}</button>`;
+          }).join("")}
+        </div>`;
+      wrapper.appendChild(poolDiv);
+    }
+    container.appendChild(wrapper);
+  } else if (type === "table_match") {
+    let savedAnswers = [];
+    if (isQuestionAnswered) {
+      try { savedAnswers = typeof bossCurrentSelectedAnswer === "string" ? JSON.parse(bossCurrentSelectedAnswer) : (bossCurrentSelectedAnswer || []); } catch (e) { savedAnswers = []; }
+    }
+    const wrapper = document.createElement("div");
+    wrapper.className = "col-span-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80";
+    let tableHtml = `<table class="w-full text-left border-collapse"><thead><tr class="bg-red-950/30 border-b border-slate-800 text-[10px] font-black text-red-400 uppercase tracking-widest"><th class="p-3">${q.headers ? q.headers[0] : "Khái niệm"}</th><th class="p-3">${q.headers ? q.headers[1] : "Đặc tính"}</th></tr></thead><tbody>`;
+    q.rows.forEach((row, rIdx) => {
+      const placedIdx = savedAnswers[rIdx];
+      const correctIdx = q.correctAnswers[rIdx];
+      let selectClass = "w-full bg-slate-900/60 border-2 border-slate-800 focus:border-red-500 text-xs font-bold text-slate-100 rounded-xl p-2.5 outline-none transition-all cursor-pointer";
+      let disabledAttr = "";
+      let tipHtml = "";
+      if (isQuestionAnswered) {
+        disabledAttr = "disabled";
+        if (placedIdx === correctIdx) selectClass = "w-full bg-slate-900/60 border-2 border-emerald-500 text-emerald-400 text-xs font-bold rounded-xl p-2.5 outline-none";
+        else {
+          selectClass = "w-full bg-slate-900/60 border-2 border-red-500 text-red-400 text-xs font-bold rounded-xl p-2.5 outline-none";
+          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đúng: ${q.options[correctIdx]}</span>`;
+        }
+      } else if (placedIdx !== undefined && placedIdx !== "") selectClass = "w-full bg-slate-900/60 border-2 border-red-500 text-white text-xs font-bold rounded-xl p-2.5 outline-none";
+      tableHtml += `<tr class="border-b border-slate-900"><td class="p-3 text-xs font-bold text-slate-200">${row}</td><td class="p-3"><select id="boss-table-match-select-${rIdx}" onchange="changeBossTableMatchSelect(${rIdx})" ${disabledAttr} class="${selectClass}"><option value="">-- Chọn --</option>${q.options.map((opt, oIdx) => `<option value="${oIdx}" ${placedIdx === oIdx ? "selected" : ""}>${opt}</option>`).join("")}</select>${tipHtml}</td></tr>`;
+    });
+    tableHtml += `</tbody></table>`;
+    wrapper.innerHTML = tableHtml;
+    container.appendChild(wrapper);
+  } else if (type === "multi_choice") {
+    let savedSelected = [];
+    if (isQuestionAnswered) {
+      try { savedSelected = typeof bossCurrentSelectedAnswer === "string" ? JSON.parse(bossCurrentSelectedAnswer) : (bossCurrentSelectedAnswer || []); } catch (e) { savedSelected = []; }
+    }
+    bossMultiChoiceSelected = savedSelected;
+    q.options.forEach((opt, idx) => {
+      const btn = document.createElement("button");
+      const isSelected = savedSelected.includes(idx);
+      const isCorrect = q.correctIndices.includes(idx);
+      let extraClass = "";
+      let boxClass = "w-6 h-6 rounded-lg border-2 border-slate-700 flex items-center justify-center text-xs font-black mr-4 bg-slate-950 transition-all";
+      let boxInner = "";
+      if (isQuestionAnswered) {
+        if (isCorrect) {
+          extraClass = " border-emerald-500 bg-emerald-500/15 text-emerald-300";
+          boxClass = "w-6 h-6 rounded-lg border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center mr-4";
+          boxInner = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
+        } else if (isSelected) {
+          extraClass = " border-rose-500 bg-rose-500/15 text-rose-300";
+          boxClass = "w-6 h-6 rounded-lg border-2 border-rose-500 bg-rose-500 flex items-center justify-center mr-4";
+          boxInner = `<i class="fa-solid fa-xmark text-[10px] text-white"></i>`;
+        }
+      } else if (isSelected) {
+        extraClass = " border-red-500 bg-red-500/10";
+        boxClass = "w-6 h-6 rounded-lg border-2 border-red-500 bg-red-500 flex items-center justify-center mr-4";
+        boxInner = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
+      }
+      btn.className = "flex items-center p-4 w-full bg-slate-900/60 border-2 border-slate-800 rounded-[1.5rem] transition-all text-left cursor-pointer group text-slate-100" + extraClass;
+      btn.innerHTML = `<span id="boss-multi-check-box-${idx}" class="${boxClass}">${boxInner}</span><span class="text-sm font-bold">${opt}</span>`;
+      btn.onclick = () => {
+        if (bossIsAnswerChecked) return;
+        const box = document.getElementById(`boss-multi-check-box-${idx}`);
+        const idxOf = bossMultiChoiceSelected.indexOf(idx);
+        if (idxOf !== -1) {
+          bossMultiChoiceSelected.splice(idxOf, 1);
+          btn.classList.remove("border-red-500", "bg-red-500/10");
+          box.innerHTML = "";
+          box.className = "w-6 h-6 rounded-lg border-2 border-slate-700 flex items-center justify-center text-xs font-black mr-4 bg-slate-950 transition-all";
+        } else {
+          bossMultiChoiceSelected.push(idx);
+          btn.classList.add("border-red-500", "bg-red-500/10");
+          box.innerHTML = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
+          box.className = "w-6 h-6 rounded-lg border-2 border-red-500 bg-red-500 flex items-center justify-center mr-4";
+        }
+        bossCurrentSelectedAnswer = JSON.stringify(bossMultiChoiceSelected);
+      };
+      container.appendChild(btn);
+    });
+  } else if (type === "image_choice") {
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-2 gap-4 w-full col-span-full";
+    q.options.forEach((optImgUrl, idx) => {
+      const card = document.createElement("div");
+      let extraClass = "";
+      let badgeClass = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-slate-700 flex items-center justify-center bg-slate-950 transition-all";
+      let badgeInner = "";
+      if (isQuestionAnswered) {
+        const isUserSelected = bossCurrentSelectedAnswer !== "" && parseInt(bossCurrentSelectedAnswer) === idx;
+        const isCorrect = idx === q.correctIndex;
+        if (isUserSelected && isCorrect) {
+          extraClass = " border-emerald-500 bg-emerald-500/15";
+          badgeClass = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-emerald-500 bg-emerald-500 text-white flex items-center justify-center text-xs font-black";
+          badgeInner = "✓";
+        } else if (isUserSelected && !isCorrect) {
+          extraClass = " border-rose-500 bg-rose-500/15";
+          badgeClass = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-rose-500 bg-rose-500 text-white flex items-center justify-center text-xs font-black";
+          badgeInner = "✗";
+        } else if (isCorrect) {
+          extraClass = " border-emerald-500/50 bg-emerald-500/5";
+          badgeClass = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-emerald-500/50 bg-emerald-500/50 text-white flex items-center justify-center text-xs font-black";
+          badgeInner = "✓";
+        }
+      } else if (bossCurrentSelectedAnswer !== "" && parseInt(bossCurrentSelectedAnswer) === idx) {
+        extraClass = " border-red-500 bg-red-500/10";
+        badgeClass = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-red-500 bg-red-500 text-white flex items-center justify-center text-xs font-black";
+        badgeInner = "✓";
+      }
+      card.className = "relative border-2 border-slate-800 bg-slate-900/60 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-all h-36" + extraClass;
+      card.innerHTML = `<img src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-20 w-auto object-contain"><div id="boss-image-choice-badge-${idx}" class="${badgeClass}">${badgeInner}</div>`;
+      card.onclick = () => {
+        if (bossIsAnswerChecked) return;
+        grid.querySelectorAll("div.relative").forEach(el => el.classList.remove("border-red-500", "bg-red-500/10"));
+        grid.querySelectorAll("[id^='boss-image-choice-badge-']").forEach(el => { el.innerHTML = ""; el.className = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-slate-700 flex items-center justify-center bg-slate-950 transition-all"; });
+        card.classList.add("border-red-500", "bg-red-500/10");
+        const badge = document.getElementById(`boss-image-choice-badge-${idx}`);
+        badge.innerHTML = "✓";
+        badge.className = "absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-red-500 bg-red-500 text-white flex items-center justify-center text-xs font-black";
+        bossCurrentSelectedAnswer = idx;
+      };
+      grid.appendChild(card);
+    });
+    container.appendChild(grid);
+  } else if (type === "fill_blank") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "space-y-2 col-span-full";
+    let extraClass = "";
+    let valueAttr = "";
+    if (isQuestionAnswered) {
+      const isCorrect = bossCurrentSelectedAnswer.toLowerCase() === q.answer.toLowerCase();
+      extraClass = isCorrect ? " border-emerald-500 bg-emerald-500/10 text-emerald-400" : " border-red-500 bg-red-500/10 text-red-400";
+      valueAttr = `value="${bossCurrentSelectedAnswer}" disabled`;
+    }
+    wrapper.innerHTML = `<input type="text" id="boss-blank-input" placeholder="Gõ câu trả lời của bạn..." ${valueAttr} oninput="saveBossBlankInput(this.value)" class="w-full bg-slate-900/60 border-2 border-slate-800 focus:border-red-500 rounded-2xl px-6 py-4 text-white font-bold text-base focus:outline-none transition-all${extraClass}">`;
+    if (isQuestionAnswered && bossCurrentSelectedAnswer.toLowerCase() !== q.answer.toLowerCase()) {
+      const tip = document.createElement("p");
+      tip.className = "text-xs font-bold text-emerald-400 mt-2";
+      tip.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đáp án đúng: <span class="underline">${q.answer}</span>`;
+      wrapper.appendChild(tip);
+    }
+    container.appendChild(wrapper);
+  } else if (type === "hotspot") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex flex-col gap-3 col-span-full items-center";
+    let savedClicks = [];
+    if (isQuestionAnswered) {
+      try { savedClicks = typeof bossCurrentSelectedAnswer === "string" ? JSON.parse(bossCurrentSelectedAnswer) : (bossCurrentSelectedAnswer || []); } catch (e) { savedClicks = []; }
+    }
+    bossHotspotClicks = savedClicks;
+    wrapper.innerHTML = `
+      <div class="text-[10px] text-red-300 uppercase font-black tracking-widest text-center">Nhấp vào <span class="text-white">${q.requiredCount || 1}</span> vị trí tương ứng:</div>
+      <div id="boss-hotspot-container" class="relative inline-block border-2 border-red-500/30 rounded-2xl bg-slate-950 overflow-hidden" style="cursor: crosshair;">
+        <img id="boss-hotspot-img" src="${convertDriveUrl(q.imageUrl)}" style="max-width: 100%; display: block;" draggable="false">
+        <div id="boss-hotspot-overlay" class="absolute inset-0"></div>
+      </div>`;
+    container.appendChild(wrapper);
+    setTimeout(() => {
+      const overlay = document.getElementById('boss-hotspot-overlay');
+      const img = document.getElementById('boss-hotspot-img');
+      if (!overlay || !img) return;
+      const drawBossClicks = () => {
+        overlay.innerHTML = '';
+        bossHotspotClicks.forEach((click, i) => {
+          const marker = document.createElement('div');
+          marker.className = "absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 border-white bg-red-600 flex items-center justify-center text-[10px] text-white font-bold shadow-lg z-10 animate-ping-once";
+          marker.style.left = `${click.x}%`;
+          marker.style.top = `${click.y}%`;
+          marker.innerText = i + 1;
+          overlay.appendChild(marker);
+        });
+        if (isQuestionAnswered) {
+          (q.hotspots || []).forEach(area => {
+            const box = document.createElement('div');
+            box.className = "absolute border-2 border-emerald-500 bg-emerald-500/20 pointer-events-none z-0";
+            box.style.left = `${area.x}%`; box.style.top = `${area.y}%`; box.style.width = `${area.w}%`; box.style.height = `${area.h}%`;
+            overlay.appendChild(box);
+          });
+        }
+      };
+      if (!isQuestionAnswered) {
+        overlay.addEventListener('click', (e) => {
+          const rect = overlay.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / rect.width) * 100;
+          const y = ((e.clientY - rect.top) / rect.height) * 100;
+          if (bossHotspotClicks.length < (q.requiredCount || 1)) bossHotspotClicks.push({ x, y });
+          else { bossHotspotClicks.shift(); bossHotspotClicks.push({ x, y }); }
+          drawBossClicks();
+          bossCurrentSelectedAnswer = JSON.stringify(bossHotspotClicks);
+        });
+      }
+      drawBossClicks();
+    }, 50);
+  } else {
+    container.innerHTML = `<div class="col-span-full p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-center"><i class="fa-solid fa-triangle-exclamation text-orange-500 text-3xl mb-3"></i><p class="text-orange-200 text-sm font-bold">Loại câu hỏi này (${type}) chưa được hỗ trợ Cinematic.</p></div>`;
+  }
+}
+
+function nextBossQuestion() {
+  const q = bossTestQuestions[bossActiveQuestionIndex];
+  const type = q.type || "choice";
+
+  if (!bossIsAnswerChecked) {
+    let studentAns = bossCurrentSelectedAnswer;
+    
+    // Additional validation for specific types
+    if (type === "fill_blank") {
+      const inputEl = document.getElementById("boss-blank-input");
+      if (inputEl) studentAns = inputEl.value.trim();
+      if (!studentAns) { window.showToast("Vui lòng nhập câu trả lời!", 'error'); return; }
+    } else if (type === "drag_text" || type === "drag_image_text") {
+      const unfilled = bossDraggedTextAnswers.some(ans => !ans);
+      if (unfilled) { window.showToast("Vui lòng ghép đầy đủ các vị trí!", 'error'); return; }
+      studentAns = JSON.stringify(bossDraggedTextAnswers);
+    } else if (type === "table_match") {
+      const selectVals = [];
+      let allSelected = true;
+      for (let r = 0; r < q.rows.length; r++) {
+        const val = document.getElementById(`boss-table-match-select-${r}`).value;
+        if (val === "") { allSelected = false; break; }
+        selectVals.push(parseInt(val));
+      }
+      if (!allSelected) { window.showToast("Vui lòng ghép nối đầy đủ các hàng!", 'error'); return; }
+      studentAns = JSON.stringify(selectVals);
+    } else if (type === "hotspot") {
+      let clicks = [];
+      try { clicks = JSON.parse(studentAns || "[]"); } catch(e) {}
+      if (clicks.length < (q.requiredCount || 1)) { window.showToast(`Vui lòng chọn đủ ${q.requiredCount || 1} vị trí!`, 'error'); return; }
+    } else if (studentAns === "" || studentAns === undefined) {
+      window.showToast("Vui lòng chọn đáp án!", 'error');
+      return;
+    }
+    
+    bossUserAnswers.push(studentAns);
+    bossIsAnswerChecked = true;
+    
+    let isCorrect = false;
+    if (type === "choice" || type === "image_choice") {
+      isCorrect = studentAns !== "" && parseInt(studentAns) === q.correctIndex;
+    } else if (type === "multiple_choice" || type === "true_false") {
+      isCorrect = studentAns === q.answer;
+    } else if (type === "fill_blank") {
+      isCorrect = (studentAns || "").trim().toLowerCase() === q.answer.toLowerCase();
+    } else if (type === "drag_text" || type === "drag_image_text") {
+      let parsedAns = JSON.parse(studentAns);
+      isCorrect = parsedAns.every((val, i) => val === q.correctAnswers[i]);
+    } else if (type === "table_match") {
+      let parsedAns = JSON.parse(studentAns);
+      isCorrect = parsedAns.every((val, i) => val === q.correctAnswers[i]);
+    } else if (type === "multi_choice") {
+      let parsedAns = JSON.parse(studentAns);
+      isCorrect = parsedAns.length === q.correctIndices.length && parsedAns.every(val => q.correctIndices.includes(val));
+    } else if (type === "hotspot") {
+      let clicks = JSON.parse(studentAns);
+      let allHit = true;
+      clicks.forEach(c => {
+        let hit = false;
+        (q.hotspots || []).forEach(area => {
+          if (c.x >= area.x && c.x <= area.x + area.w && c.y >= area.y && c.y <= area.y + area.h) hit = true;
+        });
+        if (!hit) allHit = false;
+      });
+      isCorrect = allHit && clicks.length >= (q.requiredCount || 1);
+    }
+
+    if (isCorrect) {
+      bossCorrectAnswersCount++;
+      bossHuntCombo++;
+      triggerBossBattleAnimation(true, true);
+      
+      let damage = 10;
+      let comboName = "";
+      if (bossHuntCombo === 2) { damage = 12; comboName = "DOUBLE KILL! 💥"; }
+      else if (bossHuntCombo === 3) { damage = 15; comboName = "TRIPLE KILL! 🔥"; }
+      else if (bossHuntCombo === 4) { damage = 18; comboName = "QUADRA KILL! ⚡"; }
+      else if (bossHuntCombo >= 5) { damage = 20; comboName = "MEGA KILL! 👑"; }
+
+      bhBossCurrentHP = Math.max(0, bhBossCurrentHP - damage);
+      
+      const attackMsgs = [
+        `Pokémon tung đòn tấn công! Gây ${damage} sát thương.`,
+        `Đòn đánh chính xác! Boss mất ${damage} HP.`,
+        `Bạn đã trả lời đúng! Boss bị trừ ${damage} HP.`,
+        `Sức mạnh của tri thức! Boss bị trừ ${damage} HP.`
+      ];
+      const playerStatus = [comboName || "CHÍNH XÁC! 🎯", "TẤN CÔNG! ⚡", "SỨC MẠNH! 🔥", "THÀNH CÔNG! ✅"];
+      const bossStatus = ["HỰ! 🗯️", "AARGH! 💢", "Ư... 😱", "TRÚNG ĐÒN! 💥"];
+
+      document.getElementById("boss-battle-scene-boss-hp-val").innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
+      document.getElementById("boss-battle-scene-boss-hp-bar").style.width = `${Math.round((bhBossCurrentHP/bhBossMaxHP)*100)}%`;
+      document.getElementById("boss-battle-scene-player-status").innerText = playerStatus[Math.floor(Math.random() * playerStatus.length)];
+      document.getElementById("boss-battle-scene-boss-status").innerText = bossStatus[Math.floor(Math.random() * bossStatus.length)];
+      document.getElementById("boss-battle-scene-log").innerText = (comboName ? comboName + " " : "") + attackMsgs[Math.floor(Math.random() * attackMsgs.length)];
+
+      if (bhBossCurrentHP === 0) {
+        window.showToast("BẠN ĐÃ CHIẾN THẮNG BOSS!", 'success');
+        finishBossHunt();
+        return;
+      }
+    } else {
+      bossHuntCombo = 0; // Reset combo on wrong answer
+      triggerBossBattleAnimation(false, true);
+      const pDamage = 15 + Math.floor(Math.random() * 10);
+      bossPlayerCurrentHP = Math.max(0, bossPlayerCurrentHP - pDamage);
+      
+      // Boss heals 5 HP on wrong answer
+      const bossHeal = 5;
+      bhBossCurrentHP = Math.min(bhBossMaxHP, bhBossCurrentHP + bossHeal);
+      
+      const bossAttackMsgs = [
+        `Sai lầm! Boss phản công và hồi phục ${bossHeal} HP.`,
+        `Boss hấp thụ năng lượng! Pokémon mất ${pDamage} HP và Boss hồi ${bossHeal} máu.`,
+        `Đòn phản đòn quá mạnh! HP Boss tăng thêm ${bossHeal}.`,
+        `Pokémon trúng đòn! Boss vừa cười vừa hồi ${bossHeal} HP.`
+      ];
+      const pStatus = ["TRÚNG ĐÒN! 😵", "NGUY HIỂM! ⚠️", "HỰ! 🤕", "ĐAU QUÁ! 💢"];
+      const bStatus = ["HA HA HA! 😈", "HỒI MÁU! ✨", "TIẾP CHIÊU! ⚡", "PHẢN CÔNG! 👹"];
+
+      document.getElementById("boss-battle-scene-player-hp-val").innerText = `${bossPlayerCurrentHP}/${bossPlayerMaxHP}`;
+      document.getElementById("boss-battle-scene-player-hp-bar").style.width = `${Math.round((bossPlayerCurrentHP/bossPlayerMaxHP)*100)}%`;
+      document.getElementById("boss-battle-scene-boss-hp-val").innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
+      document.getElementById("boss-battle-scene-boss-hp-bar").style.width = `${Math.round((bhBossCurrentHP/bhBossMaxHP)*100)}%`;
+      document.getElementById("boss-battle-scene-player-status").innerText = pStatus[Math.floor(Math.random() * pStatus.length)];
+      document.getElementById("boss-battle-scene-boss-status").innerText = bStatus[Math.floor(Math.random() * bStatus.length)];
+      document.getElementById("boss-battle-scene-log").innerText = bossAttackMsgs[Math.floor(Math.random() * bossAttackMsgs.length)];
+      
+      if (bossPlayerCurrentHP === 0) {
+        window.showToast("Pokémon của bạn đã kiệt sức!", 'error');
+        // Show revival screen instead of direct exit
+        const revivalScreen = document.getElementById("boss-revival-screen");
+        if (revivalScreen) {
+          revivalScreen.classList.remove("hidden");
+        } else {
+          confirmExitBossHuntDirectly();
+        }
+        return;
+      }
+    }
+
+    document.getElementById("boss-explanation-text").innerText = q.explanation;
+    document.getElementById("boss-explanation-box").classList.remove("hidden");
+    document.getElementById("boss-next-btn").innerHTML = `Câu tiếp theo <i class="fa-solid fa-angle-right ml-1.5"></i>`;
+    return;
+  }
+
+  bossActiveQuestionIndex++;
+  bossIsAnswerChecked = false;
+  bossCurrentSelectedAnswer = "";
+  document.getElementById("boss-explanation-box").classList.add("hidden");
+
+  if (bossActiveQuestionIndex < bossTestQuestions.length) {
+    renderBossQuestion();
+  } else {
+    // Endless loop: reshuffle and reset
+    bossTestQuestions = bossTestQuestions.sort(() => 0.5 - Math.random());
+    bossActiveQuestionIndex = 0;
+    // We clear user answers to prevent index mismatch in isQuestionAnswered check
+    bossUserAnswers = []; 
+    renderBossQuestion();
+  }
+}
+
+function finishBossHunt() {
+  clearInterval(bossTestTimerInterval);
+  document.getElementById("boss-hunting-screen").classList.add("hidden");
+  exitAntiCheatMode();
+  
+  // Calculate rewards based on performance
+  const coins = bossCorrectAnswersCount * 10;
+  const exp = bossCorrectAnswersCount * 50;
+  
+  currentStudent.coins += coins;
+  currentStudent.exp += exp;
+  
+  // Save Student
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const idx = students.findIndex(s => s.email === currentStudent.email);
+  if (idx !== -1) {
+    students[idx] = currentStudent;
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
+  }
+
+  // Update hunt record for today
+  const today = new Date().toISOString().split('T')[0];
+  const huntRecord = JSON.parse(localStorage.getItem(`bossHunt_${currentStudent.email}_${today}`) || "0");
+  localStorage.setItem(`bossHunt_${currentStudent.email}_${today}`, JSON.stringify(huntRecord + 1));
+
+  // Save Boss persistent HP
+  if (bossActivePlayingTest && bossActivePlayingTest.bossId) {
+    const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+    const bIdx = bosses.findIndex(b => b.id === bossActivePlayingTest.bossId);
+    if (bIdx !== -1) {
+      bosses[bIdx].hp = bhBossCurrentHP;
+      window.saveData(window.IC3_KEYS.BOSSES, bosses);
+    }
+  }
+
+  window.showToast(`Săn Boss hoàn tất! Nhận được ${coins} Coins và ${exp} EXP.`, 'success');
+  loadStudentProfile();
+  renderBattleArena();
+  renderBossHuntTab();
+}
+
+function revivePokemonInBossHunt() {
+  if (currentStudent.coins < 50) {
+    window.showToast("Bạn không đủ coins để hồi sinh!", 'error');
+    return;
+  }
+  
+  currentStudent.coins -= 50;
+  bossPlayerCurrentHP = bossPlayerMaxHP;
+  
+  // Update UI
+  document.getElementById("boss-battle-scene-player-hp-val").innerText = `${bossPlayerCurrentHP}/${bossPlayerMaxHP}`;
+  document.getElementById("boss-battle-scene-player-hp-bar").style.width = `100%`;
+  document.getElementById("boss-battle-scene-player-status").innerText = "TÁI SINH! ✨";
+  document.getElementById("boss-battle-scene-log").innerText = "Hào quang tỏa sáng! Pokémon đã trở lại.";
+  
+  // Save Student
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const idx = students.findIndex(s => s.email === currentStudent.email);
+  if (idx !== -1) {
+    students[idx] = currentStudent;
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
+  }
+  
+  // Hide revival screen
+  document.getElementById("boss-revival-screen").classList.add("hidden");
+  window.showToast("Hồi sinh thành công!", 'success');
 }
 
 // ==================== RENDER: BATTLE ARENA ====================
@@ -917,7 +1908,8 @@ function renderBattleArena() {
   const elAvatar = document.getElementById("battle-poke-avatar");
   if(elAvatar) {
     elAvatar.className = `transition-all duration-300 flex justify-center w-full`;
-    elAvatar.innerHTML = `<img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif" class="w-32 h-32 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'">`;
+    const avatarImg = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+    elAvatar.innerHTML = `<img src="${avatarImg}" class="w-24 h-24 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
   }
   
   // Dynamic RPG Level Stage
@@ -1715,7 +2707,6 @@ function renderZoneQuizzes(levelId, zoneTests, allScores, isZoneUnlocked = true)
   });
 }
 
-
 // ==================== GAME PLAYING MODE (TEST ENGINE) ====================
 
 // --- Anti-Cheat Module ---
@@ -1723,6 +2714,9 @@ window._isTestActiveForAntiCheat = false;
 
 function enterAntiCheatMode() {
   window._isTestActiveForAntiCheat = true;
+  
+  // Prevent going back
+  history.pushState(null, null, window.location.href);
   
   // Request Fullscreen
   try {
@@ -1769,38 +2763,54 @@ function handleCheatDetected() {
   
   // Reset test
   exitAntiCheatMode();
-  confirmExitGamePlayingDirectly();
+  
+  // Hide both screens just in case
+  const examScreen = document.getElementById("game-playing-screen");
+  const bossScreen = document.getElementById("boss-hunting-screen");
+  
+  if (examScreen && !examScreen.classList.contains("hidden")) {
+    confirmExitGamePlayingDirectly();
+  } else if (bossScreen && !bossScreen.classList.contains("hidden")) {
+    confirmExitBossHuntDirectly();
+  }
 }
 
-// Anti-Cheat global listeners
-document.addEventListener('contextmenu', e => {
-  if (window._isTestActiveForAntiCheat && !isReviewingExam) e.preventDefault();
+// Anti-cheat event listeners
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === 'hidden') {
+    handleCheatDetected();
+  }
 });
 
-document.addEventListener('keydown', e => {
-  if (!window._isTestActiveForAntiCheat || isReviewingExam) return;
+window.addEventListener("blur", () => {
+  handleCheatDetected();
+});
+
+window.addEventListener("keydown", (e) => {
+  if (!window._isTestActiveForAntiCheat) return;
   
-  if (e.key === 'F12' || e.keyCode === 123) {
+  // Prevent F12, Ctrl+Shift+I, Ctrl+U, etc.
+  if (
+    e.key === 'F12' ||
+    (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+    (e.ctrlKey && e.key === 'U') ||
+    (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 'v' || e.key === 'V'))
+  ) {
     e.preventDefault();
     handleCheatDetected();
   }
-  
-  if (e.ctrlKey || e.metaKey) {
-    const key = e.key ? e.key.toLowerCase() : '';
-    if (['c', 'v', 'u', 'p', 's', 'r'].includes(key)) {
-      e.preventDefault();
-      handleCheatDetected();
-    }
-    
-    if (e.shiftKey && ['i', 'j', 'c'].includes(key)) {
-      e.preventDefault();
-      handleCheatDetected();
-    }
+});
+
+// Disable right click during test
+document.addEventListener('contextmenu', (e) => {
+  if (window._isTestActiveForAntiCheat) {
+    e.preventDefault();
   }
 });
 
-window.addEventListener('blur', () => {
-  if (window._isTestActiveForAntiCheat && !isReviewingExam) {
+window.addEventListener('popstate', (event) => {
+  if (window._isTestActiveForAntiCheat) {
+    history.pushState(null, null, window.location.href);
     handleCheatDetected();
   }
 });
@@ -1809,6 +2819,10 @@ function startTest(testId, mode = "practice") {
   currentTestMode = mode;
   isReviewingExam = false;
   examUserAnswers = [];
+
+  const gameScreen = document.getElementById("game-playing-screen");
+  gameScreen.classList.add("exam-mode");
+  gameScreen.classList.remove("boss-hunt-mode");
 
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   activePlayingTest = tests.find(t => t.id === testId);
@@ -1826,6 +2840,8 @@ function startTest(testId, mode = "practice") {
     window.showToast("Lỗi: Bài kiểm tra này chưa được cài đặt câu hỏi. Vui lòng thử lại sau!", 'error');
     return;
   }
+
+  document.getElementById("game-navigation-panel").classList.remove("hidden");
 
   // Pre-initialize examUserAnswers array with empty strings
   examUserAnswers = new Array(testQuestions.length).fill("");
@@ -1919,6 +2935,7 @@ function startTest(testId, mode = "practice") {
 
   // Start Timer Countdown (Convert minutes to seconds)
   remainingSeconds = activePlayingTest.duration * 60;
+  
   runGameTimer();
 
   // Load first question
@@ -2113,7 +3130,7 @@ function renderGameQuestion() {
         }
       }
 
-      btn.className = "option-card-btn flex items-center p-5 sm:p-6 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-2xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
+      btn.className = "option-card-btn flex items-center p-3 sm:p-4 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
       btn.innerHTML = `
         <span class="w-10 h-10 rounded-full bg-indigo-950/80 border-2 border-indigo-500/30 text-indigo-400 flex items-center justify-center text-base font-black mr-4 shrink-0 transition-all group-hover:border-indigo-500 group-hover:text-indigo-300 shadow-inner">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
         <span class="text-base sm:text-lg font-semibold leading-relaxed">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</span>
@@ -3230,6 +4247,12 @@ function nextGameQuestion() {
       document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
       const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
       document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
+
+      if (playerCurrentHP === 0) {
+        window.showToast("Thần thú của bạn đã kiệt sức! Kết thúc săn Boss.", 'error');
+        confirmExitGamePlayingDirectly();
+        return;
+      }
 
       document.getElementById("battle-scene-player-status").innerText = "-20 HP! HỰ!";
       document.getElementById("battle-scene-boss-status").innerText = "TẤN CÔNG! 💥";

@@ -80,6 +80,7 @@
           <div class="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/10 overflow-x-auto max-w-full scrollbar-none">
             <button onclick="switchStudentTab('dashboard')" id="btn-tab-dashboard" class="student-tab-btn active"><i class="fa-solid fa-chart-pie"></i> Bảng Tin</button>
             <button onclick="switchStudentTab('battle')" id="btn-tab-battle" class="student-tab-btn"><i class="fa-solid fa-shield-halved"></i> Kiểm tra</button>
+            <button onclick="switchStudentTab('bosshunt')" id="btn-tab-bosshunt" class="student-tab-btn"><i class="fa-solid fa-dragon"></i> Săn Boss</button>
             <button onclick="switchStudentTab('leaderboard')" id="btn-tab-leaderboard" class="student-tab-btn"><i class="fa-solid fa-trophy"></i> Xếp hạng</button>
             <button onclick="switchStudentTab('badges')" id="btn-tab-badges" class="student-tab-btn"><i class="fa-solid fa-award"></i> Huy hiệu</button>
             <button onclick="switchStudentTab('inventory')" id="btn-tab-inventory" class="student-tab-btn"><i class="fa-solid fa-briefcase"></i> Túi đồ</button>
@@ -384,7 +385,7 @@
 
           <!-- Right: Boss selection and battle launcher -->
           <div class="lg:col-span-7 space-y-6">
-            <h4 class="font-poppins font-bold text-sm text-slate-300 uppercase tracking-wider">Danh sách Thủ Lĩnh Boss Thách Đấu:</h4>
+            <h4 class="font-poppins font-bold text-sm text-slate-300 uppercase tracking-wider">Chinh phục thử thách:</h4>
             
             <div class="grid grid-cols-1 gap-4" id="battle-boss-selector-container">
               <!-- Dynamically rendered Boss cards list with Start Battle buttons -->
@@ -472,6 +473,25 @@
                </tbody>
              </table>
            </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: BOSS HUNT TAB ==================== -->
+      <section id="student-tab-bosshunt" class="student-view-content space-y-6 hidden">
+        <div class="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-dragon text-red-500 mr-2"></i>Đấu Trường Săn Boss</h3>
+            <p class="text-xs text-slate-400">Hợp lực tấn công Boss siêu cấp. Trả lời đúng gây sát thương, trả lời sai Boss hồi máu!</p>
+          </div>
+          <div class="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl">
+            <span class="text-xs text-slate-300">Lượt săn hôm nay:</span>
+            <span id="player-boss-hunt-count" class="font-poppins font-black text-sm text-red-400">0/2</span>
+          </div>
+        </div>
+
+        <!-- Boss Cards Container -->
+        <div id="boss-hunt-container" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- JS Injected Boss Cards -->
         </div>
       </section>
 
@@ -665,7 +685,7 @@
     <section id="game-playing-screen" class="fixed inset-0 z-50 overflow-y-auto hidden flex flex-row p-3 sm:p-5 md:p-6" style="background: radial-gradient(circle at 50% 50%, #0d1527 0%, #050811 100%);">
       
       <!-- Main Content Area -->
-      <div class="flex-grow flex flex-col justify-between max-w-4xl mx-auto w-full gap-5">
+      <div id="game-container" class="flex-grow flex flex-col justify-between max-w-4xl mx-auto w-full gap-5">
         <!-- Test Header / Progress indicators -->
         <header class="w-full flex justify-between items-center gap-4 py-3 border-b border-indigo-950">
           <div>
@@ -674,12 +694,6 @@
           </div>
           
           <div class="flex items-center gap-2">
-            <!-- Mobile Menu Toggle Button (hidden on md and larger) -->
-            <button onclick="toggleMobileNavPanel()" class="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 active:scale-95 border border-indigo-500/25 text-indigo-300 font-black text-xs transition-all cursor-pointer">
-              <i class="fa-solid fa-list-ol"></i>
-              <span>Mục lục</span>
-            </button>
-
             <!-- Timer -->
             <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-mono text-sm sm:text-base font-black shadow-inner">
               <i class="fa-solid fa-hourglass-half text-xs animate-spin" style="animation-duration: 3s"></i>
@@ -689,9 +703,34 @@
         </header>
 
         <!-- RPG Battle Arena Visual Scene (Ultra Sleek & Compact HUD) -->
-        <div class="w-full mt-2 p-4 rounded-3xl bg-[#111625]/90 border border-indigo-500/20 shadow-2xl relative overflow-hidden shrink-0">
+        <div id="battle-scene-wrapper" class="w-full mt-2 p-4 rounded-3xl bg-[#111625]/90 border border-indigo-500/20 shadow-2xl relative overflow-hidden shrink-0">
           <!-- Background light sweep -->
           <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/5 to-red-500/10 pointer-events-none"></div>
+          
+          <!-- Animated Arena Visuals -->
+          <div id="battle-scene-visuals" class="h-36 sm:h-44 w-full relative flex justify-between items-end px-4 sm:px-12 pb-3 bg-slate-950/40 rounded-2xl border border-indigo-500/10 overflow-hidden mb-3.5 shadow-inner">
+            <!-- Grid lines overlay -->
+            <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_20px] pointer-events-none"></div>
+            
+            <!-- Left Pedestal (Player) -->
+            <div class="relative flex flex-col items-center">
+              <div class="w-20 sm:w-28 h-4 sm:h-5 bg-emerald-500/15 border border-emerald-500/30 rounded-[50%] shadow-[0_4px_10px_rgba(16,185,129,0.25)]"></div>
+              <img id="battle-scene-player-img" class="absolute bottom-1 sm:bottom-2 w-16 sm:w-24 h-16 sm:h-24 object-contain z-10 transition-all duration-300 transform" src="" alt="Player" referrerPolicy="no-referrer">
+            </div>
+
+            <!-- Projectile / Spells Layer -->
+            <div class="absolute inset-0 pointer-events-none z-20">
+              <div id="spell-projectile" class="absolute hidden w-5 sm:w-8 h-5 sm:h-8 rounded-full flex items-center justify-center transition-all duration-300 select-none">
+                <div class="absolute inset-0 rounded-full animate-ping opacity-75"></div>
+              </div>
+            </div>
+
+            <!-- Right Pedestal (Boss) -->
+            <div class="relative flex flex-col items-center">
+              <div class="w-20 sm:w-28 h-4 sm:h-5 bg-red-500/15 rounded-[50%] shadow-[0_4px_10px_rgba(239,68,68,0.25)]"></div>
+              <img id="battle-scene-boss-img" class="absolute bottom-5 sm:bottom-8 w-24 sm:w-32 h-24 sm:h-32 object-contain z-10 transition-all duration-300 transform" src="" alt="Boss" referrerPolicy="no-referrer">
+            </div>
+          </div>
           
           <div class="flex flex-row items-center justify-between gap-4 relative z-10">
             <!-- Player side compact -->
@@ -727,7 +766,7 @@
               </div>
             </div>
           </div>
-
+          
           <!-- Combat status combined row -->
           <div class="flex justify-between items-center mt-3 border-t border-slate-800/40 pt-2.5 text-[10px] sm:text-xs font-bold">
             <span id="battle-scene-player-status" class="text-emerald-400 uppercase tracking-wide truncate max-w-[30%]">Sẵn sàng!</span>
@@ -737,7 +776,7 @@
         </div>
 
         <!-- Question Content Area (Bento Duolingo Style Card) -->
-        <div class="py-2 sm:py-4 flex-grow flex flex-col justify-center">
+        <div class="py-1 sm:py-2 flex-grow flex flex-col justify-center">
           
           <!-- Progress bar indicator -->
           <div class="w-full mb-4 flex items-center gap-3">
@@ -748,14 +787,14 @@
           </div>
 
           <!-- Question Card -->
-          <div id="game-question-card" class="bg-slate-900/90 border-2 border-slate-800 p-6 sm:p-8 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden transition-all duration-300">
+          <div id="game-question-card" class="bg-slate-900/90 border-2 border-slate-800 p-3 sm:p-4 md:p-5 rounded-3xl shadow-2xl relative overflow-hidden transition-all duration-300">
             <!-- Pokémon Encouragement overlay (Cute absolute element) -->
-            <div class="absolute top-4 right-4 text-xs font-black text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 shadow-md">
+            <div class="absolute top-2 right-2 text-[10px] font-black text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20 shadow-md">
               <span id="pokemon-encourager-text">Pikachu cổ vũ bạn!</span> ⚡
             </div>
 
             <!-- Question Text -->
-            <h3 id="game-question-text" class="font-poppins font-black text-lg sm:text-xl md:text-2xl text-white leading-relaxed mt-4 mb-6 pr-32">
+            <h3 id="game-question-text" class="font-poppins font-black text-sm sm:text-base md:text-lg text-white leading-relaxed mt-2 mb-3 pr-16">
               Thiết bị nào sau đây dùng để nhập dữ liệu?
             </h3>
 
@@ -901,19 +940,149 @@
                   <span class="w-2 h-2 rounded-full bg-rose-500"></span>
                   <span>Sai</span>
                 </div>
-                <div class="flex items-center gap-1">
-                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span>Đã làm</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <span class="w-2 h-2 rounded-full bg-[#131b2e] border border-indigo-500"></span>
-                  <span>Đang làm</span>
-                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ==================== SCREEN: BOSS HUNTING MODE (CINEMATIC OVERLAY) ==================== -->
+    <section id="boss-hunting-screen" class="fixed inset-0 z-50 overflow-hidden hidden flex flex-col p-4 sm:p-6" style="background: radial-gradient(circle at 50% 50%, #2a0a0a 0%, #0d0404 100%);">
+      <!-- Animated Background Effects -->
+      <div class="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
+        <div class="absolute -top-1/2 -left-1/4 w-[150%] h-[150%] bg-[radial-gradient(circle,rgba(220,38,38,0.15)_0%,transparent_70%)] animate-float"></div>
+      </div>
+
+      <!-- Test Header -->
+      <header class="relative z-10 w-full flex justify-between items-center mb-4 pb-3 border-b border-red-900/40">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 flex items-center justify-center rounded-xl bg-red-600/20 border border-red-500/30 text-red-500">
+            <i class="fa-solid fa-skull-crossbones text-xl animate-pulse"></i>
+          </div>
+          <div>
+            <h3 id="boss-test-title" class="font-poppins font-black text-lg text-white tracking-wide leading-none uppercase">Đại Chiến Boss</h3>
+            <span class="text-[10px] font-black text-red-400 uppercase tracking-[0.2em]">Hầm Ngục Tối Thượng</span>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+          <div class="px-4 py-2 rounded-2xl bg-red-950/80 border border-red-500/20 flex flex-col items-center min-w-[80px]">
+             <span class="text-[9px] font-black text-red-500/70 uppercase">Thời Gian</span>
+             <span id="boss-timer" class="font-mono text-lg font-black text-red-400">05:00</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Battle Interface: 3 Columns -->
+      <div class="relative z-10 flex-grow flex flex-col md:flex-row gap-8 items-stretch overflow-hidden">
+        
+        <!-- Left: Player Column -->
+        <div class="w-full md:w-[30%] flex flex-col justify-end md:justify-center items-center gap-8 p-6 rounded-3xl bg-indigo-950/20 border border-indigo-500/10 order-2 md:order-1 transition-all duration-500">
+          <div class="relative group">
+            <div class="absolute -inset-8 bg-indigo-500/30 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="relative h-56 w-56 sm:h-80 sm:w-80 flex items-center justify-center">
+              <img id="boss-battle-scene-player-img" class="max-h-full max-w-full object-contain drop-shadow-[0_0_30px_rgba(59,130,246,0.5)] animate-float transition-all duration-500" src="" alt="Player" referrerPolicy="no-referrer">
+            </div>
+          </div>
+          
+          <div class="w-full space-y-3">
+            <div class="flex justify-between items-end">
+              <div class="flex items-center gap-3">
+                <span id="boss-battle-scene-player-avatar" class="h-10 w-10 rounded-xl bg-indigo-600/20 flex items-center justify-center text-2xl shadow-lg border border-indigo-500/20">⚡</span>
+                <span id="boss-battle-scene-player-name" class="font-black text-white text-base truncate uppercase tracking-widest">Pokémon</span>
+              </div>
+              <span id="boss-battle-scene-player-hp-val" class="font-mono text-xs font-black text-indigo-400">100/100</span>
+            </div>
+            <div class="h-4 w-full bg-slate-950 rounded-full border border-indigo-500/20 overflow-hidden shadow-inner p-0.5">
+              <div id="boss-battle-scene-player-hp-bar" class="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-400 rounded-full transition-all duration-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]" style="width: 100%"></div>
+            </div>
+            <div id="boss-battle-scene-player-status" class="text-xs font-black text-indigo-400 uppercase tracking-[0.2em] text-center animate-pulse">SẴN SÀNG CHIẾN ĐẤU</div>
+          </div>
+        </div>
+
+        <!-- Middle: Question Column -->
+        <div class="w-full md:w-[40%] flex flex-col order-1 md:order-2">
+          <!-- Progress -->
+          <div class="w-full mb-4 px-2">
+            <div class="flex justify-between items-center mb-1.5">
+               <span id="boss-progress-text" class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Tiến Độ: 0/45</span>
+               <span class="text-[11px] font-black text-yellow-500 uppercase tracking-widest" id="boss-pokemon-encourager-text">Chiến đi nào!</span>
+            </div>
+            <div class="h-2 w-full bg-slate-950 rounded-full border border-white/5 overflow-hidden">
+               <div id="boss-progress-bar" class="h-full bg-gradient-to-r from-yellow-600 to-orange-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Question Card -->
+          <div id="boss-question-card" class="flex-grow bg-slate-950/80 border-2 border-red-900/40 rounded-[2.5rem] p-6 shadow-[0_0_50px_rgba(220,38,38,0.15)] flex flex-col relative overflow-hidden">
+            <!-- Visual projectile layer -->
+            <div class="absolute inset-0 pointer-events-none overflow-hidden z-20">
+               <div id="boss-spell-projectile" class="hidden absolute w-12 h-12 rounded-full blur-sm bg-yellow-500 shadow-[0_0_20px_#eab308] z-30"></div>
+            </div>
+
+            <div class="relative z-10 flex-grow flex flex-col">
+              <h4 id="boss-question-text" class="font-poppins font-black text-lg sm:text-xl text-white leading-tight mb-6 text-center">
+                Câu hỏi đang được triệu hồi...
+              </h4>
+
+              <div id="boss-question-image-container" class="hidden mb-6 flex justify-center">
+                <img id="boss-question-image" src="" class="max-h-48 rounded-2xl border-4 border-slate-900/50 shadow-2xl" alt="Mô tả" referrerPolicy="no-referrer">
+              </div>
+
+              <div id="boss-options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Loaded dynamically -->
+              </div>
+
+              <div id="boss-explanation-box" class="hidden mt-6 p-4 rounded-2xl bg-slate-900 border border-red-500/20 text-slate-300 text-xs italic">
+                <span class="font-black text-red-500 uppercase mr-2">Cẩm nang Boss:</span>
+                <span id="boss-explanation-text"></span>
+              </div>
+            </div>
+          </div>
+          
+          <div id="boss-battle-scene-log" class="mt-4 px-6 py-2 rounded-xl bg-red-600/10 border border-red-500/10 text-center text-red-200 text-xs font-black uppercase tracking-widest italic animate-pulse">
+            Chờ đợi lệnh tấn công...
+          </div>
+        </div>
+
+        <!-- Right: Boss Column -->
+        <div class="w-full md:w-[30%] flex flex-col justify-start md:justify-center items-center gap-8 p-6 rounded-3xl bg-red-950/20 border border-red-500/10 order-3 transition-all duration-500">
+          <div class="relative group">
+            <div class="absolute -inset-12 bg-red-600/40 rounded-full blur-[60px] opacity-50 group-hover:opacity-100 transition-opacity animate-pulse"></div>
+            <div class="relative h-64 w-64 sm:h-96 sm:w-96 flex items-center justify-center">
+              <img id="boss-battle-scene-boss-img" class="max-h-full max-w-full object-contain drop-shadow-[0_0_50px_rgba(220,38,38,0.7)] animate-boss-idle transition-all duration-500" src="" alt="Boss" referrerPolicy="no-referrer">
+            </div>
+          </div>
+          
+          <div class="w-full space-y-3">
+            <div class="flex flex-row-reverse justify-between items-end">
+              <div class="flex flex-row-reverse items-center gap-3 text-right">
+                <span id="boss-battle-scene-boss-avatar" class="h-10 w-10 rounded-xl bg-red-600/20 flex items-center justify-center text-2xl shadow-lg border border-red-500/20">👹</span>
+                <span id="boss-battle-scene-boss-name" class="font-black text-white text-base truncate uppercase tracking-widest">Trùm Cuối</span>
+              </div>
+              <span id="boss-battle-scene-boss-hp-val" class="font-mono text-xs font-black text-red-400">5000/5000</span>
+            </div>
+            <div class="h-4 w-full bg-slate-950 rounded-full border border-red-500/20 overflow-hidden shadow-inner p-0.5">
+              <div id="boss-battle-scene-boss-hp-bar" class="h-full bg-gradient-to-l from-red-700 via-orange-600 to-red-500 rounded-full transition-all duration-500 shadow-[0_0_15px_rgba(220,38,38,0.5)]" style="width: 100%"></div>
+            </div>
+            <div id="boss-battle-scene-boss-status" class="text-xs font-black text-red-500 uppercase tracking-[0.2em] text-center animate-pulse">ĐANG PHẪN NỘ</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Buttons -->
+      <footer class="relative z-10 w-full flex justify-between items-center gap-6 mt-6 pt-4 border-t border-red-900/40">
+        <button onclick="confirmExitBossHunt()" class="flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all font-black text-xs uppercase tracking-widest cursor-pointer">
+          <i class="fa-solid fa-arrow-left"></i> Rút lui
+        </button>
+        
+        <button id="boss-next-btn" onclick="nextBossQuestion()" class="flex-grow max-w-sm px-12 py-5 rounded-[2rem] bg-gradient-to-r from-red-600 via-orange-600 to-red-600 bg-[length:200%_100%] hover:bg-right transition-all duration-500 text-white font-black uppercase tracking-[0.3em] text-lg shadow-[0_10px_40px_rgba(220,38,38,0.4)] transform active:scale-95 group cursor-pointer">
+           <span class="relative z-10">Khai Hỏa!</span>
+           <i class="fa-solid fa-bolt-lightning ml-3 group-hover:animate-bounce"></i>
+        </button>
+      </footer>
     </section>
 
     <!-- ==================== SCREEN: 🎉 VICTORY / RESULTS SCREEN (OVERLAY) ==================== -->
@@ -975,6 +1144,30 @@
           </button>
         </div>
 
+      </div>
+    </div>
+
+    <!-- ==================== SCREEN: 👻 BOSS REVIVAL SCREEN (OVERLAY) ==================== -->
+    <div id="boss-revival-screen" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-red-500/30 max-w-sm w-full p-8 rounded-[2.5rem] shadow-2xl text-center relative overflow-hidden">
+        <div class="absolute -top-12 -left-12 w-48 h-48 bg-red-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-red-600/10 rounded-full blur-3xl"></div>
+
+        <div class="w-20 h-20 mx-auto rounded-full bg-red-600 flex items-center justify-center text-4xl mb-6 shadow-[0_0_30px_rgba(220,38,38,0.5)]">
+          💀
+        </div>
+
+        <h2 class="font-poppins font-black text-2xl text-red-500 uppercase tracking-wide mb-2">POKÉMON KIỆT SỨC!</h2>
+        <p class="text-sm text-slate-300 mb-8 px-2 font-medium">Bạn có muốn hồi sinh Pokémon để tiếp tục cuộc săn Boss không? Chi phí là <span class="text-yellow-400 font-bold">50 coins</span>.</p>
+
+        <div class="flex flex-col gap-4">
+          <button onclick="revivePokemonInBossHunt()" class="w-full py-4 px-6 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-red-900/40 transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+            <i class="fa-solid fa-heart-pulse"></i> TÁI SINH (50 COINS)
+          </button>
+          <button onclick="confirmExitBossHuntDirectly()" class="w-full py-4 px-6 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold text-sm rounded-2xl transition-all cursor-pointer">
+            CHẤP NHẬN THẤT BẠI
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1086,5 +1279,11 @@
     <!-- Database Script Initializer -->
     <script type="module" src="/assets/js/db-init.js"></script>
     <script src="script.js"></script>
+    <style>
+      .boss-hunt-mode #game-navigation-panel { display: none !important; }
+      .boss-hunt-mode #game-container { max-width: 600px !important; }
+      .exam-mode #game-navigation-panel { display: flex !important; }
+      .exam-mode #game-container { max-width: 1024px !important; }
+    </style>
   </body>
 </html>

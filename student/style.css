@@ -427,3 +427,66 @@ html.light-mode,
   background: rgba(15, 23, 42, 0.2);
 }
 
+/* --- RPG Pokémon Combat Animations --- */
+@keyframes jump-attack {
+  0% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-80px) scale(1.1) rotate(-10deg); }
+  50% { transform: translateY(-80px) scale(1.2) rotate(10deg); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes fire-burn {
+  0%, 100% { filter: brightness(1.2) drop-shadow(0 0 20px #ff4500) contrast(1.2); }
+  50% { filter: brightness(1.6) drop-shadow(0 0 45px #ff8c00) contrast(1.5); }
+}
+
+@keyframes boss-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.05); filter: brightness(1.1); }
+}
+
+.animate-jump-attack {
+  animation: jump-attack 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fire-burn {
+  animation: fire-burn 1.5s infinite alternate;
+}
+
+.animate-boss-idle {
+  animation: boss-pulse 4s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.animate-shake {
+  animation: shake 0.25s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes flash-red {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.95)) brightness(1.6) sepia(1) hue-rotate(-50deg) saturate(6); }
+}
+
+.animate-flash-red {
+  animation: flash-red 0.35s ease-in-out;
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+
+.animate-float-up {
+  animation: float-up 0.9s cubic-bezier(0.25, 1, 0.50, 1) forwards;
+}
+
+/* 3D perspective rotates for pedestals */
+.rotateX-45 {
+  transform: rotateX(45deg);
+}
+

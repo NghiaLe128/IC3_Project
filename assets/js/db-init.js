@@ -47,6 +47,7 @@ const IC3_KEYS = {
   SCORES: "scores",
   REWARDS: "rewards",
   NOTIFICATIONS: "notifications",
+  BOSSES: "bosses",
   CURRENT_USER: "ic3_current_user"
 };
 window.IC3_KEYS = IC3_KEYS;
@@ -78,7 +79,8 @@ async function initData() {
   const collectionsToFetch = [
     IC3_KEYS.USERS, IC3_KEYS.STUDENTS, IC3_KEYS.TEACHERS, 
     IC3_KEYS.CLASSES, IC3_KEYS.QUESTIONS, IC3_KEYS.TESTS, 
-    IC3_KEYS.SCORES, IC3_KEYS.REWARDS, IC3_KEYS.NOTIFICATIONS
+    IC3_KEYS.SCORES, IC3_KEYS.REWARDS, IC3_KEYS.NOTIFICATIONS,
+    IC3_KEYS.BOSSES
   ];
 
   try {
@@ -92,8 +94,8 @@ async function initData() {
         if (!window.IC3_CACHE[key]) window.IC3_CACHE[key] = [];
       }
     }));
-    /* SEEDING DISABLED */
-
+    
+    // Cloud Initialization Step Complete
     console.log("✅ Cloud Data Initialization Step Complete");
   } catch (error) {
     console.error("❌ Critical initialization error:", error);
