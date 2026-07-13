@@ -551,7 +551,7 @@ function renderBattleArena() {
       reward = "Nhận 250+ EXP & 50+ Coins 🪙";
     } else if (titleLower.includes("2") || (idx === 1)) {
       avatar = "🤖";
-      name = `${t.title} (Người Máy Word & Excel) 🤖`;
+      name = `${t.title} (Game Show Kiến Thức) 🤖`;
       desc = "Thử thách tư duy logic văn phòng và ứng dụng của khối lớp cùng Người Máy Siêu Việt.";
       accent = "from-blue-950/45 via-slate-900/50 to-slate-900/60 border-blue-500/30";
       reward = "Nhận 350+ EXP & 80+ Coins 🪙";
