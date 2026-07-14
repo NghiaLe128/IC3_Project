@@ -90,7 +90,13 @@ async function initData() {
       try {
         const colRef = collection(db, key);
         const snapshot = await getDocs(colRef);
-        window.IC3_CACHE[key] = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        window.IC3_CACHE[key] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          if (key === IC3_KEYS.STUDENTS) {
+            return { ...data, id: doc.id, email: data.email || doc.id };
+          }
+          return { ...data, id: doc.id };
+        });
       } catch (colErr) {
         console.warn(`⚠️ Could not pre-fetch collection [${key}]:`, colErr.message);
         if (!window.IC3_CACHE[key]) window.IC3_CACHE[key] = [];
@@ -99,6 +105,23 @@ async function initData() {
     
     // Cloud Initialization Step Complete
     console.log("✅ Cloud Data Initialization Step Complete");
+    
+    // Setup real-time snapshot listeners to keep cache in sync
+    try {
+      onSnapshot(collection(db, IC3_KEYS.STUDENTS), (snapshot) => {
+        window.IC3_CACHE[IC3_KEYS.STUDENTS] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return { ...data, id: doc.id, email: data.email || doc.id };
+        });
+        window.dispatchEvent(new CustomEvent('ic3-students-updated'));
+      });
+      onSnapshot(collection(db, IC3_KEYS.SCORES), (snapshot) => {
+        window.IC3_CACHE[IC3_KEYS.SCORES] = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        window.dispatchEvent(new CustomEvent('ic3-scores-updated'));
+      });
+    } catch (realtimeErr) {
+      console.warn("⚠️ Could not establish real-time listeners:", realtimeErr);
+    }
   } catch (error) {
     console.error("❌ Critical initialization error:", error);
   } finally {

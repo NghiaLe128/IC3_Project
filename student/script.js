@@ -150,6 +150,25 @@ window.getBasePokemonKey = function(pokemon) {
     return key;
 };
 
+window.validateAndGetCorrectPokemonForm = function(student) {
+    if (!student) return "pichu";
+    const currentForm = student.pokemon || "pichu";
+    const baseKey = window.getBasePokemonKey(currentForm);
+    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+    const currentLvlName = student.level || "Beginner";
+    let unlockedIndex = levels.indexOf(currentLvlName);
+    if (unlockedIndex === -1) unlockedIndex = 0;
+
+    const evolutions = window.evoMap[baseKey] || [baseKey];
+    const currentFormIdx = evolutions.indexOf(currentForm);
+
+    if (currentFormIdx > unlockedIndex) {
+        const allowedForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
+        return allowedForm;
+    }
+    return currentForm;
+};
+
 window.getShowdownFormName = function(name) {
     if (!name) return "";
     // Showdown animated sprites strip hyphens for megas, gmax, alola, etc.
@@ -159,7 +178,7 @@ window.getShowdownFormName = function(name) {
     return name;
 };
 
-window.useEvolutionForm = function(formName) {
+window.useEvolutionForm = async function(formName) {
     if (!currentStudent) return;
     currentStudent.pokemon = formName;
     currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(formName)}.gif`;
@@ -169,7 +188,27 @@ window.useEvolutionForm = function(formName) {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
         students[idx] = currentStudent;
-        window.saveData(window.IC3_KEYS.STUDENTS, students);
+    } else {
+        students.push(currentStudent);
+    }
+    await window.saveData(window.IC3_KEYS.STUDENTS, students);
+
+    // Sync all duplicate accounts with same name to have the same pokemon & avatar
+    const myName = (currentStudent.fullName || currentStudent.name || "").toString().trim().toLowerCase();
+    if (myName) {
+        for (const s of students) {
+            const sName = (s.fullName || s.name || "").toString().trim().toLowerCase();
+            if (sName === myName && s.email !== currentStudent.email) {
+                s.pokemon = currentStudent.pokemon;
+                s.avatar = currentStudent.avatar;
+                try {
+                    const docRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, s.email || s.id);
+                    await window.fStore.setDoc(docRef, { pokemon: currentStudent.pokemon, avatar: currentStudent.avatar }, { merge: true });
+                } catch (e) {
+                    console.error("Error syncing other account pokemon in useEvolutionForm:", e);
+                }
+            }
+        }
     }
     
     window.showToast(`Đã chọn hình dạng đồng hành: ${window.pokemonNames[formName] || formName.toUpperCase()}! 🎉`);
@@ -479,6 +518,18 @@ function convertDriveUrl(url) {
 }
 
 let currentStudent = null;
+
+function isSameStudent(s1, s2) {
+  if (!s1 || !s2) return false;
+  const email1 = (s1.email || s1.id || "").toString().trim().toLowerCase();
+  const email2 = (s2.email || s2.id || "").toString().trim().toLowerCase();
+  if (email1 && email2 && email1 === email2) return true;
+  
+  const name1 = (s1.fullName || s1.name || "").toString().trim().toLowerCase();
+  const name2 = (s2.fullName || s2.name || "").toString().trim().toLowerCase();
+  if (name1 && name2 && name1 === name2) return true;
+  return false;
+}
 let activePlayingTest = null;
 let testQuestions = [];
 let activeQuestionIndex = 0;
@@ -633,15 +684,16 @@ function initBattleSceneVisuals(testId) {
     squirtle: { color: "bg-blue-500/10 border-blue-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(96,165,250,0.3)]" },
     eevee: { color: "bg-amber-500/10 border-amber-500/20", shadow: "drop-shadow-[0_2px_8px_rgba(251,191,36,0.3)]" }
   };
-  const scenePokeData = pokemonElements[activePoke] || pokemonElements.pikachu;
+  const pKey = window.getBasePokemonKey(activePoke);
+  const scenePokeData = pokemonElements[pKey] || pokemonElements.pikachu;
 
   // Render initial titles to RPG Battle Arena
   const sceneAvatar = document.getElementById("battle-scene-player-avatar");
   if(sceneAvatar) {
     sceneAvatar.className = `text-3xl h-10 w-10 flex items-center justify-center rounded-xl border shrink-0 ${scenePokeData.color} ${scenePokeData.shadow}`;
-    sceneAvatar.innerText = pokemonAvatars[activePoke] || "⚡";
+    sceneAvatar.innerText = pokemonAvatars[pKey] || "⚡";
   }
-  document.getElementById("battle-scene-player-name").innerText = pokemonNames[activePoke] || "Pikachu";
+  document.getElementById("battle-scene-player-name").innerText = window.pokemonNames[activePoke] || "Pikachu";
   document.getElementById("battle-scene-player-status").innerText = "SẴN SÀNG!";
 
   // Set animated sprites for Battle Scene
@@ -740,6 +792,25 @@ async function startStudentApp() {
   loadStudentProfile();
   applySavedTheme();
   switchStudentTab("dashboard");
+
+  // Real-time re-rendering on database updates
+  window.addEventListener('ic3-students-updated', () => {
+    if (typeof renderStudentDashboard === 'function' && document.getElementById('student-tab-dashboard') && !document.getElementById('student-tab-dashboard').classList.contains('hidden')) {
+      renderStudentDashboard();
+    }
+    if (typeof renderLeaderboard === 'function' && document.getElementById('student-tab-leaderboard') && !document.getElementById('student-tab-leaderboard').classList.contains('hidden')) {
+      renderLeaderboard();
+    }
+  });
+
+  window.addEventListener('ic3-scores-updated', () => {
+    if (typeof renderStudentDashboard === 'function' && document.getElementById('student-tab-dashboard') && !document.getElementById('student-tab-dashboard').classList.contains('hidden')) {
+      renderStudentDashboard();
+    }
+    if (typeof renderLeaderboard === 'function' && document.getElementById('student-tab-leaderboard') && !document.getElementById('student-tab-leaderboard').classList.contains('hidden')) {
+      renderLeaderboard();
+    }
+  });
 }
 
 // 1. Auth & Profile Loading
@@ -767,10 +838,10 @@ async function checkStudentAuth() {
       // Fallback for demo accounts or missing profile
       currentStudent = {
         email: user.email,
-        name: user.name,
+        name: user.displayName || user.name,
         classId: "C1",
         blockId: "block_3",
-        pokemon: "pikachu",
+        pokemon: "pichu",
         level: "Beginner",
         exp: 150,
         maxExp: 500,
@@ -787,10 +858,10 @@ async function checkStudentAuth() {
     // Use fallback if network fails
     currentStudent = {
       email: user.email,
-      name: user.name,
+      name: user.displayName || user.name,
       classId: "C1",
       blockId: "block_3",
-      pokemon: "pikachu",
+      pokemon: "pichu",
       level: "Beginner",
       exp: 150,
       maxExp: 500,
@@ -805,6 +876,21 @@ async function checkStudentAuth() {
 
 function loadStudentProfile() {
   if (!currentStudent) return;
+
+  // Validate and correct active pokemon form according to current level
+  const correctedForm = window.validateAndGetCorrectPokemonForm(currentStudent);
+  if (currentStudent.pokemon !== correctedForm) {
+    currentStudent.pokemon = correctedForm;
+    currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(correctedForm)}.gif`;
+    
+    // Save to cache and DB
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+    const idx = students.findIndex(s => s.email === currentStudent.email);
+    if (idx !== -1) {
+      students[idx] = currentStudent;
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
+    }
+  }
 
   // Initialize bananas and fed bananas
   currentStudent.bananas = currentStudent.bananas || 0;
@@ -1739,7 +1825,7 @@ function renderBossQuestion() {
     bossHotspotClicks = savedClicks;
     wrapper.innerHTML = `
       <div class="text-[10px] text-red-300 uppercase font-black tracking-widest text-center">Nhấp vào <span class="text-white">${q.requiredCount || 1}</span> vị trí tương ứng:</div>
-      <div id="boss-hotspot-container" class="relative inline-block border-2 border-red-500/30 rounded-2xl bg-slate-950 overflow-hidden" style="cursor: crosshair;">
+      <div id="boss-hotspot-container" class="relative inline-block border-2 border-red-500/30 rounded-2xl bg-slate-950 overflow-hidden self-center" style="cursor: crosshair;">
         <img id="boss-hotspot-img" src="${convertDriveUrl(q.imageUrl)}" style="max-width: 100%; display: block;" draggable="false">
         <div id="boss-hotspot-overlay" class="absolute inset-0"></div>
       </div>`;
@@ -2102,11 +2188,11 @@ function renderBattleArena() {
   document.getElementById("battle-poke-stage").innerText = stage;
 
   // Dynamic stat calculators based on current experience points
-  const baseHp = activePoke === "bulbasaur" ? 140 : activePoke === "squirtle" ? 130 : 100;
-  const baseAtk = activePoke === "charmander" ? 95 : activePoke === "pikachu" ? 85 : 70;
-  const baseDef = activePoke === "squirtle" ? 85 : activePoke === "bulbasaur" ? 80 : 65;
-  const baseInt = activePoke === "eevee" ? 100 : activePoke === "pikachu" ? 95 : 80;
-  const baseSpd = activePoke === "pikachu" ? 100 : activePoke === "eevee" ? 90 : 75;
+  const baseHp = pKey === "bulbasaur" ? 140 : pKey === "squirtle" ? 130 : 100;
+  const baseAtk = pKey === "charmander" ? 95 : pKey === "pikachu" ? 85 : 70;
+  const baseDef = pKey === "squirtle" ? 85 : pKey === "bulbasaur" ? 80 : 65;
+  const baseInt = pKey === "eevee" ? 100 : pKey === "pikachu" ? 95 : 80;
+  const baseSpd = pKey === "pikachu" ? 100 : pKey === "eevee" ? 90 : 75;
 
   const currentHp = baseHp + Math.floor(currentStudent.exp / 15);
   const currentAtk = Math.min(100, baseAtk + Math.floor(currentStudent.exp / 40));
@@ -2184,50 +2270,50 @@ function renderBattleArena() {
     let name = `${t.title} (Thử Thách Đặc Biệt) 🌟`;
     let desc = "Bộ đề thi tùy chỉnh do thầy cô thiết kế dành riêng cho bạn.";
     let accent = "from-indigo-950/45 via-slate-900/50 to-slate-900/60 border-indigo-500/25";
-    let reward = "Nhận 300+ EXP, 60+ Coins 🪙 & 1-2 🍌";
+    let rewardObj = { exp: 300, coins: 60, banana: "1-3" };
     
     if (titleLower.includes("tổng hợp") || titleLower.includes("tong hop")) {
       avatar = "👑";
       name = `${t.title} (Vua Thống Lĩnh IC3) 👑`;
       desc = "Bài thi tổng hợp mọi kiến thức để chứng minh bạn xứng đáng với danh hiệu tối cao Master!";
       accent = "from-yellow-950/45 via-slate-900/50 to-slate-900/60 border-yellow-500/30";
-      reward = "Nhận 800+ EXP, 200+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 800, coins: 200, banana: "1-3" };
     } else if (titleLower.includes("bổ sung") || titleLower.includes("bo sung")) {
       avatar = "⚡";
       name = `${t.title} (Chiến Thần Sấm Sét) ⚡`;
       desc = "Bộ đề ôn tập bổ sung năng lượng, củng cố vững chắc tất cả các lỗ hổng kiến thức.";
       accent = "from-cyan-950/45 via-slate-900/50 to-slate-900/60 border-cyan-500/30";
-      reward = "Nhận 400+ EXP, 90+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 400, coins: 90, banana: "1-3" };
     } else if (titleLower.includes("1") || (!titleLower.includes("2") && !titleLower.includes("3") && !titleLower.includes("4") && !titleLower.includes("5") && idx === 0)) {
       avatar = "🌳";
       name = `${t.title} (Thần Cây Dữ Liệu) 🌳`;
       desc = "Đối đầu trực tiếp với Thần Cây để kiểm tra năng lực tin học căn bản của khối lớp.";
       accent = "from-emerald-950/45 via-slate-900/50 to-slate-900/60 border-emerald-500/30";
-      reward = "Nhận 250+ EXP, 50+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 250, coins: 50, banana: "1-3" };
     } else if (titleLower.includes("2") || (idx === 1)) {
       avatar = "🤖";
       name = `${t.title} (Game Show Kiến Thức) 🤖`;
       desc = "Thử thách tư duy logic văn phòng và ứng dụng của khối lớp cùng Người Máy Siêu Việt.";
       accent = "from-blue-950/45 via-slate-900/50 to-slate-900/60 border-blue-500/30";
-      reward = "Nhận 350+ EXP, 80+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 350, coins: 80, banana: "1-3" };
     } else if (titleLower.includes("3") || (idx === 2)) {
       avatar = "👾";
       name = `${t.title} (Rồng Hỏa Ngục An Ninh Mạng) 👾`;
       desc = "Trận chiến đỉnh cao vượt qua các chướng ngại vật bảo mật và hiểu biết internet số.";
       accent = "from-purple-950/45 via-slate-900/50 to-slate-900/60 border-purple-500/30";
-      reward = "Nhận 450+ EXP, 100+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 450, coins: 100, banana: "1-3" };
     } else if (titleLower.includes("4")) {
       avatar = "🔮";
       name = `${t.title} (Phù Thủy Thuật Toán) 🔮`;
       desc = "Vượt qua các câu hỏi hóc búa để khai sáng tư duy công nghệ mới.";
       accent = "from-pink-950/45 via-slate-900/50 to-slate-900/60 border-pink-500/30";
-      reward = "Nhận 500+ EXP, 120+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 500, coins: 120, banana: "1-3" };
     } else if (titleLower.includes("5")) {
       avatar = "🐉";
       name = `${t.title} (Kim Giáp Long Vương) 🐉`;
       desc = "Thách thức bản lĩnh đỉnh cao cùng rồng thần bảo hộ vương quốc số.";
       accent = "from-amber-950/45 via-slate-900/50 to-slate-900/60 border-amber-500/30";
-      reward = "Nhận 600+ EXP, 150+ Coins 🪙 & 1-2 🍌";
+      rewardObj = { exp: 600, coins: 150, banana: "1-3" };
     }
 
     return {
@@ -2237,7 +2323,7 @@ function renderBattleArena() {
       avatar: avatar,
       desc: desc,
       accent: accent,
-      reward: reward
+      rewardObj: rewardObj
     };
   });
 
@@ -2286,9 +2372,25 @@ function renderBattleArena() {
             <span class="text-[9px] px-2 py-0.5 rounded border font-bold uppercase tracking-widest ${badgeClass}">${badgeText}</span>
           </div>
           <p class="text-[10px] text-slate-400 mt-1 leading-relaxed max-w-lg">${boss.desc}</p>
-          <div class="flex items-center gap-2 mt-2 justify-center md:justify-start text-[10px] font-bold text-yellow-400">
-            <span>🎁 Phần thưởng:</span>
-            <span>${boss.reward}</span>
+          <div class="flex items-center gap-1.5 mt-2.5 justify-center md:justify-start flex-wrap">
+            <span class="text-[10px] font-bold text-slate-400 mr-1 flex items-center gap-1">🎁 Phần thưởng:</span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-black shadow-sm">
+              <svg class="w-3 h-3 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              +${boss.rewardObj.exp} EXP
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[10px] font-black shadow-sm">
+              <svg class="w-3 h-3 text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v12M9 10h6M9 14h6"></path>
+              </svg>
+              +${boss.rewardObj.coins} Xu
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/25 text-yellow-300 text-[10px] font-black shadow-sm">
+              <span class="shrink-0 text-xs">🍌</span>
+              ${boss.rewardObj.banana} Chuối
+            </span>
           </div>
         </div>
         <button onclick="openTestModeSelection('${boss.testId}')" class="shrink-0 px-5 py-3 bg-gradient-to-r from-red-500 to-amber-600 hover:from-red-600 hover:to-amber-700 text-slate-950 text-xs font-black rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer">
@@ -2515,7 +2617,7 @@ function selectSkillTreeNode(nodeId) {
         </div>
 
         <div class="pt-2 flex justify-between items-center flex-wrap gap-2">
-          <p class="text-[10px] text-slate-400 font-medium">🎁 Quà tặng: <span class="font-bold text-yellow-400">+15 EXP | +5 Coins 🪙</span></p>
+          <p class="text-[10px] text-slate-400 font-medium">🎁 Quà tặng: <span class="font-bold text-yellow-400">+15 EXP | +5 Coin 💰</span></p>
           <button onclick="submitSkillQuiz('${nodeId}')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition-all cursor-pointer">
             NỘP ĐÁP ÁN
           </button>
@@ -2569,7 +2671,7 @@ function submitSkillQuiz(nodeId) {
   const data = skillLessonData[nodeId];
 
   if (ans === data.correctAnswer) {
-    window.showToast(`🎉 CHÍNH XÁC! Chúc mừng bạn đã trả lời đúng bài học mini-quiz.\nGiải thích: ${data.explanation}\n\n🎁 PHẦN THƯỞNG: +15 EXP | +5 Coins 🪙`);
+    window.showToast(`🎉 CHÍNH XÁC! Chúc mừng bạn đã trả lời đúng bài học mini-quiz.\nGiải thích: ${data.explanation}\n\n🎁 PHẦN THƯỞNG: +15 EXP | +5 Coin 💰`);
     
     currentStudent.exp += 15;
     currentStudent.coins += 5;
@@ -2630,7 +2732,19 @@ function renderInventory() {
 
   allCompanionsDef.forEach(comp => {
     const isUnlocked = currentStudent.unlockedPokemons.includes(comp.id);
-    const isCurrentActive = currentStudent.pokemon === comp.id;
+    
+    const baseKey = comp.id;
+    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+    const currentLvlName = currentStudent.level || "Beginner";
+    let unlockedIndex = levels.indexOf(currentLvlName);
+    if (unlockedIndex === -1) unlockedIndex = 0;
+
+    const evolutions = window.evoMap[baseKey] || [baseKey];
+    const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
+    const formName = window.pokemonNames[targetForm] || comp.name;
+
+    const baseActiveKey = window.getBasePokemonKey(currentStudent.pokemon || "pichu");
+    const isCurrentActive = baseActiveKey === comp.id;
 
     const div = document.createElement("div");
     
@@ -2643,10 +2757,10 @@ function renderInventory() {
 
       div.innerHTML = `
         <span class="w-12 h-12 bg-slate-900 border border-white/5 rounded-xl flex items-center justify-center text-3xl shrink-0">
-          <img src="${comp.img}" class="w-8 h-8 object-contain" alt="pokemon">
+          <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif" class="w-8 h-8 object-contain" alt="pokemon" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${targetForm}.gif'">
         </span>
         <div class="flex-grow">
-          <h4 class="font-poppins font-black text-xs text-white">${pokemonNames[comp.id]}</h4>
+          <h4 class="font-poppins font-black text-xs text-white">${formName}</h4>
           <p class="text-[9px] text-slate-400">${comp.desc}</p>
         </div>
         ${actionBtn}
@@ -2656,7 +2770,7 @@ function renderInventory() {
       div.innerHTML = `
         <span class="w-12 h-12 bg-slate-900 border border-white/5 rounded-xl flex items-center justify-center text-xl text-slate-600 shrink-0">🔒</span>
         <div class="flex-grow">
-          <h4 class="font-poppins font-bold text-xs text-slate-500">${pokemonNames[comp.id]}</h4>
+          <h4 class="font-poppins font-bold text-xs text-slate-500">${formName}</h4>
           <p class="text-[9px] text-slate-600">Mở khóa trong Cửa hàng để thu phục thần thú này</p>
         </div>
       `;
@@ -2718,7 +2832,17 @@ function renderInventory() {
 }
 
 function selectInventoryCompanion(pokeId) {
-  currentStudent.pokemon = pokeId;
+  const baseKey = window.getBasePokemonKey(pokeId);
+  const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+  const currentLvlName = currentStudent.level || "Beginner";
+  let unlockedIndex = levels.indexOf(currentLvlName);
+  if (unlockedIndex === -1) unlockedIndex = 0;
+  
+  const evolutions = window.evoMap[baseKey] || [baseKey];
+  const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
+  
+  currentStudent.pokemon = targetForm;
+  currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
   
   // Save changes to database
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -2728,7 +2852,8 @@ function selectInventoryCompanion(pokeId) {
     window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
 
-  window.showToast(`🎉 Đã đổi Pokémon đồng hành thành công! Thần thú hiện tại của bạn là ${pokeId.toUpperCase()}.`);
+  const prettyName = window.pokemonNames[targetForm] || targetForm.toUpperCase();
+  window.showToast(`🎉 Đã đổi Pokémon đồng hành thành công! Bạn đồng hành hiện tại của bạn là ${prettyName}.`);
   loadStudentProfile();
   renderInventory();
   renderBattleArena();
@@ -2743,7 +2868,7 @@ function useInventoryItem(itemIndex) {
     const rewardsList = [
       { exp: 150, coins: 50, msg: "một túi thảo dược quý tăng thám hiểm +150 EXP & nhận +50 Coins vàng lấp lánh!" },
       { exp: 300, coins: 0, msg: "một bí kíp Computing Fundamentals thần bí mang lại cực khủng +300 EXP thám hiểm!" },
-      { exp: 0, coins: 150, msg: "một rương kho báu vàng đầy lộc tăng thêm +150 Coins vàng rủng rỉnh 🪙!" }
+      { exp: 0, coins: 150, msg: "một rương kho báu vàng đầy lộc tăng thêm +150 Coin vàng rủng rỉnh 💰!" }
     ];
 
     const chosen = rewardsList[Math.floor(Math.random() * rewardsList.length)];
@@ -2847,7 +2972,19 @@ function renderZoneQuizzes(levelId, zoneTests, allScores, isZoneUnlocked = true)
     if (studentTestScores.length > 0) {
       const maxScore = Math.max(...studentTestScores.map(s => s.score));
       bestScoreText = `Điểm cao nhất: ${maxScore}/100`;
-      if (maxScore >= 50) {
+      
+      const bestAttempt = studentTestScores.reduce((best, s) => s.score > (best ? best.score : -1) ? s : best, null);
+      let isPassed = false;
+      if (bestAttempt) {
+        if (bestAttempt.correctCount !== undefined && bestAttempt.totalCount !== undefined) {
+          const wrong = bestAttempt.totalCount - bestAttempt.correctCount;
+          isPassed = !(wrong >= 5 || bestAttempt.correctCount < 20);
+        } else {
+          isPassed = bestAttempt.score >= 50;
+        }
+      }
+
+      if (isPassed) {
         statusIcon = `<i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>`;
       } else {
         statusIcon = `<i class="fa-solid fa-circle-exclamation text-yellow-500 text-sm"></i>`;
@@ -3053,6 +3190,10 @@ function startTest(testId, mode = "practice") {
       // Update correctIndices for multi_choice
       else if (clonedQ.type === "multi_choice" && Array.isArray(clonedQ.correctIndices)) {
         clonedQ.correctIndices = clonedQ.correctIndices.map(oldIdx => 
+          optionsWithMetadata.findIndex(item => item.originalIndex === oldIdx)
+        );
+      } else if (clonedQ.type === "table_match" && Array.isArray(clonedQ.correctAnswers)) {
+        clonedQ.correctAnswers = clonedQ.correctAnswers.map(oldIdx => 
           optionsWithMetadata.findIndex(item => item.originalIndex === oldIdx)
         );
       }
@@ -3417,7 +3558,8 @@ function renderGameQuestion() {
     
     let poolHtml = "";
     if (!isQuestionAnswered) {
-      poolHtml = `
+      window.currentDragOptions = q.options;
+    poolHtml = `
         <div class="p-5 rounded-2xl bg-indigo-950/20 border border-indigo-900/30 mt-4">
           <span class="text-xs font-black text-indigo-300 block uppercase tracking-wider mb-3">Thẻ từ khóa có sẵn (nhấp để xếp vào ô):</span>
           <div class="flex flex-wrap gap-2.5" id="drag-text-pool">
@@ -3425,7 +3567,7 @@ function renderGameQuestion() {
               const isUsed = savedAnswers.includes(opt);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
-                <button id="drag-text-pool-btn-${idx}" onclick="placeDraggedText('${opt.replace(/'/g, "\\'")}', ${idx})" 
+                <button id="drag-text-pool-btn-${idx}" onclick="placeDraggedText(${idx})" 
                         class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150${disabledClass}">
                   ${opt}
                 </button>
@@ -3498,7 +3640,8 @@ function renderGameQuestion() {
     
     let poolHtml = "";
     if (!isQuestionAnswered) {
-      poolHtml = `
+      window.currentDragOptions = q.options;
+    poolHtml = `
         <div class="p-5 rounded-2xl bg-indigo-950/20 border border-indigo-900/30 mt-4">
           <span class="text-xs font-black text-indigo-300 block uppercase tracking-wider mb-3">Nhãn tên linh kiện:</span>
           <div class="flex flex-wrap gap-2.5" id="drag-image-pool">
@@ -3506,7 +3649,7 @@ function renderGameQuestion() {
               const isUsed = savedAnswers.includes(opt);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
-                <button id="drag-image-pool-btn-${idx}" onclick="placeDraggedImageText('${opt.replace(/'/g, "\\'")}', ${idx})" 
+                <button id="drag-image-pool-btn-${idx}" onclick="placeDraggedImageText(${idx})" 
                         class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150${disabledClass}">
                   ${opt}
                 </button>
@@ -3584,7 +3727,7 @@ function renderGameQuestion() {
                 const isSelected = placedIdx === oIdx;
                 const selectedAttr = isSelected ? "selected" : "";
                 return `
-                  <option value="${oIdx}" ${selectedAttr}>${opt}</option>
+                  <option value="${oIdx}" ${selectedAttr}>${opt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;")}</option>
                 `;
               }).join("")}
             </select>
@@ -3626,7 +3769,7 @@ function renderGameQuestion() {
         <div class="text-sm text-indigo-300">Vui lòng nhấp vào <span class="font-bold text-white">${q.requiredCount || 1}</span> vị trí tương ứng trên ảnh:</div>
         <button type="button" onclick="window.clearHotspots()" class="text-xs text-red-400 hover:text-red-300 border border-red-400/30 rounded px-2 py-1">Clear hết</button>
       </div>
-      <div id="student-hotspot-container" class="relative inline-block border-2 border-indigo-500/30 rounded bg-[#131424] max-w-full overflow-hidden" style="cursor: crosshair;">
+      <div id="student-hotspot-container" class="relative inline-block border-2 border-indigo-500/30 rounded-2xl bg-[#131424] max-w-full overflow-hidden self-center" style="cursor: crosshair;">
         <img id="student-hotspot-img" src="${convertDriveUrl(q.imageUrl)}" style="max-width: 100%; display: block; user-select: none;" draggable="false">
         <div id="student-hotspot-overlay" class="absolute inset-0"></div>
       </div>
@@ -3912,9 +4055,11 @@ function prevGameQuestion() {
 }
 
 // Interactive helper click handlers for Drag and match types
-function placeDraggedText(text, btnIdx) {
+function placeDraggedText(btnIdx) {
   if (isAnswerChecked) return;
   
+  const text = window.currentDragOptions[btnIdx];
+
   const emptyIdx = window.draggedTextAnswers.findIndex(ans => !ans);
   if (emptyIdx === -1) {
     window.showToast("Tất cả các vị trí đã điền xong! Hãy click vào ô trống cũ nếu muốn thay đổi.");
@@ -3964,9 +4109,11 @@ function clearDraggedText(slotIdx) {
   }
 }
 
-function placeDraggedImageText(text, btnIdx) {
+function placeDraggedImageText(btnIdx) {
   if (isAnswerChecked) return;
   
+  const text = window.currentDragOptions[btnIdx];
+
   const emptyIdx = window.draggedTextAnswers.findIndex(ans => !ans);
   if (emptyIdx === -1) {
     window.showToast("Tất cả các hình ảnh đã được dán nhãn tên!");
@@ -4620,14 +4767,25 @@ function finishTest() {
   let coinsGained = 0;
   const earnedBadges = [];
 
-  const isPassed = score >= 50;
+  const wrongCount = totalQ - correctAnswersCount;
+  const isPassed = !(wrongCount >= 5 || correctAnswersCount < 20);
   let bananasGained = 0;
+
+  // Banana rewards rule: wrongCount === 0 -> 3, <= 5 -> 2, <= 10 -> 1, otherwise 0
+  if (wrongCount === 0) {
+    bananasGained = 3;
+  } else if (wrongCount <= 5) {
+    bananasGained = 2;
+  } else if (wrongCount <= 10) {
+    bananasGained = 1;
+  } else {
+    bananasGained = 0;
+  }
 
   if (isPassed) {
     // Standard pass reward
     expGained = 150 + (score * 1.5); // Score based bonus
     coinsGained = 30 + Math.floor(score / 5);
-    bananasGained = score >= 90 ? 2 : 1;
 
     // Achievements unlocking
     // 1. First Test
@@ -4646,7 +4804,6 @@ function finishTest() {
     // Consolidation fail rewards
     expGained = 40;
     coinsGained = 10;
-    bananasGained = 0;
   }
 
   expGained = Math.round(expGained);
@@ -4730,13 +4887,52 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
   document.getElementById("victory-test-title").innerText = activePlayingTest.title;
   
   const displayTotal = totalCount || testQuestions.length;
-  document.getElementById("victory-score").innerText = `${score}/100 (${correctCount}/${displayTotal})`;
+  
+  const wrongCount = displayTotal - correctCount;
+  const titleEl = document.getElementById("victory-title");
+  const iconWrapperEl = document.getElementById("victory-icon-wrapper");
+  const iconEl = document.getElementById("victory-icon");
+  const scoreBadgeEl = document.getElementById("victory-score");
+  
+  if (titleEl && iconWrapperEl && iconEl) {
+    if (correctCount < 20) {
+      // QUÁ YẾU
+      titleEl.innerText = "QUÁ YẾU 😭";
+      titleEl.className = "font-poppins font-black text-2xl text-red-500 tracking-wide uppercase mb-1";
+      iconWrapperEl.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-red-500 via-rose-600 to-red-800 p-0.5 shadow-xl shadow-red-500/30 animate-shake mb-6";
+      iconEl.innerText = "💀";
+    } else if (wrongCount >= 5) {
+      // THẤT BẠI
+      titleEl.innerText = "THẤT BẠI 😢";
+      titleEl.className = "font-poppins font-black text-2xl text-orange-500 tracking-wide uppercase mb-1";
+      iconWrapperEl.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-orange-400 via-red-500 to-rose-500 p-0.5 shadow-xl shadow-orange-500/30 mb-6";
+      iconEl.innerText = "💥";
+    } else {
+      // VICTORY
+      titleEl.innerText = "🎉 VICTORY SCREEN 🎉";
+      titleEl.className = "font-poppins font-black text-2xl text-yellow-400 tracking-wide uppercase mb-1";
+      iconWrapperEl.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-yellow-400 via-orange-500 to-pink-500 p-0.5 shadow-xl shadow-yellow-500/30 animate-bounce mb-6";
+      iconEl.innerText = "🏆";
+    }
+  }
+
+  document.getElementById("victory-score").innerHTML = `
+    <div class="flex flex-col items-center justify-center p-6 bg-slate-900/50 rounded-2xl border border-slate-700/50 shadow-inner">
+      <div class="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-1">Điểm số</div>
+      <div class="text-6xl font-black text-white tracking-tighter">
+        ${score}<span class="text-4xl text-slate-600">/100</span>
+      </div>
+      <div class="text-slate-400 font-medium mt-2 text-sm bg-slate-800 px-3 py-1 rounded-full">
+        ${correctCount}/${displayTotal} câu đúng
+      </div>
+    </div>
+  `;
   document.getElementById("victory-exp").innerText = `+${expGained} EXP`;
-  document.getElementById("victory-coins").innerText = `+${coinsGained} 🪙`;
+  document.getElementById("victory-coins").innerText = `+${coinsGained} COINS`;
 
   const bananasEl = document.getElementById("victory-bananas");
   if (bananasEl) {
-    bananasEl.innerText = `+${bananasGained} 🍌`;
+    bananasEl.innerText = `+${bananasGained} BANANAS`;
   }
 
   const lvlBadge = document.getElementById("victory-lvl-up-badge");
@@ -4807,7 +5003,7 @@ function renderRewardsStore() {
     }
 
     // Determine purchase button status
-    let btnText = `Đổi quà với 🪙 ${r.cost}`;
+    let btnText = `Đổi quà với 💰 ${r.cost}`;
     let btnClass = "bg-amber-500 hover:bg-amber-600 text-slate-950 hover:scale-[1.02]";
     let isOwned = false;
     let isBossOnly = r.reqMode === "boss" || r.cost > 9000;
@@ -4856,11 +5052,11 @@ function renderRewardsStore() {
 
 function buyStoreItem(id, cost, type) {
   if (currentStudent.coins < cost) {
-    window.showToast("Bạn không đủ Coin vàng 🪙 để thực hiện giao dịch này. Hãy thám hiểm làm thêm nhiều bài thi để kiếm thêm Coin nhé!", 'error');
+    window.showToast("Bạn không đủ Coin vàng 💰 để thực hiện giao dịch này. Hãy thám hiểm làm thêm nhiều bài thi để kiếm thêm Coin nhé!", 'error');
     return;
   }
 
-  if (confirm(`Bạn đồng ý tiêu hao 🪙 ${cost} Coin để đổi phần quà này chứ?`)) {
+  if (confirm(`Bạn đồng ý tiêu hao 💰 ${cost} Coin để đổi phần quà này chứ?`)) {
     currentStudent.coins -= cost;
 
     if (id === "reward_banana") {
@@ -4911,10 +5107,22 @@ function renderScoresHistory() {
   studentScores.forEach(sc => {
     const test = tests.find(t => t.id === sc.testId) || { title: sc.testId };
     
-    const isPassed = sc.score >= 50;
-    const statusText = isPassed 
-      ? `<span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-extrabold text-[10px]">ĐẠT CHUẨN</span>`
-      : `<span class="px-2 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-extrabold text-[10px]">CHƯA ĐẠT</span>`;
+    let statusText = "";
+    if (sc.correctCount !== undefined && sc.totalCount !== undefined) {
+      const wrongCount = sc.totalCount - sc.correctCount;
+      if (sc.correctCount < 20) {
+        statusText = `<span class="px-2 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-extrabold text-[10px]">QUÁ YẾU</span>`;
+      } else if (wrongCount >= 5) {
+        statusText = `<span class="px-2 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-extrabold text-[10px]">THẤT BẠI</span>`;
+      } else {
+        statusText = `<span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-extrabold text-[10px]">ĐẠT CHUẨN</span>`;
+      }
+    } else {
+      const isPassed = sc.score >= 50;
+      statusText = isPassed 
+        ? `<span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-extrabold text-[10px]">ĐẠT CHUẨN</span>`
+        : `<span class="px-2 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-extrabold text-[10px]">CHƯA ĐẠT</span>`;
+    }
 
     const tr = document.createElement("tr");
     tr.className = "hover:bg-indigo-950/20 transition-all text-xs";
@@ -4926,7 +5134,7 @@ function renderScoresHistory() {
       </td>
       <td class="px-5 py-3.5 text-center font-mono text-slate-400"><i class="fa-regular fa-clock mr-1 text-indigo-400"></i>${sc.timeSpent}</td>
       <td class="px-5 py-3.5 text-slate-400">${sc.date}</td>
-      <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained} EXP | +${sc.coinsGained} 🪙${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
+      <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained} EXP | +${sc.coinsGained} 💰${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
       <td class="px-5 py-3.5 text-center">${statusText}</td>
     `;
     body.appendChild(tr);
@@ -4970,6 +5178,15 @@ function openPokemonSelectorModal() {
     const baseKey = window.getBasePokemonKey(currentStudent.pokemon || "pikachu");
     const isCurrent = baseKey === p.id;
 
+    // Get level-appropriate form for this pokemon family
+    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+    const currentLvlName = currentStudent.level || "Beginner";
+    let unlockedIndex = levels.indexOf(currentLvlName);
+    if (unlockedIndex === -1) unlockedIndex = 0;
+
+    const evolutions = window.evoMap[p.id] || [p.id];
+    const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || p.id;
+
     const btn = document.createElement("button");
     
     if (isUnlocked) {
@@ -4979,14 +5196,14 @@ function openPokemonSelectorModal() {
       btn.className = "p-4 rounded-3xl flex flex-col items-center justify-center bg-slate-950/20 border border-dashed border-slate-900 text-slate-600 opacity-40 cursor-not-allowed relative";
     }
 
-    const imgUrl = `https://play.pokemonshowdown.com/sprites/xyani/${p.id}.gif`;
-    const imgNode = `<img src="${imgUrl}" class="w-14 h-14 object-contain filter ${isUnlocked ? 'drop-shadow-[0_4px_10px_rgba(253,224,71,0.25)]' : 'grayscale brightness-50'}" alt="${p.name}" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${p.id}.gif'">`;
+    const imgUrl = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
+    const imgNode = `<img src="${imgUrl}" class="w-14 h-14 object-contain filter ${isUnlocked ? 'drop-shadow-[0_4px_10px_rgba(253,224,71,0.25)]' : 'grayscale brightness-50'}" alt="${p.name}" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${targetForm}.gif'">`;
 
     btn.innerHTML = `
       <div class="h-16 flex items-center justify-center relative w-full">
         ${imgNode}
       </div>
-      <span class="text-xs font-black block mt-2 text-white">${window.pokemonNames[p.id] || p.name}</span>
+      <span class="text-xs font-black block mt-2 text-white">${window.pokemonNames[targetForm] || p.name}</span>
       <span class="text-[9px] mt-1 font-semibold uppercase block tracking-wider ${isCurrent ? 'text-yellow-400' : isUnlocked ? 'text-emerald-400' : 'text-slate-500'}">${isCurrent ? 'Đang chọn' : isUnlocked ? 'Đã mở khóa' : 'Khóa 🔒'}</span>
     `;
 
@@ -4996,7 +5213,7 @@ function openPokemonSelectorModal() {
   modal.classList.remove("hidden");
 }
 
-function selectPokemonAvatar(pokeId) {
+async function selectPokemonAvatar(pokeId) {
   const baseKey = pokeId;
   const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
   const currentLvlName = currentStudent.level || "Beginner";
@@ -5018,7 +5235,35 @@ function selectPokemonAvatar(pokeId) {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+  } else {
+    students.push(currentStudent);
+  }
+  await window.saveData(window.IC3_KEYS.STUDENTS, students);
+
+  // Sync all duplicate accounts with same name to have the same pokemon & avatar
+  const myName = (currentStudent.fullName || currentStudent.name || "").toString().trim().toLowerCase();
+  if (myName) {
+    for (const s of students) {
+      const sName = (s.fullName || s.name || "").toString().trim().toLowerCase();
+      if (sName === myName && s.email !== currentStudent.email) {
+        s.pokemon = currentStudent.pokemon;
+        s.avatar = currentStudent.avatar;
+        try {
+          const docRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, s.email || s.id);
+          await window.fStore.setDoc(docRef, { pokemon: currentStudent.pokemon, avatar: currentStudent.avatar }, { merge: true });
+        } catch (e) {
+          console.error("Error syncing other account pokemon in selectPokemonAvatar:", e);
+        }
+      }
+    }
+  }
+
+  // Direct Firestore write for immediate sync
+  try {
+    const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
+    await window.fStore.setDoc(studentDocRef, currentStudent);
+  } catch (e) {
+    console.error("Error saving student pokemon directly to Firestore:", e);
   }
 
   loadStudentProfile();
@@ -5057,7 +5302,7 @@ function renderLeaderboard() {
   };
 
   // Find user's rank
-  const myRankIndex = sortedStudents.findIndex(s => s.email === currentStudent.email);
+  const myRankIndex = sortedStudents.findIndex(s => isSameStudent(s, currentStudent));
   const myRank = myRankIndex !== -1 ? myRankIndex + 1 : "-";
   document.getElementById("player-leaderboard-rank").innerText = `#${myRank}`;
 
@@ -5070,11 +5315,13 @@ function renderLeaderboard() {
     else if (rankNum === 2) rankBadge = "🥈";
     else if (rankNum === 3) rankBadge = "🥉";
 
+    const isMe = isSameStudent(st, currentStudent);
+    const finalStudent = isMe ? currentStudent : st;
+
     // Find class name
-    const cls = classes.find(c => c.id === st.classId);
+    const cls = classes.find(c => c.id === finalStudent.classId);
     const classNameText = cls ? cls.name : "Tự do";
 
-    const isMe = st.email === currentStudent.email;
     const highlightClass = isMe ? "bg-blue-500/10 border-y border-blue-500/20 font-bold" : "";
 
     const tr = document.createElement("tr");
@@ -5084,26 +5331,25 @@ function renderLeaderboard() {
       <td class="px-5 py-4 text-center font-bold text-sm">${rankBadge}</td>
       <td class="px-5 py-4">
         <div class="flex items-center gap-3">
-          <span class="w-8 h-8 rounded-full bg-slate-950/60 border border-white/10 flex items-center justify-center text-lg shadow-sm shrink-0">
-            ${pokemonAvatars[st.pokemon] || "⚡"}
-          </span>
+          <div class="w-10 h-10 rounded-full bg-slate-950/80 border border-white/10 flex items-center justify-center shadow-sm shrink-0 overflow-hidden relative">
+            <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(window.validateAndGetCorrectPokemonForm(finalStudent))}.gif" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(finalStudent)}.gif'">
+          </div>
           <div>
-            <span class="text-white font-black block">${st.name} ${isMe ? ' <span class="text-[9px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold uppercase">Bạn</span>' : ''}</span>
-            <span class="text-[9px] text-slate-400 font-medium block truncate max-w-[120px] sm:max-w-none">${st.email}</span>
+            <span class="text-white font-black block">${finalStudent.fullName || finalStudent.name || "Học viên vô danh"} ${isMe ? ' <span class="text-[9px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold uppercase">Bạn</span>' : ''}</span>
           </div>
         </div>
       </td>
       <td class="px-5 py-4 text-slate-400 font-semibold">${classNameText}</td>
       <td class="px-5 py-4 text-center">
         <span class="px-2.5 py-1 rounded-xl text-[9px] font-extrabold ${
-          st.level === "Master IC3" ? "bg-purple-500/15 text-purple-300 border border-purple-500/20" :
-          st.level === "Expert" ? "bg-blue-500/15 text-blue-300 border border-blue-500/20" :
-          st.level === "Explorer" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20" :
+          finalStudent.level === "Master IC3" ? "bg-purple-500/15 text-purple-300 border border-purple-500/20" :
+          finalStudent.level === "Expert" ? "bg-blue-500/15 text-blue-300 border border-blue-500/20" :
+          finalStudent.level === "Explorer" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20" :
           "bg-slate-500/15 text-slate-400 border border-slate-500/10"
-        }">${st.level || "Beginner"}</span>
+        }">${finalStudent.level || "Beginner"}</span>
       </td>
-      <td class="px-5 py-4 text-right font-mono text-yellow-400 font-black">${st.exp || 0} EXP</td>
-      <td class="px-5 py-4 text-right font-mono text-amber-500 font-bold">🪙 ${st.coins || 0}</td>
+      <td class="px-5 py-4 text-right font-mono text-yellow-400 font-black">${finalStudent.exp || 0} EXP</td>
+      <td class="px-5 py-4 text-right font-mono text-amber-500 font-bold">💰 ${finalStudent.coins || 0}</td>
     `;
     tableBody.appendChild(tr);
   });
@@ -5163,7 +5409,7 @@ function renderBadges() {
     {
       id: "Coin Tycoon",
       title: "Đại Gia Coin Vàng",
-      desc: "Kiếm được và sở hữu số dư tiền vàng trên 500 Coin vàng 🪙.",
+      desc: "Kiếm được và sở hữu số dư tiền vàng trên 500 Coin vàng 💰.",
       icon: "💎",
       accentColor: "from-yellow-500/20 to-amber-500/20",
       borderColor: "border-yellow-500/30",
@@ -5186,7 +5432,14 @@ function renderBadges() {
 
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
   const level3TestsIds = tests.filter(t => t.level === "level_3").map(t => t.id);
-  const hasIC3Master = myScores.some(s => level3TestsIds.includes(s.testId) && s.score >= 50);
+  const hasIC3Master = myScores.some(s => {
+    if (!level3TestsIds.includes(s.testId)) return false;
+    if (s.correctCount !== undefined && s.totalCount !== undefined) {
+      const wrong = s.totalCount - s.correctCount;
+      return !(wrong >= 5 || s.correctCount < 20);
+    }
+    return s.score >= 50;
+  });
 
   const hasCoinTycoon = currentStudent.coins >= 500;
 
@@ -5282,12 +5535,18 @@ window.renderNavigationPanel = () => {
     if (currentTestMode === "exam") {
       if (examUserAnswers[i] !== undefined && examUserAnswers[i] !== "") {
         isAnswered = true;
+        isCorrect = isAnswerCorrect(q, examUserAnswers[i]);
       }
     } else {
       if (userAnswers[i] !== undefined) {
         isAnswered = true;
         isCorrect = isAnswerCorrect(q, userAnswers[i]);
       }
+    }
+
+    if (isReviewingExam && !isAnswered) {
+      isAnswered = true;
+      isCorrect = false;
     }
     
     if (isAnswered) {
@@ -5319,7 +5578,10 @@ window.renderNavigationPanel = () => {
         // Practice / Review (including Exam Review)
         if (isAnswered) {
           // In exam review, we use isAnswerCorrect helper
-          const ans = currentTestMode === "exam" ? examUserAnswers[i] : userAnswers[i];
+          let ans = currentTestMode === "exam" ? examUserAnswers[i] : userAnswers[i];
+          if (typeof ans === 'string' && (ans.startsWith('[') || ans.startsWith('{'))) {
+            try { ans = JSON.parse(ans); } catch(e) {}
+          }
           const correct = isAnswerCorrect(q, ans);
           if (correct) {
             // Correct: emerald green
@@ -5390,14 +5652,15 @@ function isAnswerCorrect(q, userAnswer) {
     return (userAnswer || "").toString().trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
   } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
     if (!Array.isArray(userAnswer)) return false;
-    return userAnswer.every((val, idx) => val === q.correctAnswers[idx]);
+    return userAnswer.every((val, idx) => val == q.correctAnswers[idx]);
   } else if (type === "hotspot") {
     if (!Array.isArray(userAnswer) || userAnswer.length < (q.requiredCount || 1)) return false;
     let allValid = true;
     userAnswer.forEach(click => {
       let hit = false;
       (q.hotspots || []).forEach(area => {
-        if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
+        const tolerance = 2;
+        if (click.x >= area.x - tolerance && click.x <= area.x + area.w + tolerance && click.y >= area.y - tolerance && click.y <= area.y + area.h + tolerance) hit = true;
       });
       if (!hit) allValid = false;
     });
@@ -5432,7 +5695,7 @@ window.renderStudentDashboard = function() {
       };
     };
   }
-  if (dashName) dashName.textContent = currentStudent.fullName || currentStudent.email;
+  if (dashName) dashName.textContent = currentStudent.fullName || currentStudent.name || "Học viên vô danh";
   
   const currentExp = currentStudent.exp || 0;
   const currentLevel = Math.floor(currentExp / 1000) + 1;
@@ -5580,8 +5843,18 @@ window.renderStudentDashboard = function() {
       };
 
       displayOrder.forEach((scoreEntry) => {
-        const studentInfo = blockStudents.find(s => s.email === scoreEntry.studentEmail) || {};
-        const avatarUrl = studentInfo.avatar || "https://api.dicebear.com/7.x/bottts/svg?seed=default";
+        const foundStudent = blockStudents.find(s => 
+          (s.email && s.email.toLowerCase() === scoreEntry.studentEmail.toLowerCase()) || 
+          (s.id && s.id.toLowerCase() === scoreEntry.studentEmail.toLowerCase())
+        ) || {};
+        
+        const isMeObj = isSameStudent(foundStudent, currentStudent) || 
+                        (scoreEntry.studentEmail && currentStudent.email && scoreEntry.studentEmail.toLowerCase() === currentStudent.email.toLowerCase()) ||
+                        (scoreEntry.studentEmail && currentStudent.id && scoreEntry.studentEmail.toLowerCase() === currentStudent.id.toLowerCase());
+                        
+        const studentInfo = isMeObj ? currentStudent : foundStudent;
+        const correctedPoke = window.validateAndGetCorrectPokemonForm(studentInfo);
+        const avatarUrl = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(correctedPoke)}.gif`;
         
         const rank = leaderboard.findIndex(s => s.studentEmail === scoreEntry.studentEmail) + 1;
         const theme = rankThemes[rank] || rankThemes[3];
@@ -5645,7 +5918,7 @@ window.renderStudentDashboard = function() {
               <div class="relative flex items-center justify-center my-auto z-10 w-full">
                 <!-- Radiant glow behind avatar -->
                 <div class="absolute w-28 h-28 rounded-full bg-gradient-to-r ${theme.pedestal} filter blur-xl opacity-20 animate-pulse"></div>
-                <img src="${avatarUrl}" class="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-[0_0_15px_${theme.avatarShadow}] hover:scale-110 transition-transform duration-300" alt="avatar" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default'">
+                <img src="${avatarUrl}" class="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-[0_0_15px_${theme.avatarShadow}] hover:scale-110 transition-transform duration-300 scale-125" alt="avatar" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${studentInfo.pokemon || 'pikachu'}.gif'">
               </div>
 
               <!-- Golden/Silver/Bronze Emblem right above the nameplate -->
@@ -5661,7 +5934,7 @@ window.renderStudentDashboard = function() {
                 
                 <!-- Player Name -->
                 <div class="text-center font-poppins font-black text-xs md:text-sm tracking-wide truncate ${theme.nameText}">
-                  ${(studentInfo.fullName || studentInfo.email || "CHƯA RÕ").toUpperCase()}
+                  ${(studentInfo.fullName || studentInfo.name || "HỌC VIÊN VÔ DANH").toUpperCase()}
                 </div>
                 
                 <!-- Separator line -->
@@ -5703,7 +5976,16 @@ window.renderStudentDashboard = function() {
   if (tableBody) {
     tableBody.innerHTML = "";
     leaderboard.forEach((scoreEntry, index) => {
-      const studentInfo = blockStudents.find(s => s.email === scoreEntry.studentEmail) || {};
+      const foundStudent = blockStudents.find(s => 
+        (s.email && s.email.toLowerCase() === scoreEntry.studentEmail.toLowerCase()) || 
+        (s.id && s.id.toLowerCase() === scoreEntry.studentEmail.toLowerCase())
+      ) || {};
+      
+      const isMeObj = isSameStudent(foundStudent, currentStudent) || 
+                      (scoreEntry.studentEmail && currentStudent.email && scoreEntry.studentEmail.toLowerCase() === currentStudent.email.toLowerCase()) ||
+                      (scoreEntry.studentEmail && currentStudent.id && scoreEntry.studentEmail.toLowerCase() === currentStudent.id.toLowerCase());
+                      
+      const studentInfo = isMeObj ? currentStudent : foundStudent;
       const testInfo = allTests.find(t => t.id === scoreEntry.testId) || { title: "Không xác định" };
       
       let min = Math.floor(scoreEntry.timeSecs / 60);
@@ -5711,7 +5993,7 @@ window.renderStudentDashboard = function() {
       let timeStr = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
       if (scoreEntry.timeSecs === 999999) timeStr = scoreEntry.timeSpent || "--:--";
 
-      const isMe = scoreEntry.studentEmail === currentStudent.email;
+      const isMe = isMeObj;
 
       const tr = document.createElement("tr");
       
@@ -5762,12 +6044,11 @@ window.renderStudentDashboard = function() {
         <td class="px-4 py-4">
            <div class="flex items-center gap-3">
              <div class="relative">
-               <img src="${studentInfo.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=default'}" class="w-8 h-8 rounded-full bg-[#050811] border-2 ${isMe ? 'border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : index===0 ? 'border-yellow-400' : index===1 ? 'border-slate-300' : index===2 ? 'border-amber-600' : 'border-white/10'} shrink-0 object-contain p-0.5">
+               <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(window.validateAndGetCorrectPokemonForm(studentInfo))}.gif" class="w-8 h-8 rounded-full bg-[#050811] border-2 ${isMe ? 'border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : index===0 ? 'border-yellow-400' : index===1 ? 'border-slate-300' : index===2 ? 'border-amber-600' : 'border-white/10'} shrink-0 object-contain p-0.5 scale-[1.3]" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(studentInfo)}.gif'">
                ${isMe ? '<span class="absolute -top-1 -right-1 flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>' : ''}
              </div>
              <div>
-               <span class="font-poppins font-black text-white block leading-tight">${studentInfo.fullName || studentInfo.email} ${isMe ? ' <span class="text-[8px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-black uppercase ml-1 border border-yellow-500/30">Cá nhân</span>' : ''}</span>
-               <span class="text-[9px] text-slate-500 font-medium font-mono">${studentInfo.email}</span>
+               <span class="font-poppins font-black text-white block leading-tight">${studentInfo.fullName || studentInfo.name || "Học viên vô danh"} ${isMe ? ' <span class="text-[8px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-black uppercase ml-1 border border-yellow-500/30">Cá nhân</span>' : ''}</span>
              </div>
            </div>
         </td>
