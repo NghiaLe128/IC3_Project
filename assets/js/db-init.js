@@ -253,7 +253,7 @@ window.saveData = async (key, data) => {
         const testTitle = test ? test.title : (lastScore.testId || "Bài thi");
         
         console.log(`📊 Intercepted score submission. Attempting automatic sync to Google Sheet...`);
-        window.syncScoreToGoogleSheet(lastScore.score, testTitle).then(res => {
+        window.syncScoreToGoogleSheet(lastScore.score, testTitle, lastScore.correctCount).then(res => {
           if (res && res.success) {
             window.showToast("Đã tự động cập nhật điểm số vào file Google Sheet thành công!");
           } else {

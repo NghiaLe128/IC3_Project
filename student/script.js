@@ -3289,7 +3289,7 @@ function renderGameQuestion() {
   
   // Reset/fetch active answers state
   if (isReviewingExam) {
-    currentSelectedAnswer = userAnswers[activeQuestionIndex];
+    currentSelectedAnswer = currentTestMode === "exam" ? examUserAnswers[activeQuestionIndex] : userAnswers[activeQuestionIndex];
   } else if (currentTestMode === "practice") {
     if (isQuestionAnswered) {
       currentSelectedAnswer = userAnswers[activeQuestionIndex];
@@ -4709,6 +4709,8 @@ function finishTest() {
     studentEmail: currentStudent.email,
     testId: activePlayingTest.id,
     score: score,
+    correctCount: correctAnswersCount,
+    totalCount: totalQ,
     timeSpent: `${pad(minsSpent)}:${pad(secsSpent)}`,
     timeSpentSeconds: spentSecs,
     date: formattedDate,
@@ -4721,12 +4723,14 @@ function finishTest() {
   window.saveData(window.IC3_KEYS.SCORES, scores);
 
   // Render Victory Overlay Screen
-  showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained);
+  showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained, correctAnswersCount, totalQ);
 }
 
-function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained = 0) {
+function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained = 0, correctCount = 0, totalCount = 0) {
   document.getElementById("victory-test-title").innerText = activePlayingTest.title;
-  document.getElementById("victory-score").innerText = `${score}/100`;
+  
+  const displayTotal = totalCount || testQuestions.length;
+  document.getElementById("victory-score").innerText = `${score}/100 (${correctCount}/${displayTotal})`;
   document.getElementById("victory-exp").innerText = `+${expGained} EXP`;
   document.getElementById("victory-coins").innerText = `+${coinsGained} 🪙`;
 
@@ -4916,7 +4920,10 @@ function renderScoresHistory() {
     tr.className = "hover:bg-indigo-950/20 transition-all text-xs";
     tr.innerHTML = `
       <td class="px-5 py-3.5 font-bold text-white max-w-xs truncate">${test.title}</td>
-      <td class="px-5 py-3.5 text-center font-mono font-black text-sm text-yellow-400">${sc.score}/100</td>
+      <td class="px-5 py-3.5 text-center font-mono font-black text-sm text-yellow-400">
+        ${sc.score}/100
+        ${(sc.correctCount !== undefined && sc.totalCount !== undefined) ? `<span class="block text-[10px] text-slate-400 font-bold mt-0.5">(${sc.correctCount}/${sc.totalCount})</span>` : ''}
+      </td>
       <td class="px-5 py-3.5 text-center font-mono text-slate-400"><i class="fa-regular fa-clock mr-1 text-indigo-400"></i>${sc.timeSpent}</td>
       <td class="px-5 py-3.5 text-slate-400">${sc.date}</td>
       <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained} EXP | +${sc.coinsGained} 🪙${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
@@ -5300,7 +5307,7 @@ window.renderNavigationPanel = () => {
       if (isCurrent) {
         // Current question: vibrant indigo background with a pulsing border
         baseClass += "bg-indigo-500/25 border-indigo-500 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)] ring-2 ring-indigo-500/20 ";
-      } else if (currentTestMode === "exam") {
+      } else if (currentTestMode === "exam" && !isReviewingExam) {
         if (isAnswered) {
           // Exam Answered: clean blue filled button
           baseClass += "bg-blue-600 hover:bg-blue-500 border-blue-500 text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)] ";
@@ -5309,17 +5316,20 @@ window.renderNavigationPanel = () => {
           baseClass += "bg-slate-900/60 hover:bg-slate-900/95 hover:border-slate-700 border-slate-800 text-slate-400 ";
         }
       } else {
-        // Practice / Review
+        // Practice / Review (including Exam Review)
         if (isAnswered) {
-          if (isCorrect) {
-            // Practice Correct: emerald green with high legibility
+          // In exam review, we use isAnswerCorrect helper
+          const ans = currentTestMode === "exam" ? examUserAnswers[i] : userAnswers[i];
+          const correct = isAnswerCorrect(q, ans);
+          if (correct) {
+            // Correct: emerald green
             baseClass += "bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500 text-emerald-400 shadow-[0_2px_8px_rgba(16,185,129,0.15)] ";
           } else {
-            // Practice Incorrect: rose red with high legibility
+            // Incorrect: rose red
             baseClass += "bg-rose-500/15 hover:bg-rose-500/25 border-rose-500 text-rose-400 shadow-[0_2px_8px_rgba(244,63,94,0.15)] ";
           }
         } else {
-          // Practice Unanswered: slate hollow button
+          // Unanswered: slate hollow button
           baseClass += "bg-slate-900/60 hover:bg-slate-900/95 hover:border-slate-700 border-slate-800 text-slate-400 ";
         }
       }

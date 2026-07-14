@@ -351,7 +351,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentName, inpu
 /**
  * Automatically Sync Score & Ranking to Google Sheet
  */
-window.syncScoreToGoogleSheet = async (score, testTitle) => {
+window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
   const token = sessionStorage.getItem("google_sheets_token");
   
   try {
@@ -384,30 +384,25 @@ window.syncScoreToGoogleSheet = async (score, testTitle) => {
     if (testCol === -1) return { success: false, message: "Không tìm thấy cột điểm phù hợp" };
   
 
-    // Write score
-    await updateSheetCell(cleanId, sheetName, token, rowIndex, testCol, score);
+    // Write correct count or fallback to score
+    const valueToWrite = (correctCount !== undefined && correctCount !== null) ? correctCount : score;
+    await updateSheetCell(cleanId, sheetName, token, rowIndex, testCol, valueToWrite);
 
     // Calculate XL and Ghi chú
-    // Rule: Nếu 45 câu -> 41+ điểm = A, < 20 điểm = C
-    // Note: Assuming score is out of 100 on the web, but rule says "nếu 45 câu thì tick A nếu đạt 41 điểm trở lên".
-    // Assuming 'score' here is the correct unit. If score is percentage, 41/45 is ~91%. Let's write the raw score.
+    // Rule: Nếu 45 câu -> 41+ câu đúng = A, < 20 câu đúng = C
     const xlCol = findColumnIndex(headers, ["xl", "xếp loại"]);
     const noteCol = findColumnIndex(headers, ["ghi chú"]);
 
     if (xlCol !== -1 && noteCol !== -1) {
        let type = "";
        let note = "";
-       // We'll approximate: 41/45 = 91%, 20/45 = 44%. If test has 100 scale: A if >= 91, C if <= 44.
-       // We'll write logic checking if test column header implies 45 questions e.g. "OT 1 (45)"
        const headerName = headers[testCol];
        if (headerName.includes("(45)")) {
-          // If the LMS passes absolute score or percentage? 
-          // Usually LMS passes percentage. Let's assume it passes the correct point format or we convert.
-          // For simplicity, if score >= 41 -> A, if score <= 20 -> C
-          if (score >= 41 || score >= 91) {
+          const val = (correctCount !== undefined && correctCount !== null) ? correctCount : score;
+          if (val >= 41 || (correctCount === undefined && val >= 91)) {
              type = "A";
              note = "Xuất sắc, cần duy trì phát huy.";
-          } else if (score <= 20 || score <= 44) {
+          } else if (val <= 20 || (correctCount === undefined && val <= 44)) {
              type = "C";
              note = "Cần cố gắng ôn tập nhiều hơn.";
           } else {
