@@ -48,6 +48,7 @@ const IC3_KEYS = {
   REWARDS: "rewards",
   NOTIFICATIONS: "notifications",
   BOSSES: "bosses",
+  SETTINGS: "settings",
   CURRENT_USER: "ic3_current_user"
 };
 window.IC3_KEYS = IC3_KEYS;
@@ -80,7 +81,7 @@ async function initData() {
     IC3_KEYS.USERS, IC3_KEYS.STUDENTS, IC3_KEYS.TEACHERS, 
     IC3_KEYS.CLASSES, IC3_KEYS.QUESTIONS, IC3_KEYS.TESTS, 
     IC3_KEYS.SCORES, IC3_KEYS.REWARDS, IC3_KEYS.NOTIFICATIONS,
-    IC3_KEYS.BOSSES
+    IC3_KEYS.BOSSES, IC3_KEYS.SETTINGS
   ];
 
   try {

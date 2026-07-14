@@ -142,6 +142,21 @@
         "desc": { "type": "string" }
       },
       "required": ["id", "name", "hp", "maxHp"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "System settings and gamification rules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "baseExp": { "type": "number" },
+        "baseCoins": { "type": "number" },
+        "bossHuntLimit": { "type": "number" },
+        "bossRewardExp": { "type": "number" },
+        "bossRewardCoins": { "type": "number" }
+      },
+      "required": ["id"]
     }
   },
   "firestore": {
@@ -154,6 +169,7 @@
     "scores/{scoreId}": { "schema": "Score", "description": "Scores" },
     "rewards/{rewardId}": { "schema": "Reward", "description": "Rewards" },
     "notifications/{notifId}": { "schema": "Notification", "description": "Notifications" },
-    "bosses/{bossId}": { "schema": "Boss", "description": "Bosses" }
+    "bosses/{bossId}": { "schema": "Boss", "description": "Bosses" },
+    "settings/{settingsId}": { "schema": "Settings", "description": "Settings" }
   }
 }

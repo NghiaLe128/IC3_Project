@@ -280,10 +280,18 @@ function renderClassStudentsTable() {
 
   const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
 
+  const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const config = settings.find(s => s.id === "game_config");
+  const limit = config && config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
+  const today = getBossHuntDayKey();
+
   filteredStudents.forEach(std => {
     // Count success tests (>=50)
     const passedCount = scores.filter(sc => sc.studentEmail === std.email && sc.score >= 50).length;
     
+    // Get current daily boss hunt count
+    const huntRecord = (std.bossHunts && std.bossHunts.date === today) ? (std.bossHunts.count || 0) : 0;
+
     let schoolText = "Chưa cập nhật";
     let classText = "Chưa cập nhật";
     if (std.schoolClass) {
@@ -315,12 +323,18 @@ function renderClassStudentsTable() {
       <td class="px-5 py-3.5 font-medium text-indigo-200">${classText}</td>
       <td class="px-5 py-3.5 font-mono text-indigo-300">${std.email}</td>
       <td class="px-5 py-3.5"><span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded font-bold">${std.level || "Beginner"}</span></td>
-      <td class="px-5 py-3.5 font-mono font-bold text-yellow-600">${std.exp} EXP</td>
+      <td class="px-5 py-3.5 font-mono font-bold text-yellow-600">
+        <div>${std.exp} EXP</div>
+        <div class="text-[10px] text-rose-400 font-semibold mt-1">👹 Boss: ${huntRecord}/${limit}</div>
+      </td>
       <td class="px-5 py-3.5 text-center font-bold text-emerald-600">${passedCount} bài đạt</td>
       <td class="px-5 py-3.5 text-right">
-        <div class="flex justify-end gap-1.5">
+        <div class="flex justify-end gap-1.5 flex-wrap sm:flex-nowrap">
           <button onclick="openStudentDetailsModal('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 rounded transition-all cursor-pointer">
             <i class="fa-solid fa-eye"></i> Lịch sử
+          </button>
+          <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/20 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded transition-all cursor-pointer">
+            <i class="fa-solid fa-arrows-rotate"></i> Reset Boss
           </button>
           <button onclick="removeStudentFromClass('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/20 text-red-600 hover:bg-red-100 border border-red-200 rounded transition-all cursor-pointer">
             <i class="fa-solid fa-user-minus"></i> Xóa
@@ -473,6 +487,44 @@ function removeStudentFromClass(email) {
     }
     renderOverview();
     renderClassStudentsTable();
+  }
+}
+
+function getBossHuntDayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
+  const hours = now.getHours();
+
+  let targetDate;
+  if (hours < 6) {
+    // Before 6 AM, it belongs to the previous day
+    targetDate = new Date(year, month, date - 1);
+  } else {
+    targetDate = new Date(year, month, date);
+  }
+
+  const y = targetDate.getFullYear();
+  const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const d = String(targetDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+window.resetBossHunts = function(studentEmail) {
+  if (!confirm(`Bạn có chắc muốn đặt lại (reset) số lượt săn Boss hôm nay của học sinh ${studentEmail} về 0?`)) {
+    return;
+  }
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
+  const stdIdx = students.findIndex(s => s.email === studentEmail);
+  if (stdIdx !== -1) {
+    const today = getBossHuntDayKey();
+    students[stdIdx].bossHunts = { date: today, count: 0 };
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
+    renderClassStudentsTable();
+  } else {
+    window.showToast("Không tìm thấy thông tin tài khoản học sinh!", 'error');
   }
 }
 

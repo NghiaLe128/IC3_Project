@@ -508,6 +508,27 @@ let bossPlayerCurrentHP = 100;
 let bhBossMaxHP = 5000;
 let bhBossCurrentHP = 5000;
 
+function getBossHuntDayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
+  const hours = now.getHours();
+
+  let targetDate;
+  if (hours < 6) {
+    // Before 6 AM, it belongs to the previous day
+    targetDate = new Date(year, month, date - 1);
+  } else {
+    targetDate = new Date(year, month, date);
+  }
+
+  const y = targetDate.getFullYear();
+  const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const d = String(targetDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // RPG Battle States
 let playerMaxHP = 100;
 let playerCurrentHP = 100;
@@ -993,6 +1014,21 @@ function renderBossHuntTab() {
   container.innerHTML = "";
   const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
   
+  // Update UI with current daily boss hunt count and limit
+  const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const config = settings.find(s => s.id === "game_config");
+  const limit = config && config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
+
+  const today = getBossHuntDayKey();
+  if (!currentStudent.bossHunts || currentStudent.bossHunts.date !== today) {
+    currentStudent.bossHunts = { date: today, count: 0 };
+  }
+  const huntRecord = currentStudent.bossHunts.count;
+  const countEl = document.getElementById("player-boss-hunt-count");
+  if (countEl) {
+    countEl.innerText = `${huntRecord}/${limit}`;
+  }
+
   bosses.forEach(boss => {
     const bossCard = document.createElement("div");
     bossCard.className = "bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/50 transition-all cursor-pointer";
@@ -1014,11 +1050,19 @@ async function startBossHunt(bossId) {
   const boss = bosses.find(b => b.id === bossId);
   if (!boss) return;
 
-  // Check 2 hunts/day limit
-  const today = new Date().toISOString().split('T')[0];
-  const huntRecord = JSON.parse(localStorage.getItem(`bossHunt_${currentStudent.email}_${today}`) || "0");
-  if (huntRecord >= 2) {
-    window.showToast("Bạn đã hết lượt săn Boss hôm nay!", 'error');
+  // Retrieve boss hunt limit from settings
+  const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const config = settings.find(s => s.id === "game_config");
+  const limit = config && config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
+
+  // Check hunts/day limit
+  const today = getBossHuntDayKey();
+  if (!currentStudent.bossHunts || currentStudent.bossHunts.date !== today) {
+    currentStudent.bossHunts = { date: today, count: 0 };
+  }
+  const huntRecord = currentStudent.bossHunts.count;
+  if (huntRecord >= limit) {
+    window.showToast(`Bạn đã hết lượt săn Boss hôm nay! (Tối đa ${limit} lượt/ngày)`, 'error');
     return;
   }
 
@@ -1096,7 +1140,7 @@ async function startBossHunt(bossId) {
   document.getElementById("boss-battle-scene-player-hp-bar").style.width = "100%";
 
   // Start timer
-  bossRemainingSeconds = 300; // 5 minutes for boss hunt
+  bossRemainingSeconds = 60; // 5 minutes for boss hunt
   runBossTimer();
 
   // Initial render
@@ -1114,10 +1158,10 @@ function runBossTimer() {
     if (bossRemainingSeconds <= 0) {
       clearInterval(bossTestTimerInterval);
       Swal.fire({
-        title: 'THẤT BẠI!',
-        text: 'Bạn đã hết thời gian săn Boss. Lần sau hãy nhanh tay hơn nhé!',
+        title: 'HẾT GIỜ! ⏰',
+        text: 'Thời gian săn Boss đã kết thúc nhưng bạn vẫn chưa hạ gục được Boss. Hãy cố gắng nhanh tay và chính xác hơn ở lượt sau nhé!',
         icon: 'error',
-        confirmButtonText: 'Rút lui',
+        confirmButtonText: 'Quay lại màn hình Boss',
         confirmButtonColor: '#dc2626',
         background: '#0f172a',
         color: '#fff'
@@ -1167,6 +1211,23 @@ function confirmExitBossHuntDirectly() {
       bosses[bIdx].hp = bhBossCurrentHP;
       window.saveData(window.IC3_KEYS.BOSSES, bosses);
     }
+  }
+
+  // Update hunt record for today if the match was in progress
+  if (bossActivePlayingTest && currentStudent && currentStudent.email) {
+    const today = getBossHuntDayKey();
+    if (!currentStudent.bossHunts || currentStudent.bossHunts.date !== today) {
+      currentStudent.bossHunts = { date: today, count: 1 };
+    } else {
+      currentStudent.bossHunts.count = (currentStudent.bossHunts.count || 0) + 1;
+    }
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+    const idx = students.findIndex(s => s.email === currentStudent.email);
+    if (idx !== -1) {
+      students[idx] = currentStudent;
+      window.saveData(window.IC3_KEYS.STUDENTS, students);
+    }
+    window.showToast("Trận chiến kết thúc! Một lượt săn Boss hôm nay đã được tính.", "info");
   }
 
   // Hide screens
@@ -1893,12 +1954,39 @@ function finishBossHunt() {
   document.getElementById("boss-hunting-screen").classList.add("hidden");
   exitAntiCheatMode();
   
-  // Calculate rewards based on performance
-  const coins = bossCorrectAnswersCount * 10;
-  const exp = bossCorrectAnswersCount * 50;
+  // Retrieve settings config for rewards
+  const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const config = settings.find(s => s.id === "game_config");
+
+  const baseExp = config && config.baseExp !== undefined ? config.baseExp : 25;
+  const baseCoins = config && config.baseCoins !== undefined ? config.baseCoins : 10;
+  const bossRewardExp = config && config.bossRewardExp !== undefined ? config.bossRewardExp : 300;
+  const bossRewardCoins = config && config.bossRewardCoins !== undefined ? config.bossRewardCoins : 100;
+
+  // Question rewards
+  let coins = bossCorrectAnswersCount * baseCoins;
+  let exp = bossCorrectAnswersCount * baseExp;
+
+  // Boss defeat victory lump sum
+  let message = "";
+  if (bhBossCurrentHP === 0) {
+    coins += bossRewardCoins;
+    exp += bossRewardExp;
+    message = `BẠN ĐÃ TIÊU DIỆT BOSS! Nhận thêm thưởng hạ gục: +${bossRewardCoins} Coins và +${bossRewardExp} EXP. Tổng cộng: ${coins} Coins và ${exp} EXP!`;
+  } else {
+    message = `Trận chiến kết thúc! Nhận được ${coins} Coins và ${exp} EXP từ số câu đúng.`;
+  }
   
   currentStudent.coins += coins;
   currentStudent.exp += exp;
+
+  // Update hunt record for today
+  const today = getBossHuntDayKey();
+  if (!currentStudent.bossHunts || currentStudent.bossHunts.date !== today) {
+    currentStudent.bossHunts = { date: today, count: 1 };
+  } else {
+    currentStudent.bossHunts.count = (currentStudent.bossHunts.count || 0) + 1;
+  }
   
   // Save Student
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -1907,11 +1995,6 @@ function finishBossHunt() {
     students[idx] = currentStudent;
     window.saveData(window.IC3_KEYS.STUDENTS, students);
   }
-
-  // Update hunt record for today
-  const today = new Date().toISOString().split('T')[0];
-  const huntRecord = JSON.parse(localStorage.getItem(`bossHunt_${currentStudent.email}_${today}`) || "0");
-  localStorage.setItem(`bossHunt_${currentStudent.email}_${today}`, JSON.stringify(huntRecord + 1));
 
   // Save Boss persistent HP
   if (bossActivePlayingTest && bossActivePlayingTest.bossId) {
@@ -1923,7 +2006,8 @@ function finishBossHunt() {
     }
   }
 
-  window.showToast(`Săn Boss hoàn tất! Nhận được ${coins} Coins và ${exp} EXP.`, 'success');
+  window.showToast(message, 'success');
+  bossActivePlayingTest = null;
   loadStudentProfile();
   renderBattleArena();
   renderBossHuntTab();

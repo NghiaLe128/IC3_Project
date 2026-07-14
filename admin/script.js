@@ -22,6 +22,7 @@ function startAdminApp() {
   document.getElementById("questionForm").addEventListener("submit", handleQuestionSubmit);
   document.getElementById("testForm").addEventListener("submit", handleTestSubmit);
   document.getElementById("rewardForm").addEventListener("submit", handleRewardSubmit);
+  document.getElementById("bossForm").addEventListener("submit", handleBossSubmit);
 }
 
 // 1. Auth check
@@ -80,6 +81,7 @@ function switchTab(tabId) {
     tests: "Quản lý đề kiểm tra & Thử thách",
     ranking: "Bảng xếp hạng tổng năng lực học sinh",
     rewards: "Hệ thống quà tặng quy đổi Coins",
+    bosses: "Quản lý Boss Săn Lùng",
     settings: "Cài đặt & Cấu hình game"
   };
   document.getElementById("currentTabTitle").innerText = titles[tabId] || "Trang quản trị";
@@ -95,6 +97,8 @@ function switchTab(tabId) {
   else if (tabId === "tests") renderTestsGrid();
   else if (tabId === "ranking") renderRankingList();
   else if (tabId === "rewards") renderRewardsGrid();
+  else if (tabId === "bosses") renderBossesGrid();
+  else if (tabId === "settings") renderAdminSettings();
 }
 
 // 4. Dashboard Data rendering
@@ -230,12 +234,20 @@ function renderStudentsTable() {
     return;
   }
 
+  const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const config = settings.find(s => s.id === "game_config");
+  const limit = config && config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
+  const today = getBossHuntDayKey();
+
   filtered.forEach(std => {
     const cls = classes.find(c => c.id === std.classId) || { name: "Chưa phân lớp" };
     
     // Count successful test results (score >= 50)
     const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
     const passedCount = scores.filter(s => s.studentEmail === std.email && s.score >= 50).length;
+
+    // Get current daily boss hunt count
+    const huntRecord = (std.bossHunts && std.bossHunts.date === today) ? (std.bossHunts.count || 0) : 0;
 
     const tr = document.createElement("tr");
     tr.className = "hover:bg-slate-800/30 transition-all";
@@ -263,12 +275,14 @@ function renderStudentsTable() {
         <div class="flex flex-col font-mono text-xs">
           <span class="text-yellow-400 font-bold">${std.exp} EXP</span>
           <span class="text-indigo-300 font-medium">🪙 ${std.coins} Coins</span>
+          <span class="text-rose-400 font-semibold mt-1">👹 Săn Boss: ${huntRecord}/${limit}</span>
         </div>
       </td>
       <td class="px-5 py-4 text-center font-bold text-xs text-emerald-400">${passedCount} bài đạt</td>
-      <td class="px-5 py-4 text-right space-x-1.5">
-        <button onclick="editStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded transition-all"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
-        <button onclick="deleteStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-all"><i class="fa-solid fa-trash-can"></i> Xóa</button>
+      <td class="px-5 py-4 text-right space-x-1.5 space-y-1.5 sm:space-y-0">
+        <button onclick="editStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
+        <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-arrows-rotate"></i> Reset Boss</button>
+        <button onclick="deleteStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-trash-can"></i> Xóa</button>
       </td>
     `;
     tableBody.appendChild(tr);
@@ -403,6 +417,44 @@ function deleteStudent(email) {
     window.saveData(window.IC3_KEYS.SCORES, scores);
 
     renderStudentsTable();
+  }
+}
+
+function getBossHuntDayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
+  const hours = now.getHours();
+
+  let targetDate;
+  if (hours < 6) {
+    // Before 6 AM, it belongs to the previous day
+    targetDate = new Date(year, month, date - 1);
+  } else {
+    targetDate = new Date(year, month, date);
+  }
+
+  const y = targetDate.getFullYear();
+  const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const d = String(targetDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+window.resetBossHunts = function(studentEmail) {
+  if (!confirm(`Bạn có chắc muốn đặt lại (reset) số lượt săn Boss hôm nay của học sinh ${studentEmail} về 0?`)) {
+    return;
+  }
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const stdIdx = students.findIndex(s => s.email === studentEmail);
+  if (stdIdx !== -1) {
+    const today = getBossHuntDayKey();
+    students[stdIdx].bossHunts = { date: today, count: 0 };
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
+    renderStudentsTable();
+  } else {
+    window.showToast("Không tìm thấy thông tin tài khoản học sinh!", 'error');
   }
 }
 
@@ -953,6 +1005,187 @@ function resetDatabaseToDefault() {
   }
 }
 
+function renderAdminSettings() {
+  const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const config = settings.find(s => s.id === "game_config");
+
+  if (config) {
+    document.getElementById("settingsSchoolName").value = config.schoolName || "Trường THCS Sparks Academy";
+    document.getElementById("settingsBaseExp").value = config.baseExp !== undefined ? config.baseExp : 25;
+    document.getElementById("settingsBaseCoins").value = config.baseCoins !== undefined ? config.baseCoins : 10;
+    document.getElementById("settingsBossHuntLimit").value = config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
+    document.getElementById("settingsBossRewardExp").value = config.bossRewardExp !== undefined ? config.bossRewardExp : 300;
+    document.getElementById("settingsBossRewardCoins").value = config.bossRewardCoins !== undefined ? config.bossRewardCoins : 100;
+  } else {
+    document.getElementById("settingsSchoolName").value = "Trường THCS Sparks Academy";
+    document.getElementById("settingsBaseExp").value = 25;
+    document.getElementById("settingsBaseCoins").value = 10;
+    document.getElementById("settingsBossHuntLimit").value = 2;
+    document.getElementById("settingsBossRewardExp").value = 300;
+    document.getElementById("settingsBossRewardCoins").value = 100;
+  }
+}
+
 function saveAdminSettings() {
+  const schoolName = document.getElementById("settingsSchoolName").value;
+  const baseExp = parseInt(document.getElementById("settingsBaseExp").value) || 25;
+  const baseCoins = parseInt(document.getElementById("settingsBaseCoins").value) || 10;
+  const bossHuntLimit = parseInt(document.getElementById("settingsBossHuntLimit").value) || 2;
+  const bossRewardExp = parseInt(document.getElementById("settingsBossRewardExp").value) || 300;
+  const bossRewardCoins = parseInt(document.getElementById("settingsBossRewardCoins").value) || 100;
+
+  const configObj = {
+    id: "game_config",
+    schoolName: schoolName,
+    baseExp: baseExp,
+    baseCoins: baseCoins,
+    bossHuntLimit: bossHuntLimit,
+    bossRewardExp: bossRewardExp,
+    bossRewardCoins: bossRewardCoins
+  };
+
+  // Update in cache
+  let settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
+  const idx = settings.findIndex(s => s.id === "game_config");
+  if (idx !== -1) {
+    settings[idx] = configObj;
+  } else {
+    settings.push(configObj);
+  }
+
+  window.saveData(window.IC3_KEYS.SETTINGS, settings);
   window.showToast("Đã lưu các cài đặt cấu hình game hóa và mức thưởng EXP/Coins thành công!");
+}
+
+// ==================== BOSS MANAGEMENT OPERATIONS ====================
+function renderBossesGrid() {
+  const container = document.getElementById("admin-bosses-grid");
+  if (!container) return;
+
+  container.innerHTML = "";
+  let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+
+  if (bosses.length === 0) {
+    // Seed default bosses
+    const defaultBosses = [
+      { id: "boss_1", name: "Thần Cây Dữ Liệu 🌳", hp: 500, maxHp: 500, avatar: "🌳", desc: "Đối thủ tin học căn bản đầu tiên thách thức kỹ năng cấu trúc thư mục của bạn." },
+      { id: "boss_2", name: "Người Máy Siêu Việt 🤖", hp: 800, maxHp: 800, avatar: "🤖", desc: "Thách thức các ứng dụng văn phòng Microsoft Word & Excel đỉnh cao." },
+      { id: "boss_3", name: "Rồng Hỏa Ngục An Ninh 👾", hp: 1200, maxHp: 1200, avatar: "👾", desc: "Ngự trị vùng đất bảo mật thông tin và an toàn không gian mạng." },
+      { id: "boss_4", name: "Phù Thủy Thuật Toán 🔮", hp: 1500, maxHp: 1500, avatar: "🔮", desc: "Sở hữu ma thuật giải thuật toán tin học đỉnh cao." }
+    ];
+    window.saveData(window.IC3_KEYS.BOSSES, defaultBosses);
+    window.IC3_CACHE[window.IC3_KEYS.BOSSES] = defaultBosses;
+    bosses = defaultBosses;
+  }
+
+  bosses.forEach(boss => {
+    const card = document.createElement("div");
+    card.className = "bg-slate-950 border border-indigo-950/50 p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-lg hover:border-red-500/30 transition-all";
+    
+    // Check if avatar is an emoji or link
+    const isEmoji = !boss.avatar.startsWith("http");
+    const avatarHtml = isEmoji 
+      ? `<span class="text-5xl select-none">${boss.avatar}</span>`
+      : `<img src="${boss.avatar}" alt="${boss.name}" class="w-16 h-16 rounded-xl object-contain shadow-md" referrerPolicy="no-referrer" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">`;
+
+    card.innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+          ${avatarHtml}
+        </div>
+        <div class="min-w-0">
+          <h4 class="font-poppins font-bold text-sm text-white truncate">${boss.name}</h4>
+          <span class="inline-block px-2 py-0.5 mt-1 bg-red-950/50 border border-red-900/30 text-red-400 text-[10px] font-bold rounded-full">
+            HP: ${boss.hp}/${boss.maxHp}
+          </span>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-400 leading-relaxed min-h-[3rem]">${boss.desc || "Không có mô tả."}</p>
+      <div class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-900">
+        <button onclick="openBossModal('${boss.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1">
+          <i class="fa-solid fa-pen-to-square"></i> Sửa
+        </button>
+        <button onclick="deleteBoss('${boss.id}')" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[11px] font-bold border border-red-500/20 rounded-lg transition-all flex items-center justify-center gap-1">
+          <i class="fa-solid fa-trash"></i> Xóa
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function openBossModal(id = null) {
+  const modal = document.getElementById("bossModal");
+  if (!modal) return;
+
+  const form = document.getElementById("bossForm");
+  form.reset();
+
+  const titleEl = document.getElementById("bossModalTitle");
+
+  if (id) {
+    // Edit mode
+    titleEl.innerText = "Cập nhật thông tin Boss";
+    const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+    const boss = bosses.find(b => b.id === id);
+    if (boss) {
+      document.getElementById("bossIdInput").value = boss.id;
+      document.getElementById("bossNameInput").value = boss.name;
+      document.getElementById("bossMaxHpInput").value = boss.maxHp;
+      document.getElementById("bossHpInput").value = boss.hp;
+      document.getElementById("bossAvatarInput").value = boss.avatar;
+      document.getElementById("bossDescInput").value = boss.desc || "";
+    }
+  } else {
+    // Add mode
+    titleEl.innerText = "Thêm Boss Săn Lùng mới";
+    document.getElementById("bossIdInput").value = "";
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function closeBossModal() {
+  const modal = document.getElementById("bossModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function handleBossSubmit(e) {
+  e.preventDefault();
+  
+  const id = document.getElementById("bossIdInput").value;
+  const name = document.getElementById("bossNameInput").value;
+  const maxHp = parseInt(document.getElementById("bossMaxHpInput").value) || 500;
+  const hp = parseInt(document.getElementById("bossHpInput").value) || maxHp;
+  const avatar = document.getElementById("bossAvatarInput").value;
+  const desc = document.getElementById("bossDescInput").value;
+
+  let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+
+  if (id) {
+    // Edit
+    const bIdx = bosses.findIndex(b => b.id === id);
+    if (bIdx !== -1) {
+      bosses[bIdx] = { id, name, maxHp, hp, avatar, desc };
+    }
+  } else {
+    // Add
+    const newId = `boss_${Date.now()}`;
+    bosses.push({ id: newId, name, maxHp, hp, avatar, desc });
+  }
+
+  window.saveData(window.IC3_KEYS.BOSSES, bosses);
+  closeBossModal();
+  renderBossesGrid();
+  window.showToast("Cập nhật thông tin Boss thành công!", "success");
+}
+
+function deleteBoss(id) {
+  if (confirm("Bạn có chắc chắn muốn xóa Boss này không?")) {
+    let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+    bosses = bosses.filter(b => b.id !== id);
+    window.saveData(window.IC3_KEYS.BOSSES, bosses);
+    renderBossesGrid();
+    window.showToast("Đã xóa Boss thành công!", "success");
+  }
 }
