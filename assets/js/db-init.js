@@ -4,7 +4,7 @@
  */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, arrayUnion, arrayRemove, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 
 // Helper to safely get env variables with fallback
@@ -34,7 +34,7 @@ const auth = getAuth(app);
 // Expose Firebase services and methods to window for global access
 window.db = db;
 window.auth = auth;
-window.fStore = { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, arrayUnion, arrayRemove };
+window.fStore = { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, arrayUnion, arrayRemove, onSnapshot };
 window.fAuth = { signInWithEmailAndPassword, signOut, onAuthStateChanged };
 
 const IC3_KEYS = {
@@ -103,6 +103,60 @@ async function initData() {
   } finally {
     // Dispatch event so scripts know DB is ready (even if some collections failed)
     window.dispatchEvent(new CustomEvent('ic3-db-ready'));
+    
+    // Start session monitor after DB is initialized
+    startSessionMonitor();
+  }
+}
+
+// Session monitor to prevent multiple concurrent logins
+function startSessionMonitor() {
+  const userStr = localStorage.getItem(IC3_KEYS.CURRENT_USER);
+  if (!userStr) return;
+  
+  try {
+    const localUser = JSON.parse(userStr);
+    if (!localUser || !localUser.email || !localUser.currentSessionToken) return;
+    
+    const userDocRef = doc(db, IC3_KEYS.USERS, localUser.email);
+    
+    // Subscribe to real-time changes
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const cloudUser = docSnap.data();
+        
+        // If forceLogout is true, or currentSessionToken has changed / is cleared
+        if (cloudUser.forceLogout === true || (cloudUser.currentSessionToken && cloudUser.currentSessionToken !== localUser.currentSessionToken)) {
+          console.log("🚨 Concurrent session or force logout detected! Logging out...");
+          unsubscribe(); // stop listening
+          
+          // Reset cloud status so user can log in again cleanly next time
+          updateDoc(userDocRef, {
+            currentSessionToken: "",
+            forceLogout: false
+          }).catch(err => console.error("Error resetting session state on force logout:", err));
+          
+          // Clear local storage
+          localStorage.removeItem(IC3_KEYS.CURRENT_USER);
+          
+          // Show alert and redirect
+          alert("Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!");
+          window.location.href = "/index.html";
+        }
+      } else {
+        // User doc deleted from DB
+        unsubscribe();
+        localStorage.removeItem(IC3_KEYS.CURRENT_USER);
+        window.location.href = "/index.html";
+      }
+    }, (error) => {
+      console.error("Session monitor error:", error);
+    });
+    
+    // Save unsubscribe function globally if needed
+    window.unsubscribeSessionMonitor = unsubscribe;
+  } catch (e) {
+    console.error("Error starting session monitor:", e);
   }
 }
 
@@ -116,7 +170,34 @@ window.loginUser = async (email, password) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       if (userData.password === password) {
+        // Generate a unique session token
+        const newSessionToken = Math.random().toString(36).substring(2) + Date.now();
+        
+        // If there is an active session token, force-logout all sessions
+        if (userData.currentSessionToken) {
+          await updateDoc(userDocRef, {
+            currentSessionToken: "",
+            forceLogout: true
+          });
+          
+          return {
+            success: false,
+            message: "Phát hiện tài khoản đang được đăng nhập ở thiết bị khác! Hệ thống đã đăng xuất tài khoản trên tất cả thiết bị để bảo mật. Vui lòng đăng nhập lại!"
+          };
+        }
+        
+        // No concurrent login, proceed normally
+        await updateDoc(userDocRef, {
+          currentSessionToken: newSessionToken,
+          forceLogout: false
+        });
+        
+        userData.currentSessionToken = newSessionToken;
         localStorage.setItem(IC3_KEYS.CURRENT_USER, JSON.stringify(userData));
+        
+        // Start monitoring this session
+        startSessionMonitor();
+        
         return { success: true, user: userData };
       } else {
         return { success: false, message: "Mật khẩu không chính xác!" };
@@ -129,7 +210,29 @@ window.loginUser = async (email, password) => {
   }
 };
 
-window.logoutUser = () => {
+window.logoutUser = async () => {
+  try {
+    const userStr = localStorage.getItem(IC3_KEYS.CURRENT_USER);
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user && user.email) {
+        const userDocRef = doc(db, IC3_KEYS.USERS, user.email);
+        await updateDoc(userDocRef, {
+          currentSessionToken: "",
+          forceLogout: false
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Error clearing session on logout:", e);
+  }
+  
+  if (window.unsubscribeSessionMonitor) {
+    try {
+      window.unsubscribeSessionMonitor();
+    } catch (e) {}
+  }
+  
   localStorage.removeItem(IC3_KEYS.CURRENT_USER);
   window.location.href = "/index.html";
 };
