@@ -121,7 +121,10 @@
 
       <!-- Right Side: Login Form -->
       <div class="w-full lg:w-5/12">
-        <div class="glassmorphism p-8 rounded-3xl shadow-2xl relative">
+        <div class="glassmorphism rounded-3xl shadow-2xl relative overflow-hidden">
+          <div id="loginSlider" class="flex w-[200%] transition-transform duration-500 ease-in-out" style="transform: translateX(0%);">
+            <!-- View 1: Main Login -->
+            <div class="w-1/2 flex-shrink-0 p-8 relative">
           
           <!-- Decorative Glows -->
           <div class="absolute -top-10 -right-10 w-40 h-40 bg-purple-600/20 rounded-full blur-3xl -z-10"></div>
@@ -166,6 +169,15 @@
             </button>
           </form>
 
+          <!-- Google Student Login Button -->
+          <div class="mt-6 pt-6 border-t border-slate-700/50">
+            <button type="button" id="googleStudentBtn"
+              class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 hover:border-emerald-400/60 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-100 font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 transform hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+              <i class="fa-solid fa-file-excel text-emerald-400 text-xl"></i>
+              <span>Đăng nhập bằng Google Sheet</span>
+            </button>
+          </div>
+
           <!-- Quick Access Demo Buttons -->
           <div class="mt-8 pt-6 border-t border-slate-800 hidden">
             <h3 class="text-xs font-semibold text-gray-400 tracking-wider uppercase text-center mb-4">Trải nghiệm nhanh với tài khoản Demo</h3>
@@ -203,6 +215,80 @@
 
             </div>
           </div>
+
+            </div> <!-- End View 1 -->
+
+            <!-- View 2: Sheet Login Form -->
+            <div class="w-1/2 flex-shrink-0 p-8 relative flex flex-col">
+              <button type="button" onclick="document.getElementById('loginSlider').style.transform = 'translateX(0%)'" 
+                class="absolute top-8 left-8 w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 hover:bg-slate-700/50 text-indigo-300 hover:text-indigo-100 transition-all cursor-pointer">
+                <i class="fa-solid fa-arrow-left"></i>
+              </button>
+              
+              <div class="text-center mb-6 mt-4">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl mx-auto mb-3">
+                  📊
+                </div>
+                <h3 class="font-poppins font-black text-xl text-white">Lớp học Sheet</h3>
+                <p class="text-xs text-indigo-300 mt-1">Vui lòng chọn thông tin của bạn</p>
+                <p id="googleUserEmailDisplay" class="hidden text-xs text-indigo-300 mt-1">user@gmail.com</p>
+              </div>
+
+              <form id="googleSheetLoginForm" class="space-y-4">
+                <!-- School Dropdown -->
+                <div>
+                  <label class="block text-xs font-bold text-indigo-300 uppercase mb-1.5">Chọn Trường học</label>
+                  <select id="sheetSchoolSelect" required onchange="onSheetSchoolChange()"
+                    class="w-full bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm">
+                    <option value="">-- Chọn trường học --</option>
+                  </select>
+                </div>
+
+                <!-- Class Dropdown -->
+                <div>
+                  <label class="block text-xs font-bold text-indigo-300 uppercase mb-1.5">Chọn Lớp học</label>
+                  <select id="sheetClassSelect" required onchange="onSheetClassChange()"
+                    class="w-full bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm">
+                    <option value="">-- Chọn lớp học --</option>
+                  </select>
+                </div>
+
+                <!-- Student Name Dropdown -->
+                <div>
+                  <label class="block text-xs font-bold text-indigo-300 uppercase mb-1.5">Học sinh (Tên học sinh)</label>
+                  <select id="sheetStudentSelect" required
+                    class="w-full bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm">
+                    <option value="">-- Chọn học sinh --</option>
+                  </select>
+                </div>
+
+                <!-- Password input -->
+                <div>
+                  <label class="block text-xs font-bold text-indigo-300 uppercase mb-1.5">Mật khẩu học sinh</label>
+                  <div class="relative">
+                    <input type="password" id="sheetPassword" required placeholder="Nhập mật khẩu do Giáo viên cấp"
+                      class="w-full bg-slate-900/80 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm">
+                    <button type="button" onclick="toggleSheetPassword()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                      <i id="sheetEyeIcon" class="fa-regular fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Error container -->
+                <div id="sheetLoginError" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                  <i class="fa-solid fa-circle-exclamation shrink-0"></i>
+                  <span id="sheetLoginErrorMessage">Mật khẩu không chính xác!</span>
+                </div>
+
+                <div class="pt-2">
+                  <button type="submit" id="sheetSubmitBtn"
+                    class="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-bold shadow-lg shadow-indigo-500/25 transform hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Xác nhận Đăng nhập <i class="fa-solid fa-arrow-right ml-1"></i>
+                  </button>
+                </div>
+              </form>
+            </div> <!-- End View 2 -->
+          </div> <!-- End sliderWrapper -->
 
         </div>
       </div>
@@ -298,6 +384,12 @@
               document.getElementById('errorMessage').innerText = result.message;
               submitBtn.disabled = false;
               submitBtn.innerHTML = originalBtnText;
+              
+              if (result.isConcurrent) {
+                // Clear login info completely as requested
+                document.getElementById('email').value = "";
+                document.getElementById('password').value = "";
+              }
             }
           } catch (err) {
             errorBox.classList.remove('hidden');
@@ -340,6 +432,11 @@
           document.getElementById('errorMessage').innerText = result.message;
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalBtnText;
+          
+          if (result.isConcurrent) {
+            document.getElementById('email').value = "";
+            document.getElementById('password').value = "";
+          }
         }
       };
 
@@ -353,6 +450,180 @@
           window.location.href = './student/index.html';
         }
       }
+
+      // Google Sheet Student Login UI & Cascade Logic
+      let cachedGoogleUser = null;
+      let cachedSheetStudents = [];
+
+      window.closeGoogleSheetModal = function() {
+        document.getElementById('loginSlider').style.transform = 'translateX(0%)';
+      };
+
+      window.toggleSheetPassword = function() {
+        const passwordInput = document.getElementById('sheetPassword');
+        const eyeIcon = document.getElementById('sheetEyeIcon');
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          eyeIcon.className = 'fa-regular fa-eye-slash';
+        } else {
+          passwordInput.type = 'password';
+          eyeIcon.className = 'fa-regular fa-eye';
+        }
+      };
+
+      window.onSheetSchoolChange = function() {
+        const school = document.getElementById('sheetSchoolSelect').value;
+        const classSelect = document.getElementById('sheetClassSelect');
+        const studentSelect = document.getElementById('sheetStudentSelect');
+        
+        classSelect.innerHTML = '<option value="">-- Chọn lớp học --</option>';
+        studentSelect.innerHTML = '<option value="">-- Chọn học sinh --</option>';
+
+        if (!school) return;
+
+        const classes = [...new Set(cachedSheetStudents
+          .filter(s => s.school.toLowerCase() === school.toLowerCase())
+          .map(s => s.className)
+        )].sort();
+
+        classes.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.innerText = c;
+          classSelect.appendChild(opt);
+        });
+      };
+
+      window.onSheetClassChange = function() {
+        const school = document.getElementById('sheetSchoolSelect').value;
+        const className = document.getElementById('sheetClassSelect').value;
+        const studentSelect = document.getElementById('sheetStudentSelect');
+
+        studentSelect.innerHTML = '<option value="">-- Chọn học sinh --</option>';
+
+        if (!school || !className) return;
+
+        const students = cachedSheetStudents
+          .filter(s => s.school.toLowerCase() === school.toLowerCase() && s.className.toLowerCase() === className.toLowerCase())
+          .map(s => s.name)
+          .sort();
+
+        students.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.innerText = s;
+          studentSelect.appendChild(opt);
+        });
+      };
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const googleStudentBtn = document.getElementById('googleStudentBtn');
+        if (!googleStudentBtn) return;
+
+        googleStudentBtn.addEventListener('click', async () => {
+          const originalBtnContent = googleStudentBtn.innerHTML;
+          googleStudentBtn.disabled = true;
+          googleStudentBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu...';
+
+          try {
+            if (!window.googleSignInStudent) {
+              throw new Error("Google Sheets module chưa sẵn sàng. Vui lòng thử lại sau giây lát!");
+            }
+
+            // 1. Fetch sheet config
+            const config = await window.getGoogleSheetsConfig();
+            if (!config || !config.spreadsheetId) {
+              throw new Error("Chưa cấu hình Google Sheet từ phía Giáo viên! Vui lòng báo Giáo viên liên kết bảng tính trước.");
+            }
+            
+            // Generate a synthetic user since we skip Google login
+            cachedGoogleUser = { email: "student_" + Date.now() + "@sheet.local" };
+
+            // 3. Load students list
+            const studentSheetName = config.studentSheetName || "Học sinh";
+            cachedSheetStudents = await window.fetchGoogleSheetData(config.spreadsheetId, studentSheetName);
+
+            // 4. Populate School Select
+            const schoolSelect = document.getElementById('sheetSchoolSelect');
+            schoolSelect.innerHTML = '<option value="">-- Chọn trường học --</option>';
+            
+            const schools = [...new Set(cachedSheetStudents.map(s => s.school))].sort();
+            schools.forEach(sch => {
+              const opt = document.createElement('option');
+              opt.value = sch;
+              opt.innerText = sch;
+              schoolSelect.appendChild(opt);
+            });
+
+            // 5. Present form
+            document.getElementById('googleUserEmailDisplay').innerText = cachedGoogleUser.email;
+            document.getElementById('sheetLoginError').classList.add('hidden');
+            document.getElementById('sheetPassword').value = '';
+            document.getElementById('loginSlider').style.transform = 'translateX(-50%)';
+
+          } catch (err) {
+            alert(err.message);
+          } finally {
+            googleStudentBtn.disabled = false;
+            googleStudentBtn.innerHTML = originalBtnContent;
+          }
+        });
+
+        const googleSheetLoginForm = document.getElementById('googleSheetLoginForm');
+        if (googleSheetLoginForm) {
+          googleSheetLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const school = document.getElementById('sheetSchoolSelect').value;
+            const className = document.getElementById('sheetClassSelect').value;
+            const studentName = document.getElementById('sheetStudentSelect').value;
+            const password = document.getElementById('sheetPassword').value;
+            const sheetSubmitBtn = document.getElementById('sheetSubmitBtn');
+            const errorBox = document.getElementById('sheetLoginError');
+            const errorMessage = document.getElementById('sheetLoginErrorMessage');
+
+            errorBox.classList.add('hidden');
+            const originalText = sheetSubmitBtn.innerHTML;
+            sheetSubmitBtn.disabled = true;
+            sheetSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang xác thực...';
+
+            try {
+              const res = await window.loginStudentWithGoogleSheet(
+                school,
+                className,
+                studentName,
+                password,
+                cachedGoogleUser,
+                cachedSheetStudents
+              );
+
+              if (res.success) {
+                document.getElementById('loginSlider').style.transform = 'translateX(0%)';
+                
+                const mainSuccessBox = document.getElementById('successBox');
+                if (mainSuccessBox) {
+                  mainSuccessBox.classList.remove('hidden');
+                  document.getElementById('successMessage').innerText = `Chào mừng ${studentName}! Đang chuyển hướng...`;
+                }
+
+                setTimeout(() => {
+                  window.location.href = './student/index.html';
+                }, 1000);
+              } else {
+                errorBox.classList.remove('hidden');
+                errorMessage.innerText = res.message;
+                sheetSubmitBtn.disabled = false;
+                sheetSubmitBtn.innerHTML = originalText;
+              }
+            } catch (err) {
+              errorBox.classList.remove('hidden');
+              errorMessage.innerText = "Lỗi xác thực: " + err.message;
+              sheetSubmitBtn.disabled = false;
+              sheetSubmitBtn.innerHTML = originalText;
+            }
+          });
+        }
+      });
     </script>
-  </body>
+
+      </body>
 </html>

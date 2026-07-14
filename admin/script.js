@@ -54,7 +54,6 @@ function initClock() {
 // Logout
 function logoutAdmin() {
   window.logoutUser();
-  window.location.href = "../index.html";
 }
 
 // 3. Tab Switching Navigation
@@ -403,21 +402,36 @@ function editStudent(email) {
 }
 
 function deleteStudent(email) {
-  if (confirm(`Bạn có chắc chắn muốn xóa học sinh ${email} và mọi lịch sử liên quan?`)) {
-    let students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
-    let users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
-    let scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
+  window.showConfirmModal(
+    "Xác nhận xóa học sinh",
+    `Bạn có chắc chắn muốn xóa học sinh ${email} và mọi lịch sử liên quan?`,
+    () => {
+      let students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+      let users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
+      let scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
 
-    students = students.filter(s => s.email !== email);
-    users = users.filter(u => u.email !== email);
-    scores = scores.filter(sc => sc.studentEmail !== email);
+      const deletedScores = scores.filter(sc => sc.studentEmail === email);
 
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
-    window.saveData(window.IC3_KEYS.USERS, users);
-    window.saveData(window.IC3_KEYS.SCORES, scores);
+      students = students.filter(s => s.email !== email);
+      users = users.filter(u => u.email !== email);
+      scores = scores.filter(sc => sc.studentEmail !== email);
 
-    renderStudentsTable();
-  }
+      window.IC3_CACHE[window.IC3_KEYS.STUDENTS] = students;
+      window.IC3_CACHE[window.IC3_KEYS.USERS] = users;
+      window.IC3_CACHE[window.IC3_KEYS.SCORES] = scores;
+
+      window.deleteData(window.IC3_KEYS.STUDENTS, email);
+      window.deleteData(window.IC3_KEYS.USERS, email);
+      deletedScores.forEach(sc => {
+        if (sc.id) {
+          window.deleteData(window.IC3_KEYS.SCORES, sc.id);
+        }
+      });
+
+      renderStudentsTable();
+      window.showToast("Đã xóa học sinh thành công!", "success");
+    }
+  );
 }
 
 function getBossHuntDayKey() {
@@ -559,18 +573,26 @@ function handleTeacherSubmit(e) {
 }
 
 function deleteTeacher(email) {
-  if (confirm(`Bạn có chắc chắn muốn xóa giáo viên ${email}?`)) {
-    let teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
-    let users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
+  window.showConfirmModal(
+    "Xác nhận xóa giáo viên",
+    `Bạn có chắc chắn muốn xóa giáo viên ${email}?`,
+    () => {
+      let teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+      let users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
 
-    teachers = teachers.filter(t => t.email !== email);
-    users = users.filter(u => u.email !== email);
+      teachers = teachers.filter(t => t.email !== email);
+      users = users.filter(u => u.email !== email);
 
-    window.saveData(window.IC3_KEYS.TEACHERS, teachers);
-    window.saveData(window.IC3_KEYS.USERS, users);
+      window.IC3_CACHE[window.IC3_KEYS.TEACHERS] = teachers;
+      window.IC3_CACHE[window.IC3_KEYS.USERS] = users;
 
-    renderTeachersGrid();
-  }
+      window.deleteData(window.IC3_KEYS.TEACHERS, email);
+      window.deleteData(window.IC3_KEYS.USERS, email);
+
+      renderTeachersGrid();
+      window.showToast("Đã xóa giáo viên thành công!", "success");
+    }
+  );
 }
 
 
@@ -705,14 +727,20 @@ function handleQuestionSubmit(e) {
 }
 
 function deleteQuestion(id) {
-  if (confirm(`Bạn muốn xóa câu hỏi ${id} khỏi kho dữ liệu?`)) {
-    let questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
-    questions = questions.filter(q => q.id !== id);
-    window.saveData(window.IC3_KEYS.QUESTIONS, questions);
-    
-    renderQuestionsTable();
-    updateLevelsQuestionCount();
-  }
+  window.showConfirmModal(
+    "Xác nhận xóa câu hỏi",
+    `Bạn muốn xóa câu hỏi ${id} khỏi kho dữ liệu?`,
+    () => {
+      let questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+      questions = questions.filter(q => q.id !== id);
+      window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions;
+      window.deleteData(window.IC3_KEYS.QUESTIONS, id);
+      
+      renderQuestionsTable();
+      updateLevelsQuestionCount();
+      window.showToast("Đã xóa câu hỏi thành công!", "success");
+    }
+  );
 }
 
 
@@ -826,12 +854,18 @@ function handleTestSubmit(e) {
 }
 
 function deleteTest(id) {
-  if (confirm("Xóa đề kiểm tra này khỏi danh sách?")) {
-    let tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-    tests = tests.filter(t => t.id !== id);
-    window.saveData(window.IC3_KEYS.TESTS, tests);
-    renderTestsGrid();
-  }
+  window.showConfirmModal(
+    "Xác nhận xóa đề thi",
+    "Xóa đề kiểm tra này khỏi danh sách?",
+    () => {
+      let tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+      tests = tests.filter(t => t.id !== id);
+      window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests;
+      window.deleteData(window.IC3_KEYS.TESTS, id);
+      renderTestsGrid();
+      window.showToast("Đã xóa đề thi thành công!", "success");
+    }
+  );
 }
 
 
@@ -986,23 +1020,32 @@ function handleRewardSubmit(e) {
 }
 
 function deleteReward(id) {
-  if (confirm("Bạn có muốn xóa phần quà này khỏi danh sách cửa hàng đổi điểm?")) {
-    let rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
-    rewards = rewards.filter(r => r.id !== id);
-    window.saveData(window.IC3_KEYS.REWARDS, rewards);
-    renderRewardsGrid();
-  }
+  window.showConfirmModal(
+    "Xác nhận xóa phần quà",
+    "Bạn có muốn xóa phần quà này khỏi danh sách cửa hàng đổi điểm?",
+    () => {
+      let rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+      rewards = rewards.filter(r => r.id !== id);
+      window.IC3_CACHE[window.IC3_KEYS.REWARDS] = rewards;
+      window.deleteData(window.IC3_KEYS.REWARDS, id);
+      renderRewardsGrid();
+      window.showToast("Đã xóa phần quà thành công!", "success");
+    }
+  );
 }
 
 
 // ==================== SYSTEM SETTINGS OPERATIONS ====================
 function resetDatabaseToDefault() {
-  if (confirm("CẢNH BÁO: Thao tác này sẽ xóa mọi dữ liệu tùy chỉnh hiện tại và khôi phục lại cấu trúc cơ sở dữ liệu mẫu gốc ban đầu của IC3 LMS. Bạn có chắc chắn muốn tiếp tục không?")) {
-    localStorage.clear();
-    
-    window.showToast("Khôi phục cơ sở dữ liệu thành công! Trang web sẽ tự động tải lại.");
-    window.location.reload();
-  }
+  window.showConfirmModal(
+    "Cảnh báo khôi phục hệ thống",
+    "CẢNH BÁO: Thao tác này sẽ xóa mọi dữ liệu tùy chỉnh hiện tại và khôi phục lại cấu trúc cơ sở dữ liệu mẫu gốc ban đầu của IC3 LMS. Bạn có chắc chắn muốn tiếp tục không?",
+    () => {
+      localStorage.clear();
+      window.showToast("Khôi phục cơ sở dữ liệu thành công! Trang web sẽ tự động tải lại.");
+      window.location.reload();
+    }
+  );
 }
 
 function renderAdminSettings() {
@@ -1023,6 +1066,18 @@ function renderAdminSettings() {
     document.getElementById("settingsBossHuntLimit").value = 2;
     document.getElementById("settingsBossRewardExp").value = 300;
     document.getElementById("settingsBossRewardCoins").value = 100;
+  }
+
+  // Retrieve Google Sheets Configuration
+  const sheetConfig = settings.find(s => s.id === "google_sheets");
+  if (sheetConfig) {
+    document.getElementById("adminSpreadsheetId").value = sheetConfig.spreadsheetId || "";
+    document.getElementById("adminStudentSheetName").value = sheetConfig.studentSheetName || "Tổng quát";
+    document.getElementById("adminScoresSheetName").value = sheetConfig.scoresSheetName || "Tổng quát";
+  } else {
+    document.getElementById("adminSpreadsheetId").value = "";
+    document.getElementById("adminStudentSheetName").value = "Tổng quát";
+    document.getElementById("adminScoresSheetName").value = "Tổng quát";
   }
 }
 
@@ -1053,8 +1108,28 @@ function saveAdminSettings() {
     settings.push(configObj);
   }
 
+  // Save Google Sheets parameters if present
+  const spreadsheetId = document.getElementById("adminSpreadsheetId").value.trim();
+  const studentSheetName = document.getElementById("adminStudentSheetName").value.trim() || "Tổng quát";
+  const scoresSheetName = document.getElementById("adminScoresSheetName").value.trim() || "Tổng quát";
+
+  const sheetObj = {
+    id: "google_sheets",
+    spreadsheetId,
+    studentSheetName,
+    scoresSheetName,
+    configuredBy: "admin@gmail.com"
+  };
+
+  const sIdx = settings.findIndex(s => s.id === "google_sheets");
+  if (sIdx !== -1) {
+    settings[sIdx] = sheetObj;
+  } else {
+    settings.push(sheetObj);
+  }
+
   window.saveData(window.IC3_KEYS.SETTINGS, settings);
-  window.showToast("Đã lưu các cài đặt cấu hình game hóa và mức thưởng EXP/Coins thành công!");
+  window.showToast("Đã lưu các cấu hình game hóa, mức thưởng EXP/Coins và thiết lập liên kết Google Sheets thành công!");
 }
 
 // ==================== BOSS MANAGEMENT OPERATIONS ====================
@@ -1181,11 +1256,91 @@ function handleBossSubmit(e) {
 }
 
 function deleteBoss(id) {
-  if (confirm("Bạn có chắc chắn muốn xóa Boss này không?")) {
-    let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
-    bosses = bosses.filter(b => b.id !== id);
-    window.saveData(window.IC3_KEYS.BOSSES, bosses);
-    renderBossesGrid();
-    window.showToast("Đã xóa Boss thành công!", "success");
-  }
+  window.showConfirmModal(
+    "Xác nhận xóa Boss",
+    "Bạn có chắc chắn muốn xóa Boss này không?",
+    () => {
+      let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+      bosses = bosses.filter(b => b.id !== id);
+      window.IC3_CACHE[window.IC3_KEYS.BOSSES] = bosses;
+      window.deleteData(window.IC3_KEYS.BOSSES, id);
+      renderBossesGrid();
+      window.showToast("Đã xóa Boss thành công!", "success");
+    }
+  );
 }
+
+// Custom Confirm Modal Logic & Expose All Handlers Globally
+let deleteCallback = null;
+
+window.showConfirmModal = function(title, message, onConfirm) {
+  const modal = document.getElementById("confirmModal");
+  if (modal) {
+    document.getElementById("confirmModalTitle").innerText = title;
+    document.getElementById("confirmModalMessage").innerText = message;
+    deleteCallback = onConfirm;
+    modal.classList.remove("hidden");
+  }
+};
+
+window.closeConfirmModal = function() {
+  const modal = document.getElementById("confirmModal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+  deleteCallback = null;
+};
+
+window.handleConfirmAction = function() {
+  if (deleteCallback) {
+    deleteCallback();
+  }
+  window.closeConfirmModal();
+};
+
+// Bind all Top-Level functions to global window object
+window.switchTab = switchTab;
+window.logoutAdmin = logoutAdmin;
+window.openStudentModal = openStudentModal;
+window.closeStudentModal = closeStudentModal;
+window.editStudent = editStudent;
+window.resetBossHunts = resetBossHunts;
+window.deleteStudent = deleteStudent;
+window.openTeacherModal = openTeacherModal;
+window.closeTeacherModal = closeTeacherModal;
+window.deleteTeacher = deleteTeacher;
+window.openQuestionModal = openQuestionModal;
+window.closeQuestionModal = closeQuestionModal;
+window.deleteQuestion = deleteQuestion;
+window.openTestModal = openTestModal;
+window.closeTestModal = closeTestModal;
+window.deleteTest = deleteTest;
+window.openRewardModal = openRewardModal;
+window.closeRewardModal = closeRewardModal;
+window.deleteReward = deleteReward;
+window.openBossModal = openBossModal;
+window.closeBossModal = closeBossModal;
+window.deleteBoss = deleteBoss;
+window.resetDatabaseToDefault = resetDatabaseToDefault;
+window.saveAdminSettings = saveAdminSettings;
+
+function downloadSheetTemplate() {
+  const bom = "\uFEFF";
+  const headers = "STT,TRƯỜNG,HỌ,TÊN,LỚP,MẬT KHẨU,XL,Điểm danh,OT 1 (45),GHI CHÚ\n";
+  const row1 = "1,THCS A,Nguyễn Lư Gia,Hân,7.1,123456,,,,,,\n";
+  const row2 = "2,THCS A,Nguyễn Tùng,Lâm,7.2,123456,,,,,,\n";
+  const row3 = "3,THCS A,Lê Phước Đan,Sa,7.2,123456,,,,,,\n";
+  const csvContent = bom + headers + row1 + row2 + row3;
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", "Mau_Quan_Ly_Hoc_Sinh_Diem.csv");
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.showToast("Đã tải xuống file mẫu thành công!");
+}
+window.downloadSheetTemplate = downloadSheetTemplate;

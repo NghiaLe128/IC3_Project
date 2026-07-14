@@ -987,7 +987,7 @@ function logoutStudent() {
 // 2. Tab Switching Engine
 function switchStudentTab(tabId) {
   if (window._isTestActiveForAntiCheat) {
-    handleCheatDetected();
+    handleCheatDetected("Cố tình chuyển tab");
     return;
   }
   document.querySelectorAll(".student-view-content").forEach(el => el.classList.add("hidden"));
@@ -2925,20 +2925,24 @@ function exitAntiCheatMode() {
   }
 }
 
-function showCheatToast() {
+function showCheatToast(reason = "") {
   const toast = document.createElement("div");
   toast.className = "fixed top-10 left-1/2 -translate-x-1/2 bg-red-600 border-2 border-red-400 text-white px-6 py-3 rounded-xl shadow-2xl z-[9999] font-bold text-sm flex items-center gap-3 animate-bounce";
-  toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-yellow-300 text-xl"></i> <span>PHÁT HIỆN GIAN LẬN! Bài thi đã bị hủy.</span>`;
+  toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-yellow-300 text-xl"></i> <span>PHÁT HIỆN GIAN LẬN! ${reason} Bài thi đã bị hủy.</span>`;
   document.body.appendChild(toast);
   setTimeout(() => {
     toast.remove();
   }, 4000);
 }
 
-function handleCheatDetected() {
+function handleCheatDetected(reason = "Thoát trang / Ẩn màn hình") {
   if (!window._isTestActiveForAntiCheat || isReviewingExam) return;
   
-  showCheatToast();
+  showCheatToast(reason);
+  
+  if (window.syncCheatToGoogleSheet) {
+    window.syncCheatToGoogleSheet(reason);
+  }
   
   // Reset test
   exitAntiCheatMode();
@@ -2957,12 +2961,12 @@ function handleCheatDetected() {
 // Anti-cheat event listeners
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === 'hidden') {
-    handleCheatDetected();
+    handleCheatDetected("Chuyển sang tab khác");
   }
 });
 
 window.addEventListener("blur", () => {
-  handleCheatDetected();
+  handleCheatDetected("Mất focus bài thi");
 });
 
 window.addEventListener("keydown", (e) => {
@@ -2976,7 +2980,7 @@ window.addEventListener("keydown", (e) => {
     (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 'v' || e.key === 'V'))
   ) {
     e.preventDefault();
-    handleCheatDetected();
+    handleCheatDetected("Sử dụng phím tắt bị cấm");
   }
 });
 
@@ -2990,7 +2994,7 @@ document.addEventListener('contextmenu', (e) => {
 window.addEventListener('popstate', (event) => {
   if (window._isTestActiveForAntiCheat) {
     history.pushState(null, null, window.location.href);
-    handleCheatDetected();
+    handleCheatDetected("Sử dụng nút Back");
   }
 });
 

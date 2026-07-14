@@ -6,6 +6,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
 import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, arrayUnion, arrayRemove, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+import "./google-sheets.js";
 
 // Helper to safely get env variables with fallback
 const getEnv = (key, fallback) => {
@@ -130,12 +131,6 @@ function startSessionMonitor() {
           console.log("🚨 Concurrent session or force logout detected! Logging out...");
           unsubscribe(); // stop listening
           
-          // Reset cloud status so user can log in again cleanly next time
-          updateDoc(userDocRef, {
-            currentSessionToken: "",
-            forceLogout: false
-          }).catch(err => console.error("Error resetting session state on force logout:", err));
-          
           // Clear local storage
           localStorage.removeItem(IC3_KEYS.CURRENT_USER);
           
@@ -182,6 +177,7 @@ window.loginUser = async (email, password) => {
           
           return {
             success: false,
+            isConcurrent: true,
             message: "Phát hiện tài khoản đang được đăng nhập ở thiết bị khác! Hệ thống đã đăng xuất tài khoản trên tất cả thiết bị để bảo mật. Vui lòng đăng nhập lại!"
           };
         }
@@ -247,9 +243,44 @@ window.saveData = async (key, data) => {
       const docId = item.id || item.email || `auto_${Math.random().toString(36).slice(2)}`;
       await setDoc(doc(db, key, docId), item, { merge: true });
     }
+
+    // Google Sheets Auto-Sync Interceptor
+    if (key === window.IC3_KEYS.SCORES && data && data.length > 0) {
+      const lastScore = data[data.length - 1];
+      if (lastScore && window.syncScoreToGoogleSheet) {
+        const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+        const test = tests.find(t => t.id === lastScore.testId);
+        const testTitle = test ? test.title : (lastScore.testId || "Bài thi");
+        
+        console.log(`📊 Intercepted score submission. Attempting automatic sync to Google Sheet...`);
+        window.syncScoreToGoogleSheet(lastScore.score, testTitle).then(res => {
+          if (res && res.success) {
+            window.showToast("Đã tự động cập nhật điểm số vào file Google Sheet thành công!");
+          } else {
+            console.log("⚠️ Google Sheet auto-sync skipped or failed:", res?.error || res?.message);
+          }
+        }).catch(e => {
+          console.error("❌ Exception during score auto-sync to Google Sheet:", e);
+        });
+      }
+    }
+
     return { success: true };
   } catch (error) {
     console.error(`❌ Sync error for [${key}]:`, error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Global Data Delete Helper
+window.deleteData = async (key, docId) => {
+  try {
+    const docRef = doc(db, key, docId);
+    await deleteDoc(docRef);
+    console.log(`🗑️ Deleted document [${docId}] from collection [${key}] in cloud.`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Delete error for [${key}] / [${docId}]:`, error);
     return { success: false, error: error.message };
   }
 };

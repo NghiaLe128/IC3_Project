@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { google } from "googleapis";
 
 dotenv.config();
 
@@ -68,6 +69,81 @@ const PORT = 3000;
 
 // Enable JSON parser for potential future API extensions
 app.use(express.json());
+
+// Google Sheets Service Account Auth
+async function getSheetsClient() {
+  const keyContent = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!keyContent) {
+    throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_KEY environment variable. System cannot fill sheets without authentication.");
+  }
+  
+  let credentials;
+  try {
+    credentials = JSON.parse(keyContent);
+  } catch (e) {
+    // If not valid JSON, maybe it's base64 encoded?
+    try {
+      credentials = JSON.parse(Buffer.from(keyContent, 'base64').toString());
+    } catch (e2) {
+      throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY is not a valid JSON string or base64 encoded JSON.");
+    }
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  return google.sheets({ version: "v4", auth });
+}
+
+// Smart Proxy for Google Sheets (System Sync)
+app.post("/api/sheets/proxy", async (req, res) => {
+  const { spreadsheetId, range, method, body } = req.body;
+  
+  try {
+    const sheets = await getSheetsClient();
+    
+    if (method === "GET") {
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+      });
+      return res.json(result.data);
+    } else if (method === "PUT" || method === "UPDATE") {
+      const result = await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: body,
+      });
+      return res.json(result.data);
+    } else if (method === "APPEND") {
+      const result = await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: body,
+      });
+      return res.json(result.data);
+    }
+    
+    res.status(400).json({ success: false, message: "Unsupported method" });
+  } catch (error: any) {
+    const errorMsg = error.message || "Unknown error";
+    console.error("❌ [Sheets Proxy Error]:", errorMsg);
+    
+    // Check if it's an API disabled error
+    if (errorMsg.includes("has not been used in project") || errorMsg.includes("is disabled")) {
+       return res.status(403).json({ 
+         success: false, 
+         error: "Google Sheets API is disabled. Please enable it in Google Cloud Console.",
+         setupUrl: "https://console.developers.google.com/apis/api/sheets.googleapis.com/overview"
+       });
+    }
+    
+    res.status(500).json({ success: false, error: errorMsg });
+  }
+});
 
 // Serve static resources explicitly
 app.use("/assets", express.static(path.join(__dirname, "assets")));

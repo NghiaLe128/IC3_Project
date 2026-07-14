@@ -70,7 +70,6 @@ function initClock() {
 
 function logoutTeacher() {
   window.logoutUser();
-  window.location.href = "../index.html";
 }
 
 // 3. Class selection control
@@ -124,7 +123,8 @@ function switchTab(tabId) {
     "manage-tests": "Quản lý Đề thi & Câu hỏi",
     results: "Xem kết quả bài kiểm tra học sinh",
     ranking: "Bảng vàng vinh danh thi đua học tập",
-    rewards: "Quản lý Cửa hàng Quà tặng"
+    rewards: "Quản lý Cửa hàng Quà tặng",
+    "google-sheets": "Cấu hình liên kết Google Sheets"
   };
   document.getElementById("currentTabTitle").innerText = titles[tabId] || "Cổng giáo viên";
 
@@ -135,6 +135,7 @@ function switchTab(tabId) {
   else if (tabId === "results") renderResultsTable();
   else if (tabId === "ranking") renderClassRanking();
   else if (tabId === "rewards") renderTeacherRewards();
+  else if (tabId === "google-sheets") initGoogleSheetsTab();
 }
 
 // ==================== OVERVIEW RENDERING ====================
