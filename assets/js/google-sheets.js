@@ -251,16 +251,43 @@ const fetchSheetsValues = async (spreadsheetId, range, token) => {
 /**
  * Finalize Google Sheet Login
  */
-window.loginStudentWithGoogleSheet = async (school, className, studentName, inputPassword, googleUser, sheetStudentsList) => {
+window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, inputPassword, googleUser, sheetStudentsList) => {
   try {
     const found = sheetStudentsList.find(s => 
-      s.school.toLowerCase() === school.toLowerCase() &&
-      s.className.toLowerCase() === className.toLowerCase() &&
-      s.name.toLowerCase() === studentName.toLowerCase()
+      s.rowIndex === parseInt(studentRowIndex)
     );
 
     if (!found) return { success: false, message: "Không tìm thấy học sinh này trong bảng tính!" };
-    if (found.password !== inputPassword) return { success: false, message: "Mật khẩu không khớp với file Sheet!" };
+    
+    // Helper to generate a unique clean ID
+    const cleanStringForId = (str) => {
+      if (!str) return "";
+      return str
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // remove Vietnamese diacritics
+        .replace(/đ/g, "d")
+        .replace(/[^a-z0-9]/g, ""); // keep only safe alphanumeric chars
+    };
+
+    const studentId = cleanStringForId(found.name) + "_" + cleanStringForId(className) + "_" + cleanStringForId(school) + "_" + found.rowIndex;
+    const generatedEmail = `${studentId}@ic3lms.edu.vn`;
+
+    const db = window.db;
+
+    // Check if user already exists in Firestore "users" collection
+    const userDocRef = doc(db, "users", generatedEmail);
+    const userDocSnap = await getDoc(userDocRef);
+    let firestoreUser = null;
+
+    if (userDocSnap.exists()) {
+      firestoreUser = userDocSnap.data();
+    }
+
+    // Validate against the original Google Sheet password
+    if (found.password !== inputPassword) {
+      return { success: false, message: "Mật khẩu không khớp với file Sheet!" };
+    }
 
     // Mark Attendance
     const token = sessionStorage.getItem("google_sheets_token");
@@ -294,8 +321,6 @@ window.loginStudentWithGoogleSheet = async (school, className, studentName, inpu
       }
     }
 
-    const db = window.db;
-    const email = googleUser.email;
     let targetClassId = "";
     const classesRef = collection(db, "classes");
     const classesSnap = await getDocs(classesRef);
@@ -311,33 +336,90 @@ window.loginStudentWithGoogleSheet = async (school, className, studentName, inpu
       window.IC3_CACHE["classes"].push(newClass);
     }
 
-    const studentDocRef = doc(db, "students", email);
+    const studentDocRef = doc(db, "students", generatedEmail);
     const studentDocSnap = await getDoc(studentDocRef);
     let studentData = {};
+    let userData = {};
 
     if (studentDocSnap.exists()) {
       studentData = studentDocSnap.data();
-      studentData.name = studentName;
+      studentData.name = found.name;
       studentData.classId = targetClassId;
       studentData.schoolClass = `${school} - ${className}`;
-      await setDoc(studentDocRef, studentData, { merge: true });
+      // Ensure bananas and pokemonFedBananas exist and are preserved
+      studentData.bananas = studentData.bananas !== undefined ? studentData.bananas : 0;
+      studentData.pokemonFedBananas = studentData.pokemonFedBananas !== undefined ? studentData.pokemonFedBananas : 0;
+      
+      // ONLY update if they already have a Pokémon (meaning they finished setup)
+      if (studentData.pokemon) {
+        await setDoc(studentDocRef, studentData, { merge: true });
+      }
+      localStorage.setItem("pendingStudentData", "");
+
+      if (firestoreUser) {
+        userData = { 
+          ...firestoreUser, 
+          currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
+          forceLogout: false 
+        };
+        await setDoc(userDocRef, userData);
+      } else {
+        userData = { 
+          email: generatedEmail, 
+          name: found.name, 
+          role: "student", 
+          password: inputPassword, 
+          currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
+          forceLogout: false 
+        };
+        await setDoc(userDocRef, userData);
+      }
     } else {
       studentData = {
-        email: email, name: studentName, schoolClass: `${school} - ${className}`,
-        classId: targetClassId, blockId: "block_3",
-        pokemon: ["pikachu", "charmander", "bulbasaur", "squirtle", "eevee"][Math.floor(Math.random() * 5)],
-        level: "Beginner", exp: 150, maxExp: 500, coins: 50, rank: "Bronze", badges: [],
-        unlockedLessons: ["lesson_l1_1"], unlockedZones: ["level_1"]
+        email: generatedEmail, 
+        name: found.name, 
+        schoolClass: `${school} - ${className}`,
+        classId: targetClassId, 
+        blockId: "block_3",
+        level: "Beginner", 
+        exp: 150, 
+        maxExp: 500, 
+        coins: 50, 
+        rank: "Bronze", 
+        badges: [],
+        unlockedLessons: ["lesson_l1_1"], 
+        unlockedZones: ["level_1"],
+        bananas: 0,
+        pokemonFedBananas: 0
       };
-      await setDoc(studentDocRef, studentData);
+      localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+      
+      // Also store user data to be created later
+      if (firestoreUser) {
+        userData = { 
+          ...firestoreUser, 
+          currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
+          forceLogout: false 
+        };
+      } else {
+        userData = { 
+          email: generatedEmail, 
+          name: found.name, 
+          role: "student", 
+          password: inputPassword, 
+          currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
+          forceLogout: false 
+        };
+      }
+      localStorage.setItem("pendingUserData", JSON.stringify(userData));
+      // Create user doc immediately to satisfy session monitor
+      await setDoc(userDocRef, userData);
     }
 
-    const userDocRef = doc(db, "users", email);
-    const userData = { email, name: studentName, role: "student", password: inputPassword, currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), forceLogout: false };
-    await setDoc(userDocRef, userData);
-
-    localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(userData));
-    sessionStorage.setItem("sheet_student_name", studentName);
+    // Only set the user in local storage for session management, don't create doc in DB yet
+    const userKey = (window.IC3_KEYS && window.IC3_KEYS.CURRENT_USER) ? window.IC3_KEYS.CURRENT_USER : "ic3_current_user";
+    localStorage.setItem(userKey, JSON.stringify(userData || {email: generatedEmail, name: found.name, role: "student"}));
+    sessionStorage.setItem("sheet_student_name", found.name);
     sessionStorage.setItem("sheet_student_school", school);
     sessionStorage.setItem("sheet_student_class", className);
     sessionStorage.setItem("sheet_student_row_index", found.rowIndex);

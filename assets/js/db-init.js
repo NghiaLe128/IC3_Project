@@ -162,10 +162,14 @@ function startSessionMonitor() {
           window.location.href = "/index.html";
         }
       } else {
-        // User doc deleted from DB
-        unsubscribe();
-        localStorage.removeItem(IC3_KEYS.CURRENT_USER);
-        window.location.href = "/index.html";
+        // Only redirect if we are NOT in the middle of a pending setup and NOT on pokemon-select page
+        const isSelectionPage = window.location.pathname.includes("pokemon-select.html");
+        if (!localStorage.getItem("pendingUserData") && !isSelectionPage) {
+          console.log("🚨 User doc not found in DB, logging out...");
+          unsubscribe();
+          localStorage.removeItem(IC3_KEYS.CURRENT_USER);
+          window.location.href = "/index.html";
+        }
       }
     }, (error) => {
       console.error("Session monitor error:", error);

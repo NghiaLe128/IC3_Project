@@ -150,6 +150,12 @@ window.getBasePokemonKey = function(pokemon) {
     return key;
 };
 
+window.initializeUnlockedPokemons = function(student) {
+    if (!student) return ["pikachu"];
+    const baseKey = window.getBasePokemonKey(student.pokemon || "pichu");
+    return [baseKey];
+};
+
 window.validateAndGetCorrectPokemonForm = function(student) {
     if (!student) return "pichu";
     const currentForm = student.pokemon || "pichu";
@@ -470,7 +476,7 @@ window.triggerEvolvePokemon = async function() {
 
     // Add to unlockedPokemons array
     if (!currentStudent.unlockedPokemons) {
-        currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
+        currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
     }
     if (!currentStudent.unlockedPokemons.includes(slideTargetName)) {
         currentStudent.unlockedPokemons.push(slideTargetName);
@@ -518,6 +524,18 @@ function convertDriveUrl(url) {
 }
 
 let currentStudent = null;
+let currentStoreTab = "pokemon";
+
+function switchStoreTab(tabId) {
+  currentStoreTab = tabId;
+  
+  // Update UI tabs
+  document.querySelectorAll('.store-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`btn-store-${tabId}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  
+  renderRewardsStore();
+}
 
 function isSameStudent(s1, s2) {
   if (!s1 || !s2) return false;
@@ -849,8 +867,15 @@ async function checkStudentAuth() {
         rank: "Bronze",
         badges: [],
         unlockedLessons: ["lesson_l1_1"],
-        unlockedZones: ["level_1"]
+        unlockedZones: ["level_1"],
+        unlockedAvatars: ["⚡", "🔥", "🍃", "💧"],
+        unlockedFrames: ["border-indigo-500/50"],
+        unlockedNicknames: ["Thám hiểm viên"],
+        currentAvatar: "⚡",
+        currentFrame: "border-indigo-500/50",
+        currentNickname: "Thám hiểm viên"
       };
+      currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
       await window.fStore.setDoc(studentDocRef, currentStudent);
     }
   } catch (error) {
@@ -918,18 +943,59 @@ function loadStudentProfile() {
   };
 
   // Render top status indicators
-  document.getElementById("playerName").innerText = currentStudent.name;
+  document.getElementById("playerName").innerText = currentStudent.currentNickname || currentStudent.name;
   document.getElementById("playerRankBadge").innerText = rankBadges[currentStudent.rank] || "🥉 Bronze";
   document.getElementById("playerLevelTitle").innerText = currentStudent.level;
   document.getElementById("playerCoinsCount").innerText = currentStudent.coins;
   document.getElementById("store-coins-balance").innerText = currentStudent.coins;
 
-  // Render Avatar
-  
+  // Render Avatar & Frame
   const frameEl = document.getElementById("playerAvatarFrame");
   if (frameEl) {
-    const activePoke = currentStudent.pokemon || "pikachu";
-    frameEl.innerHTML = `<img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif" class="w-10 h-10 object-contain drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
+    // Apply custom frame if exists
+    if (currentStudent.currentFrame) {
+      // Clear previous border classes
+      frameEl.classList.remove("border-2", "border-yellow-400", "border-indigo-500/50");
+      // Split and add new classes
+      const frameClasses = currentStudent.currentFrame.split(' ');
+      frameClasses.forEach(cls => {
+        if (cls.trim()) frameEl.classList.add(cls);
+      });
+      // Ensure it has a border width if the new class is just a color
+      if (!currentStudent.currentFrame.includes("border-")) {
+          frameEl.classList.add("border-2");
+      } else if (!currentStudent.currentFrame.match(/border-[0-9]/)) {
+          frameEl.classList.add("border-4");
+      }
+    }
+
+    if (currentStudent.currentAvatar && currentStudent.currentAvatar.includes("://")) {
+      frameEl.innerHTML = `<img src="${currentStudent.currentAvatar}" class="w-10 h-10 object-contain drop-shadow-md">`;
+    } else if (currentStudent.currentAvatar) {
+      frameEl.innerHTML = `<span class="text-2xl">${currentStudent.currentAvatar}</span>`;
+    } else {
+      const activePoke = currentStudent.pokemon || "pikachu";
+      frameEl.innerHTML = `<img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif" class="w-10 h-10 object-contain drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
+    }
+  }
+
+  // Dashboard specific profile
+  const dashName = document.getElementById("dashboard-name");
+  if (dashName) dashName.innerText = currentStudent.currentNickname || currentStudent.name;
+  
+  const dashAvatar = document.getElementById("dashboard-avatar");
+  if (dashAvatar) {
+    if (currentStudent.currentAvatar && currentStudent.currentAvatar.includes("://")) {
+      dashAvatar.src = currentStudent.currentAvatar;
+    } else if (currentStudent.currentAvatar) {
+      // Create a canvas/text avatar for dashboard if it's an emoji
+      dashAvatar.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentStudent.currentAvatar)}`;
+    }
+    
+    if (currentStudent.currentFrame) {
+      dashAvatar.className = dashAvatar.className.split(' ').filter(c => !c.startsWith('border-')).join(' ');
+      dashAvatar.classList.add(...currentStudent.currentFrame.split(' '));
+    }
   }
 
   // Calculate EXP percentage
@@ -2696,139 +2762,244 @@ function submitSkillQuiz(nodeId) {
   }
 }
 
+let currentInventoryTab = "pokemon";
+
+function switchInventoryTab(tabId) {
+  currentInventoryTab = tabId;
+  document.querySelectorAll('.inv-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`btn-inv-${tabId}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  
+  // Hide/Show evolution area if needed
+  const grid = document.getElementById("inventory-grid");
+  const evoArea = document.getElementById("inventory-evolution-area");
+  
+  if (tabId === 'evolution') {
+      if (grid) grid.classList.add('hidden');
+      if (evoArea) evoArea.classList.remove('hidden');
+      // If we had the evolution logic separated, we'd call it here
+      // For now, let's just make sure renderInventory handles it or we re-inject the old UI
+  } else {
+      if (grid) grid.classList.remove('hidden');
+      if (evoArea) evoArea.classList.add('hidden');
+  }
+  
+  renderInventory();
+}
+
 // ==================== RENDERING: 6. TÚI ĐỒ (INVENTORY) ====================
 function renderInventory() {
   if (!currentStudent.unlockedPokemons) {
-    currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
+    currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
   }
 
-  const pokemonAvatars = window.pokemonAvatars || {
-    pikachu: "⚡",
-    charmander: "🔥",
-    bulbasaur: "🌱",
-    squirtle: "💧",
-    eevee: "🦊"
-  };
+  const grid = document.getElementById("inventory-grid");
+  const emptyState = document.getElementById("inventory-empty-state");
+  if (!grid) return;
+  
+  grid.innerHTML = "";
+  let itemsCount = 0;
 
-  const pokemonNames = window.pokemonNames || {
-    pikachu: "Pikachu Điện Sấm",
-    charmander: "Charmander Lửa Thiêng",
-    bulbasaur: "Bulbasaur Bão Lá",
-    squirtle: "Squirtle Pháo Nước",
-    eevee: "Eevee Biến Hóa"
-  };
+  if (currentInventoryTab === "pokemon") {
+    const allCompanionsDef = [
+      { id: "pikachu", name: "Pikachu", img: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Sở hữu chiêu thức sấm sét rền vang." },
+      { id: "charmander", name: "Charmander", img: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Sở hữu ngọn lửa thiêng bùng nổ." },
+      { id: "bulbasaur", name: "Bulbasaur", img: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Sở hữu những nhát roi mây dẻo dai." },
+      { id: "squirtle", name: "Squirtle", img: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Sở hữu pháo nước bắn phá cực xa." },
+      { id: "eevee", name: "Eevee", img: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Biến hóa linh hoạt ứng phó đa dạng." },
+      { id: "snorlax", name: "Munchlax", img: "https://play.pokemonshowdown.com/sprites/xyani/munchlax.gif", desc: "Sức mạnh khổng lồ từ giấc ngủ." },
+      { id: "gengar", name: "Gastly", img: "https://play.pokemonshowdown.com/sprites/xyani/gastly.gif", desc: "Bóng ma tinh nghịch trong đêm tối." },
+      { id: "lucario", name: "Riolu", img: "https://play.pokemonshowdown.com/sprites/xyani/riolu.gif", desc: "Chiến binh hào quang dũng cảm." },
+      { id: "dragonite", name: "Dratini", img: "https://play.pokemonshowdown.com/sprites/xyani/dratini.gif", desc: "Rồng thần trong truyền thuyết." }
+    ];
 
-  // 1. Render Owned companions grid
-  const companionGrid = document.getElementById("inventory-unlocked-pokemons");
-  if (companionGrid) companionGrid.innerHTML = "";
+    allCompanionsDef.forEach(comp => {
+      const isUnlocked = currentStudent.unlockedPokemons.includes(comp.id);
+      if (!isUnlocked) return;
+      itemsCount++;
 
-  const allCompanionsDef = [
-    { id: "pikachu", name: "Pikachu", img: "https://play.pokemonshowdown.com/sprites/xyani/pikachu.gif", desc: "Sở hữu chiêu thức sấm sét rền vang." },
-    { id: "charmander", name: "Charmander", img: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Sở hữu ngọn lửa thiêng bùng nổ." },
-    { id: "bulbasaur", name: "Bulbasaur", img: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Sở hữu những nhát roi mây dẻo dai." },
-    { id: "squirtle", name: "Squirtle", img: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Sở hữu pháo nước bắn phá cực xa." },
-    { id: "eevee", name: "Eevee", img: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Biến hóa linh hoạt ứng phó đa dạng." }
-  ];
-
-  allCompanionsDef.forEach(comp => {
-    const isUnlocked = currentStudent.unlockedPokemons.includes(comp.id);
-    
-    const baseKey = comp.id;
-    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-    const currentLvlName = currentStudent.level || "Beginner";
-    let unlockedIndex = levels.indexOf(currentLvlName);
-    if (unlockedIndex === -1) unlockedIndex = 0;
-
-    const evolutions = window.evoMap[baseKey] || [baseKey];
-    const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
-    const formName = window.pokemonNames[targetForm] || comp.name;
-
-    const baseActiveKey = window.getBasePokemonKey(currentStudent.pokemon || "pichu");
-    const isCurrentActive = baseActiveKey === comp.id;
-
-    const div = document.createElement("div");
-    
-    if (isUnlocked) {
-      div.className = `p-4 rounded-2xl border flex items-center gap-4 transition-all ${isCurrentActive ? 'bg-indigo-500/10 border-indigo-500 shadow-lg' : 'bg-slate-950 border-white/5 hover:border-white/10'}`;
+      const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+      const currentLvlName = currentStudent.level || "Beginner";
+      let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
+      const evolutions = window.evoMap[comp.id] || [comp.id];
+      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || comp.id;
       
-      const actionBtn = isCurrentActive 
-        ? `<span class="px-2 py-1 text-[8px] font-extrabold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest shrink-0">ĐANG ĐỒNG HÀNH</span>`
-        : `<button onclick="selectInventoryCompanion('${comp.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg transition-all shrink-0 cursor-pointer">Đặt làm bạn đồng hành</button>`;
+      const baseActiveKey = window.getBasePokemonKey(currentStudent.pokemon || "pichu");
+      const isCurrent = baseActiveKey === comp.id;
 
-      div.innerHTML = `
-        <span class="w-12 h-12 bg-slate-900 border border-white/5 rounded-xl flex items-center justify-center text-3xl shrink-0">
-          <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif" class="w-8 h-8 object-contain" alt="pokemon" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${targetForm}.gif'">
-        </span>
-        <div class="flex-grow">
-          <h4 class="font-poppins font-black text-xs text-white">${formName}</h4>
-          <p class="text-[9px] text-slate-400">${comp.desc}</p>
-        </div>
-        ${actionBtn}
-      `;
-    } else {
-      div.className = "p-4 rounded-2xl border border-dashed border-white/5 bg-slate-950/40 opacity-40 flex items-center gap-4 cursor-not-allowed";
-      div.innerHTML = `
-        <span class="w-12 h-12 bg-slate-900 border border-white/5 rounded-xl flex items-center justify-center text-xl text-slate-600 shrink-0">🔒</span>
-        <div class="flex-grow">
-          <h4 class="font-poppins font-bold text-xs text-slate-500">${formName}</h4>
-          <p class="text-[9px] text-slate-600">Mở khóa trong Cửa hàng để thu phục thần thú này</p>
-        </div>
-      `;
-    }
-    companionGrid.appendChild(div);
-  });
-
-  // 2. Render Owned Items grid
-  if (!currentStudent.ownedItems) {
-    currentStudent.ownedItems = [];
-  }
-
-  const itemsGrid = document.getElementById("inventory-items");
-  if (itemsGrid) itemsGrid.innerHTML = "";
-
-  const storeItemsDef = {
-    reward_neon_frame: { name: "Khung Neon Lấp Lánh", img: "✨", desc: "Trang trí rực rỡ khung avatar." },
-    reward_milktea: { name: "Voucher Trà Sữa 50k", img: "🧋", desc: "Đổi cốc Trà Sữa GongCha miễn phí." },
-    reward_lucky_box: { name: "Hộp Quà May Mắn", img: "🎁", desc: "Mở hộp nhận EXP hoặc Coin ngẫu nhiên." }
-  };
-
-  if (currentStudent.ownedItems.length === 0) {
-    if (itemsGrid) {
-      itemsGrid.innerHTML = `
-        <div class="bg-game-card border border-white/5 p-4 rounded-2xl text-center py-10 text-slate-500 text-xs">
-          🎁 Chưa có vật phẩm nào trong ba lô. Hãy mua sắm thêm tại Cửa Hàng!
-        </div>
-      `;
-    }
-  } else {
-    currentStudent.ownedItems.forEach((itemId, idx) => {
-      const item = storeItemsDef[itemId] || { name: "Vật phẩm lạ", img: "📦", desc: "Công cụ thám hiểm chưa xác định" };
-      const div = document.createElement("div");
-      div.className = "p-4 rounded-2xl border border-white/5 bg-slate-950 flex items-center justify-between gap-4";
+      const slot = document.createElement("div");
+      slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
+      slot.onclick = () => selectInventoryCompanion(comp.id);
       
-      let actionEl = `<span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest shrink-0">Đã kích hoạt</span>`;
-      if (itemId === "reward_lucky_box") {
-        actionEl = `<button onclick="useInventoryItem(${idx})" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[10px] rounded-lg transition-all shrink-0 cursor-pointer">MỞ QUÀ 🎁</button>`;
-      } else if (itemId === "reward_milktea") {
-        actionEl = `<span class="px-2 py-1 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 rounded font-bold text-[9px]">GIFT CODE: ${Math.floor(Math.random() * 900000 + 100000)}</span>`;
-      }
-
-      div.innerHTML = `
-        <div class="flex items-center gap-3">
-          <span class="w-10 h-10 bg-slate-900 border border-white/5 rounded-xl flex items-center justify-center text-2xl shrink-0">${item.img}</span>
-          <div>
-            <h4 class="font-poppins font-black text-xs text-white">${item.name}</h4>
-            <p class="text-[9px] text-slate-400 leading-relaxed">${item.desc}</p>
-          </div>
-        </div>
-        ${actionEl}
+      slot.innerHTML = `
+        ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+        <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif" class="w-12 h-12 object-contain filter drop-shadow-md">
+        <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${window.pokemonNames[targetForm] || comp.name}</span>
       `;
-      itemsGrid.appendChild(div);
+      grid.appendChild(slot);
     });
+  } else if (currentInventoryTab === "item") {
+    const storeItemsDef = {
+      reward_banana: { name: "Chuối Vàng", img: "🍌", desc: "Thức ăn giúp Pokémon tiến hóa." },
+      reward_neon_frame: { name: "Khung Neon", img: "✨", desc: "Trang trí rực rỡ khung avatar." },
+      reward_milktea: { name: "Voucher Trà Sữa", img: "🧋", desc: "Đổi cốc Trà Sữa GongCha." },
+      reward_lucky_box: { name: "Hộp Quà", img: "🎁", desc: "Mở hộp nhận quà ngẫu nhiên." }
+    };
+
+    if (currentStudent.bananas > 0) {
+        itemsCount++;
+        const slot = document.createElement("div");
+        slot.className = "inventory-slot cursor-pointer";
+        slot.onclick = () => switchInventoryTab('evolution');
+        slot.innerHTML = `
+          <div class="text-3xl">🍌</div>
+          <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">Chuối Vàng</span>
+          <span class="absolute bottom-2 right-2 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 rounded-md">x${currentStudent.bananas}</span>
+        `;
+        grid.appendChild(slot);
+    }
+
+    (currentStudent.ownedItems || []).forEach((itemId, idx) => {
+      itemsCount++;
+      const item = storeItemsDef[itemId] || { name: "Vật phẩm", img: "📦", desc: "Vật phẩm thám hiểm" };
+      const slot = document.createElement("div");
+      slot.className = "inventory-slot cursor-pointer";
+      
+      if (itemId === "reward_lucky_box") {
+        slot.onclick = () => useInventoryItem(idx);
+      }
+      
+      slot.innerHTML = `
+        <div class="text-3xl">${item.img}</div>
+        <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${item.name}</span>
+      `;
+      grid.appendChild(slot);
+    });
+  } else if (currentInventoryTab === "avatar") {
+    const avatars = currentStudent.unlockedAvatars || ["⚡", "🔥", "🍃", "💧"];
+    avatars.forEach(av => {
+      itemsCount++;
+      const isCurrent = currentStudent.currentAvatar === av;
+      const slot = document.createElement("div");
+      slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
+      slot.onclick = () => selectCustomItem('avatar', av);
+      
+      if (av.includes("://")) {
+        slot.innerHTML = `
+          ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+          <img src="${av}" class="w-10 h-10 object-contain">
+        `;
+      } else {
+        slot.innerHTML = `
+          ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+          <span class="text-3xl">${av}</span>
+        `;
+      }
+      grid.appendChild(slot);
+    });
+  } else if (currentInventoryTab === "frame") {
+    const frames = currentStudent.unlockedFrames || ["border-indigo-500/50"];
+    frames.forEach(fr => {
+      itemsCount++;
+      const isCurrent = currentStudent.currentFrame === fr;
+      const slot = document.createElement("div");
+      slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
+      slot.onclick = () => selectCustomItem('frame', fr);
+      slot.innerHTML = `
+        ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+        <div class="w-12 h-12 rounded-full border-4 ${fr} bg-slate-800"></div>
+      `;
+      grid.appendChild(slot);
+    });
+  } else if (currentInventoryTab === "nickname") {
+    const nicknames = currentStudent.unlockedNicknames || ["Thám hiểm viên"];
+    nicknames.forEach(nn => {
+      itemsCount++;
+      const isCurrent = (currentStudent.currentNickname || currentStudent.name) === nn;
+      const slot = document.createElement("div");
+      slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
+      slot.onclick = () => selectCustomItem('nickname', nn);
+      slot.innerHTML = `
+        ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+        <span class="text-[9px] font-black text-center uppercase break-all w-full p-2">${nn}</span>
+      `;
+      grid.appendChild(slot);
+    });
+  } else if (currentInventoryTab === "evolution") {
+      itemsCount = 1; // Fake count to hide empty state
+      renderEvolutionInInventory();
   }
 
-  window.renderEvolutionSlideshow();
-  renderScoresHistory();
+  if (itemsCount === 0) {
+    if (emptyState) emptyState.classList.remove("hidden");
+  } else {
+    if (emptyState) emptyState.classList.add("hidden");
+  }
+}
+
+function renderEvolutionInInventory() {
+    const evoArea = document.getElementById("inventory-evolution-area");
+    if (!evoArea) return;
+    
+    // Check if evolution slides exist
+    if (!window.evolutionSlides) {
+        window.evolutionSlides = []; 
+    }
+    
+    // We can't easily move the old UI without more complex DOM manipulation
+    // So let's re-inject the evolution UI here
+    evoArea.innerHTML = `
+        <div class="bg-game-card border border-white/10 p-8 rounded-[40px] space-y-6 shadow-2xl relative overflow-hidden max-w-md w-full">
+            <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
+            
+            <div id="evo-slideshow-inv" class="flex items-center justify-between relative z-10">
+                <button onclick="window.prevEvolution(); renderEvolutionInInventory();" class="text-slate-400 hover:text-white p-3 text-2xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all"><i class="fa-solid fa-chevron-left"></i></button>
+                <div class="text-center py-2 relative flex-grow">
+                    <div class="h-40 flex justify-center mb-4 items-center relative perspective-500">
+                        <div class="absolute w-28 h-28 rounded-full bg-gradient-to-tr from-yellow-500/10 to-indigo-500/20 blur-xl animate-pulse"></div>
+                        <img id="evo-target-avatar-inv" src="" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10">
+                    </div>
+                    <h5 id="evo-target-title-inv" class="font-poppins font-black text-lg text-white uppercase tracking-wider">Loading...</h5>
+                </div>
+                <button onclick="window.nextEvolution(); renderEvolutionInInventory();" class="text-slate-400 hover:text-white p-3 text-2xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+
+            <div class="space-y-4 border-t border-white/5 pt-6 text-xs relative z-10">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400 font-medium">Tiến độ ăn Chuối Vàng:</span>
+                    <span id="evo-req-bananas-inv" class="font-mono font-black text-yellow-300">0 / 5 🍌</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden p-[1px] border border-white/5">
+                    <div id="evo-req-bar-inv" class="h-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <button onclick="window.feedBananaToPokemon(); renderEvolutionInInventory();" class="py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-2xl hover:shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all uppercase">Cho Ăn</button>
+                    <button onclick="window.triggerEvolvePokemon(); renderEvolutionInInventory();" class="py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-2xl hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all uppercase">Tiến Hóa</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Sync with existing evolution logic
+    if (typeof window.renderEvolutionSlideshow === 'function') {
+        // We need to map the new IDs to the function
+        const originalTargetAvatar = document.getElementById("evolution-target-avatar");
+        const originalTargetTitle = document.getElementById("evolution-target-title");
+        const originalReqBananas = document.getElementById("evolution-req-bananas");
+        const originalReqBar = document.getElementById("evolution-req-bar");
+        
+        // Temporarily swap IDs or just update manually
+        const slide = window.evolutionSlides[window.currentEvolutionIndex];
+        if (slide) {
+            document.getElementById("evo-target-avatar-inv").src = slide.img;
+            document.getElementById("evo-target-title-inv").innerText = slide.name;
+            
+            const req = window.evolutionReqs[window.currentEvolutionIndex] || 5;
+            const current = currentStudent.fedBananas || 0;
+            document.getElementById("evo-req-bananas-inv").innerText = `${current} / ${req} 🍌`;
+            document.getElementById("evo-req-bar-inv").style.width = `${Math.min(100, (current / req) * 100)}%`;
+        }
+    }
 }
 
 function selectInventoryCompanion(pokeId) {
@@ -4960,70 +5131,95 @@ function renderRewardsStore() {
   const grid = document.getElementById("student-rewards-store-grid");
   if (grid) grid.innerHTML = "";
 
-  // Check if reward_banana exists, otherwise insert it at the very top
+  // Check if rewards list needs to be expanded or initialized
   const hasBanana = rewards.some(r => r.id === "reward_banana");
-  if (!hasBanana) {
+  if (!hasBanana || rewards.length < 10) {
     rewards = [
+      // Pokémon (Category: pokemon)
+      { id: "reward_bulbasaur", type: "pokemon", name: "Bulbasaur (Hạt Giống)", image: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Thuộc tính: Cỏ / Độc 🍃\nHP: 45 | ATK: 49 | DEF: 49\nNgười bạn đồng hành tuyệt vời cho người mới bắt đầu.", cost: 100, reqMode: "buy" },
+      { id: "reward_charmander", type: "pokemon", name: "Charmander (Thằn Lằn Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nNhanh nhẹn và mạnh mẽ trong chiến đấu.", cost: 100, reqMode: "buy" },
+      { id: "reward_squirtle", type: "pokemon", name: "Squirtle (Rùa Nước)", image: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Thuộc tính: Nước 💧\nHP: 44 | ATK: 48 | DEF: 65\nPhòng thủ cực tốt với lớp mai cứng.", cost: 100, reqMode: "buy" },
+      { id: "reward_pikachu", type: "pokemon", name: "Pichu (Chuột Điện)", image: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Thuộc tính: Điện ⚡\nHP: 20 | ATK: 40 | DEF: 15\nNhanh như chớp, biểu tượng của sự nhanh nhẹn.", cost: 150, reqMode: "buy" },
+      { id: "reward_eevee", type: "pokemon", name: "Eevee (Tiến Hóa)", image: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Thuộc tính: Thường 🌟\nHP: 55 | ATK: 55 | DEF: 50\nTiềm năng tiến hóa vô hạn.", cost: 200, reqMode: "buy" },
+      { id: "reward_snorlax", type: "pokemon", name: "Munchlax (Khổng Lồ Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/munchlax.gif", desc: "Thuộc tính: Thường 🌟\nHP: 135 | ATK: 85 | DEF: 40\nHáu ăn và cực kỳ đáng yêu, tiềm năng sức mạnh khổng lồ.", cost: 500, reqMode: "buy" },
+      { id: "reward_gengar", type: "pokemon", name: "Gastly (Bóng Ma Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/gastly.gif", desc: "Thuộc tính: Ma / Độc 👻\nHP: 30 | ATK: 35 | DEF: 30\nKẻ tinh nghịch trong bóng tối, tiềm năng ma thuật vô hạn.", cost: 600, reqMode: "buy" },
+      { id: "reward_lucario", type: "pokemon", name: "Riolu (Chiến Binh Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/riolu.gif", desc: "Thuộc tính: Giác Đấu ⚔️\nHP: 40 | ATK: 70 | DEF: 40\nCảm nhận hào quang, dũng cảm và trung thành tuyệt đối.", cost: 800, reqMode: "buy" },
+      { id: "reward_charizard", type: "pokemon", name: "Charmander (Thống Lĩnh)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nPhiên bản đặc biệt khi đánh bại Vua Thống Lĩnh IC3.", cost: 9999, reqMode: "boss" },
+      { id: "reward_dragonite", type: "pokemon", name: "Dratini (Rồng Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/dratini.gif", desc: "Thuộc tính: Rồng 🐉\nHP: 41 | ATK: 64 | DEF: 45\nSinh vật thần thoại. Thưởng từ Boss Rồng Hỏa Ngục.", cost: 9999, reqMode: "boss" },
+      { id: "reward_mewtwo", type: "pokemon", name: "Mewtwo (Tối Thượng)", image: "https://play.pokemonshowdown.com/sprites/xyani/mewtwo.gif", desc: "Thuộc tính: Tâm Linh 🔮\nHP: 106 | ATK: 110 | DEF: 90\nChúa tể trí tuệ. Yêu cầu: Hạ gục Phù Thủy Thuật Toán.", cost: 9999, reqMode: "boss" },
+      
+      // Items (Category: item)
       { id: "reward_banana", type: "item", name: "Chuối Vàng Thần Kỳ 🍌", image: "🍌", desc: "Chuối Vàng chứa năng lượng vũ trụ siêu đặc biệt! Cho Pokémon của bạn ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp.", cost: 50, reqMode: "buy" },
-      ...rewards
+      { id: "reward_potion", type: "item", name: "Thuốc Hồi Phục 🧪", image: "🧪", desc: "Phục hồi 50 HP ngay lập tức trong trận đấu Boss (Sắp ra mắt).", cost: 30, reqMode: "buy" },
+      
+      // Avatars (Category: avatar)
+      { id: "reward_av_1", type: "avatar", name: "Phi hành gia 🧑‍🚀", image: "🧑‍🚀", desc: "Khám phá vũ trụ tri thức IC3.", cost: 100, reqMode: "buy" },
+      { id: "reward_av_2", type: "avatar", name: "Rồng lửa 🐲", image: "🐲", desc: "Sức mạnh từ ngọn lửa vĩnh cửu.", cost: 150, reqMode: "buy" },
+      { id: "reward_av_3", type: "avatar", name: "Kỹ sư nhí 👷", image: "👷", desc: "Làm chủ công nghệ tương lai.", cost: 120, reqMode: "buy" },
+      { id: "reward_av_4", type: "avatar", name: "Siêu nhân IC3 🦸", image: "🦸", desc: "Người bảo vệ hòa bình thế giới số.", cost: 200, reqMode: "buy" },
+
+      // Frames (Category: frame)
+      { id: "reward_fr_1", type: "frame", name: "Khung Vàng Hoàng Kim", image: "border-yellow-400", desc: "Khung ảnh viền vàng lấp lánh sang trọng.", cost: 300, reqMode: "buy" },
+      { id: "reward_fr_2", type: "frame", name: "Khung Lửa Rực Cháy", image: "border-red-500", desc: "Khung ảnh với hiệu ứng lửa bùng nổ.", cost: 250, reqMode: "buy" },
+      { id: "reward_fr_3", type: "frame", name: "Khung Băng Lạnh Giá", image: "border-cyan-400", desc: "Khung ảnh phong cách pha lê băng tuyết.", cost: 250, reqMode: "buy" },
+
+      // Nicknames (Category: nickname)
+      { id: "reward_nn_1", type: "nickname", name: "Dũng Sĩ Diệt Boss", image: "⚔️", desc: "Biệt danh dành cho kẻ săn boss thực thụ.", cost: 200, reqMode: "buy" },
+      { id: "reward_nn_2", type: "nickname", name: "Thiên Tài Lập Trình", image: "💻", desc: "Làm chủ mọi dòng code IC3.", cost: 250, reqMode: "buy" },
+      { id: "reward_nn_3", type: "nickname", name: "Bậc Thầy Thú Cưng", image: "🐾", desc: "Người bạn của mọi loài Pokémon.", cost: 180, reqMode: "buy" }
     ];
-    if (rewards.length < 6) {
-      rewards = [
-        { id: "reward_banana", type: "item", name: "Chuối Vàng Thần Kỳ 🍌", image: "🍌", desc: "Chuối Vàng chứa năng lượng vũ trụ siêu đặc biệt! Cho Pokémon của bạn ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp.", cost: 50, reqMode: "buy" },
-        { id: "reward_bulbasaur", type: "pokemon", name: "Bulbasaur (Hạt Giống)", image: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Thuộc tính: Cỏ / Độc 🍃\nHP: 45 | ATK: 49 | DEF: 49\nNgười bạn đồng hành tuyệt vời cho người mới bắt đầu.", cost: 100, reqMode: "buy" },
-        { id: "reward_charmander", type: "pokemon", name: "Charmander (Thằn Lằn Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nNhanh nhẹn và mạnh mẽ trong chiến đấu.", cost: 100, reqMode: "buy" },
-        { id: "reward_squirtle", type: "pokemon", name: "Squirtle (Rùa Nước)", image: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Thuộc tính: Nước 💧\nHP: 44 | ATK: 48 | DEF: 65\nPhòng thủ cực tốt với lớp mai cứng.", cost: 100, reqMode: "buy" },
-        { id: "reward_pikachu", type: "pokemon", name: "Pikachu (Chuột Điện)", image: "https://play.pokemonshowdown.com/sprites/xyani/pikachu.gif", desc: "Thuộc tính: Điện ⚡\nHP: 35 | ATK: 55 | DEF: 40\nNhanh như chớp, biểu tượng của chiến thắng.", cost: 150, reqMode: "buy" },
-        { id: "reward_eevee", type: "pokemon", name: "Eevee (Tiến Hóa)", image: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Thuộc tính: Thường 🌟\nHP: 55 | ATK: 55 | DEF: 50\nTiềm năng tiến hóa vô hạn.", cost: 200, reqMode: "buy" },
-        { id: "reward_snorlax", type: "pokemon", name: "Snorlax (Khổng Lồ)", image: "https://play.pokemonshowdown.com/sprites/xyani/snorlax.gif", desc: "Thuộc tính: Thường 🌟\nHP: 160 | ATK: 110 | DEF: 65\nCực kỳ trâu bò, có thể chịu mọi đòn tấn công.", cost: 500, reqMode: "buy" },
-        { id: "reward_gengar", type: "pokemon", name: "Gengar (Bóng Ma)", image: "https://play.pokemonshowdown.com/sprites/xyani/gengar.gif", desc: "Thuộc tính: Ma / Độc 👻\nHP: 60 | ATK: 65 | DEF: 60\nKẻ ám sát trong bóng tối với ma thuật tàn độc.", cost: 600, reqMode: "buy" },
-        { id: "reward_lucario", type: "pokemon", name: "Lucario (Chiến Binh)", image: "https://play.pokemonshowdown.com/sprites/xyani/lucario.gif", desc: "Thuộc tính: Giác Đấu / Thép ⚔️\nHP: 70 | ATK: 110 | DEF: 70\nCảm nhận hào quang, một chiến binh bất bại.", cost: 800, reqMode: "buy" },
-        { id: "reward_charizard", type: "pokemon", name: "Charizard (Rồng Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charizard.gif", desc: "Thuộc tính: Lửa / Bay 🔥🦅\nHP: 78 | ATK: 84 | DEF: 78\nChỉ rơi ra khi đánh bại Vua Thống Lĩnh IC3.", cost: 9999, reqMode: "boss" },
-        { id: "reward_dragonite", type: "pokemon", name: "Dragonite (Rồng Thần)", image: "https://play.pokemonshowdown.com/sprites/xyani/dragonite.gif", desc: "Thuộc tính: Rồng / Bay 🐉\nHP: 91 | ATK: 134 | DEF: 95\nSức mạnh bầu trời. Thưởng từ Boss Rồng Hỏa Ngục.", cost: 9999, reqMode: "boss" },
-        { id: "reward_mewtwo", type: "pokemon", name: "Mewtwo (Tối Thượng)", image: "https://play.pokemonshowdown.com/sprites/xyani/mewtwo.gif", desc: "Thuộc tính: Tâm Linh 🔮\nHP: 106 | ATK: 110 | DEF: 90\nChúa tể trí tuệ. Yêu cầu: Hạ gục Phù Thủy Thuật Toán.", cost: 9999, reqMode: "boss" },
-        { id: "reward_rayquaza", type: "pokemon", name: "Rayquaza (Thần Trời)", image: "https://play.pokemonshowdown.com/sprites/xyani/rayquaza.gif", desc: "Thuộc tính: Rồng / Bay 🐉\nHP: 105 | ATK: 150 | DEF: 90\nKẻ ngự trị tầng ozone. Thưởng từ Kim Giáp Long Vương.", cost: 9999, reqMode: "boss" },
-        { id: "reward_arceus", type: "pokemon", name: "Arceus (Đấng Sáng Tạo)", image: "https://play.pokemonshowdown.com/sprites/xyani/arceus.gif", desc: "Thuộc tính: Thần Thánh 👑\nHP: 120 | ATK: 120 | DEF: 120\nVị thần của vạn vật. Thưởng từ Thử Thách Đặc Biệt.", cost: 9999, reqMode: "boss" }
-      ];
-    }
     window.saveData(window.IC3_KEYS.REWARDS, rewards);
   }
 
-  // List of unlocked pokemon for the student to prevent buying twice
-  if (!currentStudent.unlockedPokemons) {
-    currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
-  }
+  // Ensure student has the new unlock arrays
+  if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
+  if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = ["⚡", "🔥", "🍃", "💧"];
+  if (!currentStudent.unlockedFrames) currentStudent.unlockedFrames = ["border-indigo-500/50"];
+  if (!currentStudent.unlockedNicknames) currentStudent.unlockedNicknames = ["Thám hiểm viên"];
 
-  rewards.forEach(r => {
+  // Filter rewards based on current tab
+  const filteredRewards = rewards.filter(r => r.type === currentStoreTab);
+
+  filteredRewards.forEach(r => {
     let imgRender = `<div class="text-3xl">${r.image}</div>`;
     if (r.image.startsWith("http")) {
       imgRender = `<img src="${r.image}" class="w-16 h-16 object-contain filter drop-shadow-md" alt="${r.name}">`;
+    } else if (r.type === "frame") {
+      imgRender = `<div class="w-16 h-16 rounded-full border-4 ${r.image} bg-slate-800 flex items-center justify-center text-xl text-slate-500"><i class="fa-solid fa-user"></i></div>`;
     } else {
       // Add a nice pulse and scale effect for pure emoji items
       imgRender = `<div class="text-5xl animate-bounce" style="animation-duration: 3s">${r.image}</div>`;
     }
 
     // Determine purchase button status
-    let btnText = `Đổi quà với 💰 ${r.cost}`;
+    let btnText = `💰 ${r.cost}`;
     let btnClass = "bg-amber-500 hover:bg-amber-600 text-slate-950 hover:scale-[1.02]";
     let isOwned = false;
     let isBossOnly = r.reqMode === "boss" || r.cost > 9000;
     let isLockedByAdmin = r.isLocked === true;
     
     if (isLockedByAdmin) {
-      btnText = "🔒 Hết hạn đổi quà";
+      btnText = "🔒 Hết hạn";
       btnClass = "bg-red-900/50 border border-red-700/50 text-red-400 cursor-not-allowed";
     } else if (isBossOnly) {
-      btnText = "🔒 Săn Boss Để Nhận";
+      btnText = "🔒 Săn Boss";
       btnClass = "bg-slate-800/80 border border-slate-700 text-slate-400 cursor-not-allowed";
     }
 
     if (r.type === "pokemon") {
       const pokeId = r.id.replace("reward_", "");
-      if (currentStudent.unlockedPokemons.includes(pokeId)) {
-        isOwned = true;
-        btnText = "✅ Đã sở hữu";
-        btnClass = "bg-emerald-900/50 border border-emerald-700/50 text-emerald-400 cursor-not-allowed";
-      }
+      if (currentStudent.unlockedPokemons.includes(pokeId)) isOwned = true;
+    } else if (r.type === "avatar") {
+      if (currentStudent.unlockedAvatars.includes(r.image)) isOwned = true;
+    } else if (r.type === "frame") {
+      if (currentStudent.unlockedFrames.includes(r.image)) isOwned = true;
+    } else if (r.type === "nickname") {
+      if (currentStudent.unlockedNicknames.includes(r.name)) isOwned = true;
+    }
+
+    if (isOwned) {
+      btnText = "✅ Đã có";
+      btnClass = "bg-emerald-900/50 border border-emerald-700/50 text-emerald-400 cursor-not-allowed";
     }
 
     const div = document.createElement("div");
@@ -5048,6 +5244,12 @@ function renderRewardsStore() {
     `;
     if (grid) grid.appendChild(div);
   });
+
+  // Update store balance displays
+  const bananaDisplay = document.getElementById("store-bananas-balance");
+  if (bananaDisplay) bananaDisplay.textContent = currentStudent.bananas || 0;
+  const coinsDisplay = document.getElementById("store-coins-balance");
+  if (coinsDisplay) coinsDisplay.textContent = currentStudent.coins || 0;
 }
 
 function buyStoreItem(id, cost, type) {
@@ -5058,6 +5260,8 @@ function buyStoreItem(id, cost, type) {
 
   if (confirm(`Bạn đồng ý tiêu hao 💰 ${cost} Coin để đổi phần quà này chứ?`)) {
     currentStudent.coins -= cost;
+    const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+    const reward = rewards.find(r => r.id === id);
 
     if (id === "reward_banana") {
       currentStudent.bananas = (currentStudent.bananas || 0) + 1;
@@ -5065,10 +5269,22 @@ function buyStoreItem(id, cost, type) {
     } else if (type === "pokemon") {
       const pokeId = id.replace("reward_", "");
       if (!currentStudent.unlockedPokemons) {
-        currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
+        currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
       }
       currentStudent.unlockedPokemons.push(pokeId);
       window.showToast(`🎉 CHÚC MỪNG: Bạn đã mở khóa thành công Pokémon ${pokeId.toUpperCase()}! Bạn có thể đổi avatar của mình ngay bây giờ.`);
+    } else if (type === "avatar") {
+      if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = ["⚡", "🔥", "🍃", "💧"];
+      currentStudent.unlockedAvatars.push(reward.image);
+      window.showToast(`🎉 CHÚC MỪNG: Bạn đã sở hữu Avatar mới ${reward.image}!`);
+    } else if (type === "frame") {
+      if (!currentStudent.unlockedFrames) currentStudent.unlockedFrames = ["border-indigo-500/50"];
+      currentStudent.unlockedFrames.push(reward.image);
+      window.showToast(`🎉 CHÚC MỪNG: Bạn đã sở hữu Khung ảnh mới!`);
+    } else if (type === "nickname") {
+      if (!currentStudent.unlockedNicknames) currentStudent.unlockedNicknames = ["Thám hiểm viên"];
+      currentStudent.unlockedNicknames.push(reward.name);
+      window.showToast(`🎉 CHÚC MỪNG: Bạn đã nhận Biệt hiệu mới: ${reward.name}!`);
     } else {
       window.showToast("🎉 ĐỔI QUÀ THÀNH CÔNG! Hãy liên hệ với Giáo viên hoặc Admin để nhận Voucher vật phẩm của bạn nhé.");
     }
@@ -5089,6 +5305,9 @@ function buyStoreItem(id, cost, type) {
 
 // ==================== HISTORY LOG ENGINE ====================
 function renderScoresHistory() {
+  if (!currentStudent.unlockedPokemons) {
+    currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
+  }
   const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   const studentScores = scores.filter(s => s.studentEmail === currentStudent.email);
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
@@ -5143,143 +5362,177 @@ function renderScoresHistory() {
 
 
 // ==================== AVATAR SELECTION POPUP ====================
-function openPokemonSelectorModal() {
-  const modal = document.getElementById("pokemonSelectorModal");
-  const container = document.getElementById("pokemon-avatar-selector-grid");
-  container.innerHTML = "";
+let currentCustomTab = "pokemon";
 
-  if (!currentStudent.unlockedPokemons) {
-    currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
-  }
+function openProfileCustomizationModal() {
+  document.getElementById("profileCustomizationModal").classList.remove("hidden");
+  switchProfileCustomTab(currentCustomTab);
+}
 
-  const allPokemons = [
-    { id: "pikachu", name: "Pikachu" },
-    { id: "charmander", name: "Charmander" },
-    { id: "bulbasaur", name: "Bulbasaur" },
-    { id: "squirtle", name: "Squirtle" },
-    { id: "eevee", name: "Eevee" },
-    { id: "snorlax", name: "Snorlax" },
-    { id: "gengar", name: "Gengar" },
-    { id: "lucario", name: "Lucario" },
-    { id: "charizard", name: "Charizard" },
-    { id: "dragonite", name: "Dragonite" },
-    { id: "mewtwo", name: "Mewtwo" },
-    { id: "rayquaza", name: "Rayquaza" },
-    { id: "arceus", name: "Arceus" }
-  ];
+function closeProfileCustomizationModal() {
+  document.getElementById("profileCustomizationModal").classList.add("hidden");
+}
 
-  allPokemons.forEach(p => {
-    const isUnlocked = currentStudent.unlockedPokemons.some(unlockedId => {
-      if (!unlockedId) return false;
-      const cleanUnlocked = unlockedId.replace("reward_", "");
-      const baseOfUnlocked = window.getBasePokemonKey(cleanUnlocked);
-      return baseOfUnlocked === p.id || cleanUnlocked === p.id;
+function switchProfileCustomTab(tabId) {
+  currentCustomTab = tabId;
+  document.querySelectorAll('.profile-custom-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`btn-custom-${tabId}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  
+  renderProfileCustomizationContent();
+}
+
+function renderProfileCustomizationContent() {
+  const grid = document.getElementById("profile-customization-content-grid");
+  grid.innerHTML = "";
+
+  if (currentCustomTab === "pokemon") {
+    const allPokemons = [
+      { id: "pikachu", name: "Pikachu" }, { id: "charmander", name: "Charmander" },
+      { id: "bulbasaur", name: "Bulbasaur" }, { id: "squirtle", name: "Squirtle" },
+      { id: "eevee", name: "Eevee" }, { id: "snorlax", name: "Snorlax" },
+      { id: "gengar", name: "Gengar" }, { id: "lucario", name: "Lucario" },
+      { id: "charizard", name: "Charizard" }, { id: "dragonite", name: "Dragonite" },
+      { id: "mewtwo", name: "Mewtwo" }, { id: "rayquaza", name: "Rayquaza" },
+      { id: "arceus", name: "Arceus" }
+    ];
+
+    allPokemons.forEach(p => {
+      const isUnlocked = (currentStudent.unlockedPokemons || []).includes(p.id);
+      const isCurrent = currentStudent.pokemon === p.id;
+      
+      const btn = document.createElement("button");
+      btn.className = `p-4 rounded-2xl border flex flex-col items-center justify-center transition-all ${isUnlocked ? 'bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400' : 'bg-slate-950/20 border-white/5 opacity-50 cursor-not-allowed'} ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
+      
+      if (isUnlocked) btn.onclick = () => selectCustomItem("pokemon", p.id);
+
+      const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+      const currentLvlName = currentStudent.level || "Beginner";
+      let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
+      const evolutions = window.evoMap[p.id] || [p.id];
+      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || p.id;
+
+      btn.innerHTML = `
+        <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif" class="w-12 h-12 object-contain ${isUnlocked ? '' : 'grayscale'}">
+        <span class="text-[10px] font-black mt-2">${window.pokemonNames[targetForm] || p.name}</span>
+      `;
+      grid.appendChild(btn);
     });
-    const baseKey = window.getBasePokemonKey(currentStudent.pokemon || "pikachu");
-    const isCurrent = baseKey === p.id;
+  } else if (currentCustomTab === "avatar") {
+    const avatars = currentStudent.unlockedAvatars || ["⚡", "🔥", "🍃", "💧"];
+    avatars.forEach(av => {
+      const isCurrent = currentStudent.currentAvatar === av;
+      const btn = document.createElement("button");
+      btn.className = `p-4 rounded-2xl border bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400 flex items-center justify-center transition-all ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
+      btn.onclick = () => selectCustomItem("avatar", av);
+      
+      if (av.includes("://")) {
+        btn.innerHTML = `<img src="${av}" class="w-12 h-12 object-contain">`;
+      } else {
+        btn.innerHTML = `<span class="text-3xl">${av}</span>`;
+      }
+      grid.appendChild(btn);
+    });
+  } else if (currentCustomTab === "frame") {
+    const frames = currentStudent.unlockedFrames || ["border-indigo-500/50"];
+    frames.forEach(fr => {
+      const isCurrent = currentStudent.currentFrame === fr;
+      const btn = document.createElement("button");
+      btn.className = `p-4 rounded-2xl border bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400 flex items-center justify-center transition-all ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
+      btn.onclick = () => selectCustomItem("frame", fr);
+      
+      btn.innerHTML = `<div class="w-12 h-12 rounded-full border-4 ${fr} bg-slate-800"></div>`;
+      grid.appendChild(btn);
+    });
+  } else if (currentCustomTab === "nickname") {
+    const nicknames = currentStudent.unlockedNicknames || ["Thám hiểm viên"];
+    nicknames.forEach(nn => {
+      const isCurrent = (currentStudent.currentNickname || currentStudent.name) === nn;
+      const btn = document.createElement("button");
+      btn.className = `p-3 rounded-xl border bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400 flex items-center justify-center transition-all text-center ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
+      btn.onclick = () => selectCustomItem("nickname", nn);
+      
+      btn.innerHTML = `<span class="text-[10px] font-black truncate w-full uppercase">${nn}</span>`;
+      grid.appendChild(btn);
+    });
+  }
+}
 
-    // Get level-appropriate form for this pokemon family
+async function selectCustomItem(type, value) {
+  if (type === "pokemon") {
     const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
     const currentLvlName = currentStudent.level || "Beginner";
     let unlockedIndex = levels.indexOf(currentLvlName);
     if (unlockedIndex === -1) unlockedIndex = 0;
-
-    const evolutions = window.evoMap[p.id] || [p.id];
-    const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || p.id;
-
-    const btn = document.createElement("button");
     
-    if (isUnlocked) {
-      btn.className = `p-4 rounded-3xl flex flex-col items-center justify-center border transition-all cursor-pointer bg-slate-950/60 border-indigo-950/40 text-slate-300 hover:border-yellow-400/40 hover:bg-slate-900/80 shadow-2xl ${isCurrent ? 'ring-2 ring-yellow-400 bg-yellow-500/15 text-yellow-400 font-extrabold border-yellow-400' : ''}`;
-      btn.onclick = () => selectPokemonAvatar(p.id);
-    } else {
-      btn.className = "p-4 rounded-3xl flex flex-col items-center justify-center bg-slate-950/20 border border-dashed border-slate-900 text-slate-600 opacity-40 cursor-not-allowed relative";
+    const evolutions = window.evoMap[value] || [value];
+    const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || value;
+    
+    currentStudent.pokemon = targetForm;
+    currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
+    
+    // Reset avatar if it was a pokemon gif to match new pokemon
+    if (currentStudent.currentAvatar && !currentStudent.unlockedAvatars.includes(currentStudent.currentAvatar)) {
+        currentStudent.currentAvatar = null; 
     }
 
-    const imgUrl = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
-    const imgNode = `<img src="${imgUrl}" class="w-14 h-14 object-contain filter ${isUnlocked ? 'drop-shadow-[0_4px_10px_rgba(253,224,71,0.25)]' : 'grayscale brightness-50'}" alt="${p.name}" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${targetForm}.gif'">`;
+    // Sync all duplicate accounts with same name to have the same pokemon & avatar
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+    const myName = (currentStudent.fullName || currentStudent.name || "").toString().trim().toLowerCase();
+    if (myName) {
+      for (const s of students) {
+        const sName = (s.fullName || s.name || "").toString().trim().toLowerCase();
+        if (sName === myName && s.email !== currentStudent.email) {
+          s.pokemon = currentStudent.pokemon;
+          s.avatar = currentStudent.avatar;
+          try {
+            const docRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, s.email || s.id);
+            await window.fStore.setDoc(docRef, { pokemon: currentStudent.pokemon, avatar: currentStudent.avatar }, { merge: true });
+          } catch (e) { console.error(e); }
+        }
+      }
+    }
+    
+    if (typeof setPokemonEncourager === "function") setPokemonEncourager();
+    if (typeof renderInventory === "function") renderInventory();
+    if (typeof renderBattleArena === "function") renderBattleArena();
+    if (typeof renderStudentDashboard === "function") renderStudentDashboard();
+    if (typeof window.renderEvolutionSlideshow === "function") window.renderEvolutionSlideshow();
 
-    btn.innerHTML = `
-      <div class="h-16 flex items-center justify-center relative w-full">
-        ${imgNode}
-      </div>
-      <span class="text-xs font-black block mt-2 text-white">${window.pokemonNames[targetForm] || p.name}</span>
-      <span class="text-[9px] mt-1 font-semibold uppercase block tracking-wider ${isCurrent ? 'text-yellow-400' : isUnlocked ? 'text-emerald-400' : 'text-slate-500'}">${isCurrent ? 'Đang chọn' : isUnlocked ? 'Đã mở khóa' : 'Khóa 🔒'}</span>
-    `;
+  } else if (type === "avatar") {
+    currentStudent.currentAvatar = value;
+  } else if (type === "frame") {
+    currentStudent.currentFrame = value;
+  } else if (type === "nickname") {
+    currentStudent.currentNickname = value;
+  }
 
-    container.appendChild(btn);
-  });
-
-  modal.classList.remove("hidden");
-}
-
-async function selectPokemonAvatar(pokeId) {
-  const baseKey = pokeId;
-  const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-  const currentLvlName = currentStudent.level || "Beginner";
-  let unlockedIndex = levels.indexOf(currentLvlName);
-  if (unlockedIndex === -1) unlockedIndex = 0;
-  
-  const evolutions = window.evoMap[baseKey] || [baseKey];
-  const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
-  
-  currentStudent.pokemon = targetForm;
-  currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
-  
-  // Set current slideshow index to match the equipped stage
-  window.currentEvolutionIndex = Math.min(unlockedIndex, evolutions.length - 1);
-  if (window.currentEvolutionIndex < 0) window.currentEvolutionIndex = 0;
-
-  // Save to database
+  // Save to DB
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-  } else {
-    students.push(currentStudent);
-  }
-  await window.saveData(window.IC3_KEYS.STUDENTS, students);
-
-  // Sync all duplicate accounts with same name to have the same pokemon & avatar
-  const myName = (currentStudent.fullName || currentStudent.name || "").toString().trim().toLowerCase();
-  if (myName) {
-    for (const s of students) {
-      const sName = (s.fullName || s.name || "").toString().trim().toLowerCase();
-      if (sName === myName && s.email !== currentStudent.email) {
-        s.pokemon = currentStudent.pokemon;
-        s.avatar = currentStudent.avatar;
-        try {
-          const docRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, s.email || s.id);
-          await window.fStore.setDoc(docRef, { pokemon: currentStudent.pokemon, avatar: currentStudent.avatar }, { merge: true });
-        } catch (e) {
-          console.error("Error syncing other account pokemon in selectPokemonAvatar:", e);
-        }
-      }
-    }
-  }
-
-  // Direct Firestore write for immediate sync
-  try {
+    window.saveData(window.IC3_KEYS.STUDENTS, students);
     const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
     await window.fStore.setDoc(studentDocRef, currentStudent);
-  } catch (e) {
-    console.error("Error saving student pokemon directly to Firestore:", e);
   }
 
   loadStudentProfile();
-  closePokemonSelectorModal();
-  setPokemonEncourager();
-  
-  if (typeof renderInventory === "function") renderInventory();
-  if (typeof renderBattleArena === "function") renderBattleArena();
-  if (typeof renderStudentDashboard === "function") renderStudentDashboard();
-  
-  // Refresh the evolution slideshow container to match the selected pokemon!
-  window.renderEvolutionSlideshow();
+  renderProfileCustomizationContent();
+}
+
+// Keeping the original function for compatibility but redirecting it
+function openPokemonSelectorModal() {
+    openProfileCustomizationModal();
+    switchProfileCustomTab('pokemon');
+}
+
+function selectPokemonAvatar(pokeId) {
+    selectCustomItem('pokemon', pokeId);
 }
 
 function closePokemonSelectorModal() {
-  document.getElementById("pokemonSelectorModal").classList.add("hidden");
+    closeProfileCustomizationModal();
 }
 
 // ==================== RENDERING: LEADERBOARD ====================
@@ -5426,7 +5679,7 @@ function renderBadges() {
   const hasPersistentWarrior = myScores.length >= 5;
   
   if (!currentStudent.unlockedPokemons) {
-    currentStudent.unlockedPokemons = ["pikachu", "charmander", "bulbasaur"];
+    currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
   }
   const hasPokemonCollector = currentStudent.unlockedPokemons.length > 3;
 

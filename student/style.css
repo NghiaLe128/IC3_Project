@@ -36,6 +36,146 @@ body {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
 }
 
+.store-tab-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.store-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.store-tab-btn.active {
+  color: #ffffff;
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.light-mode .store-tab-btn {
+  color: #475569 !important;
+}
+
+.light-mode .store-tab-btn:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .store-tab-btn.active {
+  background: #ffffff !important;
+  color: #3b82f6 !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08) !important;
+}
+
+.profile-custom-tab-btn {
+  padding: 8px 20px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.profile-custom-tab-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.light-mode .profile-custom-tab-btn {
+  color: #64748b;
+}
+
+.light-mode .profile-custom-tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.inv-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 16px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  background: transparent;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.inv-tab-btn i {
+  font-size: 18px;
+}
+
+.inv-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.inv-tab-btn.active {
+  background: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.inventory-slot {
+  aspect-ratio: 1/1;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.inventory-slot:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+}
+
+.inventory-slot.active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.inventory-slot-equipped {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #10b981;
+  color: white;
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 /* World Map Zone Cards with Frosted Glass */
 .world-zone-card {
   background: rgba(255, 255, 255, 0.03);

@@ -47,8 +47,8 @@
         <!-- Player Level & Pokemon Avatar -->
         <div class="flex items-center gap-3">
           <!-- Pokemon Avatar Selector / Circle Frame -->
-          <div class="relative group cursor-pointer" onclick="openPokemonSelectorModal()">
-            <div id="playerAvatarFrame" class="w-12 h-12 rounded-full bg-indigo-950 border-2 border-yellow-400 flex items-center justify-center text-2xl shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95">
+          <div class="relative group cursor-pointer" onclick="openProfileCustomizationModal()">
+            <div id="playerAvatarFrame" class="w-12 h-12 rounded-full bg-indigo-950 border-2 border-yellow-400 flex items-center justify-center text-2xl shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 overflow-hidden">
               <!-- Dynamically rendered Avatar Emoji/Image -->
               ⚡
             </div>
@@ -546,90 +546,59 @@
       </section>
 
       <!-- ==================== VIEW: 6. TÚI ĐỒ (INVENTORY) ==================== -->
-      <section id="student-tab-inventory" class="student-view-content space-y-8 hidden">
-        <div class="flex justify-between items-center">
+      <section id="student-tab-inventory" class="student-view-content hidden h-full flex flex-col">
+        <div class="flex justify-between items-center mb-6">
           <div>
-            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-briefcase text-blue-400 mr-2"></i>Túi Đồ Nhà Thám Hiểm</h3>
-            <p class="text-xs text-slate-400">Quản lý đội ngũ siêu thú Pokémon đồng hành, vật phẩm quà tặng và lịch sử chiến đấu thám hiểm.</p>
+            <h3 class="font-poppins font-black text-lg text-white uppercase tracking-tighter italic"><i class="fa-solid fa-briefcase text-indigo-500 mr-2"></i>Túi Đồ Cá Nhân</h3>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Quản lý bộ sưu tập Pokémon và vật phẩm của bạn</p>
           </div>
         </div>
 
-        <!-- Inventory Layout Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          <!-- Left Column: Owned Companions list -->
-          <div class="lg:col-span-4 space-y-5">
-            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-paw mr-2 text-indigo-400"></i>Pokémon của bạn:</h4>
-            <div id="inventory-unlocked-pokemons" class="grid grid-cols-1 gap-3">
-              <!-- Rendered dynamically -->
-            </div>
+        <div class="flex gap-4 flex-grow overflow-hidden min-h-[500px]">
+          <!-- Vertical Inventory Tabs -->
+          <div class="flex flex-col gap-2 w-16 sm:w-32 bg-slate-900/40 p-2 rounded-2xl border border-white/5 shrink-0">
+            <button onclick="switchInventoryTab('pokemon')" id="btn-inv-pokemon" class="inv-tab-btn active">
+              <i class="fa-solid fa-dragon"></i>
+              <span class="hidden sm:inline">Pokémon</span>
+            </button>
+            <button onclick="switchInventoryTab('item')" id="btn-inv-item" class="inv-tab-btn">
+              <i class="fa-solid fa-box-open"></i>
+              <span class="hidden sm:inline">Vật phẩm</span>
+            </button>
+            <button onclick="switchInventoryTab('avatar')" id="btn-inv-avatar" class="inv-tab-btn">
+              <i class="fa-solid fa-user-ninja"></i>
+              <span class="hidden sm:inline">Avatar</span>
+            </button>
+            <button onclick="switchInventoryTab('frame')" id="btn-inv-frame" class="inv-tab-btn">
+              <i class="fa-solid fa-id-badge"></i>
+              <span class="hidden sm:inline">Khung</span>
+            </button>
+            <button onclick="switchInventoryTab('nickname')" id="btn-inv-nickname" class="inv-tab-btn">
+              <i class="fa-solid fa-quote-left"></i>
+              <span class="hidden sm:inline">Biệt danh</span>
+            </button>
+            <button onclick="switchInventoryTab('evolution')" id="btn-inv-evolution" class="inv-tab-btn mt-auto bg-amber-500/10 border-amber-500/20 text-amber-400">
+              <i class="fa-solid fa-arrows-spin"></i>
+              <span class="hidden sm:inline">Tiến hóa</span>
+            </button>
           </div>
 
-          <!-- Middle Column: Useable Items Backpack -->
-          <div class="lg:col-span-4 space-y-5">
-            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-gift mr-2 text-pink-400"></i>Vật phẩm quà tặng:</h4>
-            <div id="inventory-items" class="grid grid-cols-1 gap-3">
-              <!-- Rendered dynamically. Shows physical vouchers or neon frame status -->
-              <div class="bg-game-card border border-white/5 p-4 rounded-2xl text-center py-10 text-slate-500 text-xs">
-                🎁 Chưa có vật phẩm nào trong ba lô. Hãy mua sắm thêm tại Cửa Hàng!
-              </div>
+          <!-- Inventory Grid Area -->
+          <div class="flex-grow bg-[#050811]/40 rounded-3xl border border-white/5 p-4 overflow-y-auto">
+            <div id="inventory-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <!-- Items rendered here as 'bag slots' -->
+            </div>
+            
+            <!-- Evolution UI (shown when evolution tab active) -->
+            <div id="inventory-evolution-area" class="hidden h-full flex flex-col justify-center items-center py-6">
+                 <!-- The evolution tracker logic will be rendered here -->
+            </div>
+
+            <div id="inventory-empty-state" class="hidden flex flex-col items-center justify-center py-20 text-slate-600">
+              <i class="fa-solid fa-box-open text-4xl mb-3 opacity-20"></i>
+              <p class="text-xs font-bold uppercase tracking-widest">Túi đồ đang trống</p>
             </div>
           </div>
-
-          <!-- Right Column: Evolution Tracker & Quick Actions -->
-          <div class="lg:col-span-4 space-y-5">
-            <h4 class="font-poppins font-extrabold text-sm text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-arrows-spin mr-2 text-yellow-400"></i>Tiến Hóa Pokemon:</h4>
-            <div class="bg-game-card border border-white/10 p-5 rounded-3xl space-y-5 shadow-2xl relative overflow-hidden">
-              <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
-              
-              <div id="evolution-slideshow" class="flex items-center justify-between relative z-10">
-                <button onclick="window.prevEvolution()" class="text-slate-400 hover:text-white p-2 text-xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all duration-200"><i class="fa-solid fa-chevron-left"></i></button>
-                
-                <div class="text-center py-2 relative flex-grow">
-                  <div class="h-32 flex justify-center mb-3 items-center relative perspective-500">
-                    <!-- Subtle ambient aura behind pokemon -->
-                    <div class="absolute w-24 h-24 rounded-full bg-gradient-to-tr from-yellow-500/10 to-indigo-500/20 blur-xl animate-pulse"></div>
-                    
-                    <img id="evolution-target-avatar" src="" class="w-24 h-24 object-contain drop-shadow-[0_4px_20px_rgba(253,224,71,0.3)] transition-all duration-500 transform hover:scale-110 hover:rotate-6 relative z-10">
-                    
-                    <!-- 3D Locked badge in the top-right corner, letting them preview the full beautiful 3D sprite -->
-                    <div id="evolution-lock-overlay" class="absolute top-1 right-4 bg-red-950/80 border border-red-500/40 px-2 py-0.5 rounded-lg backdrop-blur-sm shadow-md flex items-center gap-1 z-20 hidden">
-                      <i class="fa-solid fa-lock text-[10px] text-red-500 animate-pulse"></i>
-                      <span class="text-[8px] font-black text-red-400 tracking-wider uppercase">KHÓA 3D</span>
-                    </div>
-                  </div>
-                  <h5 id="evolution-target-title" class="font-poppins font-black text-sm text-white uppercase tracking-wider drop-shadow-md">IC3 Mega Master Dragon</h5>
-                  <span id="evolution-stage-text" class="text-[9px] font-bold text-slate-400 block mt-1 uppercase tracking-widest bg-white/5 border border-white/5 py-0.5 px-2 rounded-full w-max mx-auto">Stage 3 - Tiến hóa</span>
-                </div>
-                
-                <button onclick="window.nextEvolution()" class="text-slate-400 hover:text-white p-2 text-xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all duration-200"><i class="fa-solid fa-chevron-right"></i></button>
-              </div>
-
-              <div class="space-y-3 border-t border-white/5 pt-3 text-xs relative z-10">
-                <div class="flex justify-between items-center py-1">
-                  <span class="text-slate-400 font-medium">Bậc Thám Hiểm Hiện Tại:</span>
-                  <span id="evolution-current-rank" class="font-mono font-black text-emerald-400 text-right bg-emerald-500/10 border border-emerald-500/10 py-0.5 px-2 rounded-lg">Beginner</span>
-                </div>
-                <div class="flex justify-between items-center py-1">
-                  <span class="text-slate-400 font-medium">Tiến độ ăn Chuối Vàng:</span>
-                  <span id="evolution-req-bananas" class="font-mono font-black text-yellow-300 text-right bg-yellow-500/10 border border-yellow-500/10 py-0.5 px-2 rounded-lg">0 / 5 🍌</span>
-                </div>
-                <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden p-[1px] border border-white/5">
-                  <div id="evolution-req-bar" class="h-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-              </div>
-              
-              <div class="grid grid-cols-2 gap-2 relative z-10">
-                <button onclick="window.feedBananaToPokemon()" id="feed-poke-btn" class="w-full py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider">
-                  🍌 Cho Ăn
-                </button>
-                <button onclick="window.triggerEvolvePokemon()" id="evolve-poke-btn" class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.2)]">
-                  🔮 Tiến Hóa
-                </button>
-              </div>
-            </div>
-          </div>
-
         </div>
 
         <!-- Combat Logs table section -->
@@ -660,19 +629,40 @@
 
       <!-- ==================== VIEW: 7. REWARDS / STORE TAB ==================== -->
       <section id="student-tab-rewards" class="student-view-content space-y-6 hidden">
-        <div class="flex justify-between items-center">
-          <div>
-            <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-store text-yellow-500 mr-2"></i>Cửa Hàng Pokémon Sparks</h3>
-            <p class="text-xs text-slate-400">Dùng số Coins vàng tích lũy được từ các bài thi để rước Thần thú Pokémon mới hoặc đổi quà xịn!</p>
+        <div class="flex flex-col gap-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="font-poppins font-black text-lg text-white"><i class="fa-solid fa-store text-yellow-500 mr-2"></i>Cửa Hàng Pokémon Sparks</h3>
+              <p class="text-xs text-slate-400">Dùng số Coins vàng tích lũy được từ các bài thi để rước Thần thú Pokémon mới hoặc đổi quà xịn!</p>
+            </div>
+            <!-- Live Balance display -->
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 text-sm font-bold text-yellow-300 rounded-xl">
+                🍌 Chuối: <span id="store-bananas-balance">0</span>
+              </div>
+              <div class="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-sm font-bold text-yellow-400 rounded-xl">
+                🪙 Coins: <span id="store-coins-balance">250</span>
+              </div>
+            </div>
           </div>
-          <!-- Live Balance display -->
-          <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 text-sm font-bold text-yellow-300 rounded-xl">
-              🍌 Chuối: <span id="store-bananas-balance">0</span>
-            </div>
-            <div class="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-sm font-bold text-yellow-400 rounded-xl">
-              🪙 Coins: <span id="store-coins-balance">250</span>
-            </div>
+
+          <!-- Store Category Tabs -->
+          <div class="flex items-center gap-2 bg-slate-900/50 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-none">
+            <button onclick="switchStoreTab('pokemon')" id="btn-store-pokemon" class="store-tab-btn active">
+              <i class="fa-solid fa-dragon mr-1.5"></i> Pokémon
+            </button>
+            <button onclick="switchStoreTab('item')" id="btn-store-item" class="store-tab-btn">
+              <i class="fa-solid fa-box-open mr-1.5"></i> Vật phẩm
+            </button>
+            <button onclick="switchStoreTab('avatar')" id="btn-store-avatar" class="store-tab-btn">
+              <i class="fa-solid fa-user-ninja mr-1.5"></i> Avatar
+            </button>
+            <button onclick="switchStoreTab('frame')" id="btn-store-frame" class="store-tab-btn">
+              <i class="fa-solid fa-id-badge mr-1.5"></i> Khung ảnh
+            </button>
+            <button onclick="switchStoreTab('nickname')" id="btn-store-nickname" class="store-tab-btn">
+              <i class="fa-solid fa-quote-left mr-1.5"></i> Biệt danh
+            </button>
           </div>
         </div>
 
@@ -1175,6 +1165,40 @@
 
 
     <!-- ==================== POPUP MODAL: CHOOSE POKEMON AVATAR ==================== -->
+    <!-- Profile Customization Modal -->
+    <div id="profileCustomizationModal" class="fixed inset-0 bg-game-dark/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-game-bg border border-indigo-500/20 w-full max-w-2xl rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b border-white/5 flex justify-between items-center bg-indigo-950/20">
+          <div>
+            <h2 class="font-poppins font-black text-xl text-white uppercase tracking-tighter italic">Cá nhân hóa hồ sơ</h2>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Thay đổi diện mạo của bạn trong đấu trường</p>
+          </div>
+          <button onclick="closeProfileCustomizationModal()" class="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        
+        <!-- Modal Tabs -->
+        <div class="flex items-center gap-1 bg-slate-900/40 p-2 border-b border-white/5 overflow-x-auto scrollbar-none">
+          <button onclick="switchProfileCustomTab('pokemon')" id="btn-custom-pokemon" class="profile-custom-tab-btn active">Pokémon</button>
+          <button onclick="switchProfileCustomTab('avatar')" id="btn-custom-avatar" class="profile-custom-tab-btn">Avatar</button>
+          <button onclick="switchProfileCustomTab('frame')" id="btn-custom-frame" class="profile-custom-tab-btn">Khung</button>
+          <button onclick="switchProfileCustomTab('nickname')" id="btn-custom-nickname" class="profile-custom-tab-btn">Biệt hiệu</button>
+        </div>
+
+        <div class="p-6 overflow-y-auto flex-grow bg-[#050811]/30">
+          <div id="profile-customization-content-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <div class="p-4 bg-indigo-950/10 border-t border-white/5 text-center text-[10px] font-bold text-slate-500 italic">
+          Các vật phẩm mới có thể được mua tại Cửa Hàng bằng Coins vàng 🪙
+        </div>
+      </div>
+    </div>
+
+    <!-- Original Pokemon Selector Modal (Keeping it as a component of the new modal if needed, or just redirecting) -->
     <div id="pokemonSelectorModal" class="fixed inset-0 bg-game-dark/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
       <div class="bg-game-card border border-indigo-500/30 max-w-md w-full p-6 rounded-3xl shadow-2xl relative">
         <button onclick="closePokemonSelectorModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
