@@ -354,7 +354,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
       if (studentData.pokemon) {
         await setDoc(studentDocRef, studentData, { merge: true });
       }
-      localStorage.setItem("pendingStudentData", "");
+      localStorage.removeItem("pendingUserData");
 
       if (firestoreUser) {
         userData = { 

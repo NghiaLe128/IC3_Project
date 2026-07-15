@@ -146,6 +146,10 @@ function startSessionMonitor() {
     
     // Subscribe to real-time changes
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      const currentPath = window.location.pathname;
+      const isLoginPage = currentPath.endsWith("index.html") || currentPath === "/" || currentPath.endsWith("/") || currentPath === "" || (currentPath.includes("index") && !currentPath.includes("/student/") && !currentPath.includes("/teacher/") && !currentPath.includes("/admin/"));
+      const isSelectionPage = currentPath.includes("pokemon-select");
+
       if (docSnap.exists()) {
         const cloudUser = docSnap.data();
         
@@ -157,27 +161,22 @@ function startSessionMonitor() {
           // Clear local storage
           localStorage.removeItem(IC3_KEYS.CURRENT_USER);
           
-          const isLoginPage = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/") || window.location.pathname === "" || window.location.pathname.includes("index");
-          
           if (!isLoginPage) {
             // Show alert and redirect only if not on login page
             alert("Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!");
-            window.location.href = (window.location.pathname.includes("/student/") || window.location.pathname.includes("/teacher/") || window.location.pathname.includes("/admin/") ? "../index.html" : "index.html");
+            window.location.href = (currentPath.includes("/student/") || currentPath.includes("/teacher/") || currentPath.includes("/admin/") ? "../index.html" : "index.html");
           } else {
-            // If already on login page, just reload once to clear state
-            location.reload();
+            // If already on login page, just ensure state is cleared, don't reload infinitely
+            console.log("Already on login page, state cleared.");
           }
         }
       } else {
         // Only redirect if we are NOT in the middle of a pending setup and NOT on login/selection page
-        const isSelectionPage = window.location.pathname.includes("pokemon-select");
-        const isLoginPage = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/") || window.location.pathname === "" || window.location.pathname.includes("index");
-        
         if (!localStorage.getItem("pendingUserData") && !isSelectionPage && !isLoginPage) {
           console.log("🚨 User doc not found in DB, logging out...");
           unsubscribe();
           localStorage.removeItem(IC3_KEYS.CURRENT_USER);
-          window.location.href = isLoginPage ? "index.html" : (window.location.pathname.includes("/student/") || window.location.pathname.includes("/teacher/") || window.location.pathname.includes("/admin/") ? "../index.html" : "index.html");
+          window.location.href = (currentPath.includes("/student/") || currentPath.includes("/teacher/") || currentPath.includes("/admin/") ? "../index.html" : "index.html");
         }
       }
     }, (error) => {

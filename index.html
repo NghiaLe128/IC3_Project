@@ -328,27 +328,23 @@
                 window.location.href = './student/index.html';
               } else {
                 // Prepare pending data for pokemon-select.html
-                if (!studentData) {
-                  const newStudent = {
-                    email: user.email,
-                    name: user.name || user.email.split('@')[0],
-                    classId: "C1",
-                    blockId: "block_3",
-                    level: "Beginner",
-                    exp: 150,
-                    maxExp: 500,
-                    coins: 50,
-                    rank: "Bronze",
-                    badges: [],
-                    unlockedLessons: ["lesson_l1_1"],
-                    unlockedZones: ["level_1"],
-                    bananas: 0,
-                    pokemonFedBananas: 0
-                  };
-                  localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
-                } else {
-                  localStorage.setItem("pendingUserData", JSON.stringify(studentData));
-                }
+                const newStudent = studentData || {
+                  email: user.email,
+                  name: user.name || user.email.split('@')[0],
+                  classId: user.classId || "C1",
+                  blockId: "block_3",
+                  level: "Beginner",
+                  exp: 150,
+                  maxExp: 500,
+                  coins: 50,
+                  rank: "Bronze",
+                  badges: [],
+                  unlockedLessons: ["lesson_l1_1"],
+                  unlockedZones: ["level_1"],
+                  bananas: 0,
+                  pokemonFedBananas: 0
+                };
+                localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
                 window.location.href = './pokemon-select.html';
               }
               return;
@@ -737,6 +733,25 @@
                     window.location.href = './student/index.html';
                   }, 1000);
                 } else {
+                  // Prepare pending data for pokemon-select.html
+                  const newStudent = studentData.email ? studentData : {
+                    email: res.user.email,
+                    name: res.user.name || res.user.email.split('@')[0],
+                    classId: res.user.classId || "C1",
+                    blockId: "block_3",
+                    level: "Beginner",
+                    exp: 150,
+                    maxExp: 500,
+                    coins: 50,
+                    rank: "Bronze",
+                    badges: [],
+                    unlockedLessons: ["lesson_l1_1"],
+                    unlockedZones: ["level_1"],
+                    bananas: 0,
+                    pokemonFedBananas: 0
+                  };
+                  localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
+                  
                   // No Pokémon, show selection
                   window.location.href = './pokemon-select.html';
                 }
