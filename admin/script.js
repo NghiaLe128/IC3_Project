@@ -349,14 +349,14 @@ function handleStudentSubmit(e) {
       students[idx].name = name;
       students[idx].classId = classId;
       students[idx].pokemon = pokemon;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, editEmail);
 
       // Optionally update name/password in users
       const uIdx = users.findIndex(u => u.email === editEmail);
       if (uIdx !== -1) {
         users[uIdx].name = name;
         if (password) users[uIdx].password = password;
-        window.saveData(window.IC3_KEYS.USERS, users);
+        window.saveData(window.IC3_KEYS.USERS, users, editEmail);
       }
     }
   } else {
@@ -381,7 +381,7 @@ function handleStudentSubmit(e) {
       unlockedZones: ["level_1"]
     };
     students.push(newStudent);
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, email);
 
     const newUser = {
       email,
@@ -390,7 +390,7 @@ function handleStudentSubmit(e) {
       name
     };
     users.push(newUser);
-    window.saveData(window.IC3_KEYS.USERS, users);
+    window.saveData(window.IC3_KEYS.USERS, users, email);
   }
 
   closeStudentModal();
@@ -464,7 +464,7 @@ window.resetBossHunts = function(studentEmail) {
   if (stdIdx !== -1) {
     const today = getBossHuntDayKey();
     students[stdIdx].bossHunts = { date: today, count: 0 };
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, studentEmail);
     window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
     renderStudentsTable();
   } else {
@@ -556,7 +556,7 @@ function handleTeacherSubmit(e) {
     classes: []
   };
   teachers.push(newTeacher);
-  window.saveData(window.IC3_KEYS.TEACHERS, teachers);
+  window.saveData(window.IC3_KEYS.TEACHERS, teachers, email);
 
   // Save auth user
   const newUser = {
@@ -566,7 +566,7 @@ function handleTeacherSubmit(e) {
     name
   };
   users.push(newUser);
-  window.saveData(window.IC3_KEYS.USERS, users);
+  window.saveData(window.IC3_KEYS.USERS, users, email);
 
   closeTeacherModal();
   renderTeachersGrid();
@@ -719,7 +719,7 @@ function handleQuestionSubmit(e) {
   }
 
   questions.push(newQuestion);
-  window.saveData(window.IC3_KEYS.QUESTIONS, questions);
+  window.saveData(window.IC3_KEYS.QUESTIONS, questions, newId);
 
   closeQuestionModal();
   renderQuestionsTable();
@@ -847,7 +847,7 @@ function handleTestSubmit(e) {
   };
 
   tests.push(newTest);
-  window.saveData(window.IC3_KEYS.TESTS, tests);
+  window.saveData(window.IC3_KEYS.TESTS, tests, newId);
 
   closeTestModal();
   renderTestsGrid();
@@ -1013,7 +1013,7 @@ function handleRewardSubmit(e) {
   };
 
   rewards.push(newReward);
-  window.saveData(window.IC3_KEYS.REWARDS, rewards);
+  window.saveData(window.IC3_KEYS.REWARDS, rewards, newId);
 
   closeRewardModal();
   renderRewardsGrid();
@@ -1128,7 +1128,7 @@ function saveAdminSettings() {
     settings.push(sheetObj);
   }
 
-  window.saveData(window.IC3_KEYS.SETTINGS, settings);
+  window.saveData(window.IC3_KEYS.SETTINGS, settings, "google_sheets");
   window.showToast("Đã lưu các cấu hình game hóa, mức thưởng EXP/Coins và thiết lập liên kết Google Sheets thành công!");
 }
 
@@ -1242,14 +1242,15 @@ function handleBossSubmit(e) {
     const bIdx = bosses.findIndex(b => b.id === id);
     if (bIdx !== -1) {
       bosses[bIdx] = { id, name, maxHp, hp, avatar, desc };
+      window.saveData(window.IC3_KEYS.BOSSES, bosses, id);
     }
   } else {
     // Add
     const newId = `boss_${Date.now()}`;
     bosses.push({ id: newId, name, maxHp, hp, avatar, desc });
+    window.saveData(window.IC3_KEYS.BOSSES, bosses, newId);
   }
 
-  window.saveData(window.IC3_KEYS.BOSSES, bosses);
   closeBossModal();
   renderBossesGrid();
   window.showToast("Cập nhật thông tin Boss thành công!", "success");

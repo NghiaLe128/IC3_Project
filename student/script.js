@@ -197,7 +197,7 @@ window.useEvolutionForm = async function(formName) {
     } else {
         students.push(currentStudent);
     }
-    await window.saveData(window.IC3_KEYS.STUDENTS, students);
+    await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
 
     // Sync all duplicate accounts with same name to have the same pokemon & avatar
     const myName = (currentStudent.fullName || currentStudent.name || "").toString().trim().toLowerCase();
@@ -431,7 +431,7 @@ window.feedBananaToPokemon = async function() {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
         students[idx] = currentStudent;
-        const res = await window.saveData(window.IC3_KEYS.STUDENTS, students);
+        const res = await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
         if (res.success) {
             window.showToast(`Ngon quá! 🍌 Pokémon đã ăn 1 quả Chuối Vàng (${currentStudent.pokemonFedBananas}/${targetBananas})`);
             window.confetti({ particleCount: 30, spread: 40 });
@@ -486,7 +486,7 @@ window.triggerEvolvePokemon = async function() {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
         students[idx] = currentStudent;
-        const res = await window.saveData(window.IC3_KEYS.STUDENTS, students);
+        const res = await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
         if (res.success) {
             window.showToast(`Chúc mừng! Pokémon của bạn đã tiến hóa thành thành công! 🎉`);
             window.confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -1070,7 +1070,7 @@ async function saveStudentBlockInMemoryAndFirestore(blockId) {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    await window.saveData(window.IC3_KEYS.STUDENTS, students);
+    await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   } else {
     try {
       const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
@@ -1090,7 +1090,7 @@ window.changeStudentGrade = async function(newBlockId) {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    await window.saveData(window.IC3_KEYS.STUDENTS, students);
+    await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   } else {
     try {
       const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
@@ -1334,7 +1334,7 @@ function confirmExitBossHuntDirectly() {
     const bIdx = bosses.findIndex(b => b.id === bossActivePlayingTest.bossId);
     if (bIdx !== -1) {
       bosses[bIdx].hp = bhBossCurrentHP;
-      window.saveData(window.IC3_KEYS.BOSSES, bosses);
+      window.saveData(window.IC3_KEYS.BOSSES, bosses, bossActivePlayingTest.bossId);
     }
   }
 
@@ -1350,7 +1350,7 @@ function confirmExitBossHuntDirectly() {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
     }
     window.showToast("Trận chiến kết thúc! Một lượt săn Boss hôm nay đã được tính.", "info");
   }
@@ -2118,7 +2118,7 @@ function finishBossHunt() {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
   // Save Boss persistent HP
@@ -2127,7 +2127,7 @@ function finishBossHunt() {
     const bIdx = bosses.findIndex(b => b.id === bossActivePlayingTest.bossId);
     if (bIdx !== -1) {
       bosses[bIdx].hp = bhBossCurrentHP;
-      window.saveData(window.IC3_KEYS.BOSSES, bosses);
+      window.saveData(window.IC3_KEYS.BOSSES, bosses, bossActivePlayingTest.bossId);
     }
   }
 
@@ -2158,7 +2158,7 @@ function revivePokemonInBossHunt() {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
   
   // Hide revival screen
@@ -2691,7 +2691,7 @@ function watchLessonVideo(nodeId) {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
     }
 
     window.showToast("🎉 Bạn đã tiếp thu kiến thức thành công và được cộng thêm +10 EXP thám hiểm!");
@@ -2725,7 +2725,7 @@ function submitSkillQuiz(nodeId) {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
     }
 
     loadStudentProfile();
@@ -2993,7 +2993,7 @@ function selectInventoryCompanion(pokeId) {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
   const prettyName = window.pokemonNames[targetForm] || targetForm.toUpperCase();
@@ -3027,7 +3027,7 @@ function useInventoryItem(itemIndex) {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
     }
 
     window.showToast(`🎁 BẠN ĐÃ MỞ HỘP QUÀ MAY MẮN THÀNH CÔNG!\nHộp quà chứa: ${chosen.msg}`);
@@ -3074,7 +3074,7 @@ function triggerEvolvePokemon() {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
   window.showToast(`🔮 TIẾN HÓA THẦN THỨ THÀNH CÔNG! 🔮\n\nChúc mừng thám hiểm giả! Pokémon và trình độ kiến thức của bạn đã thăng cấp thành công từ ${previousLevel.toUpperCase()} lên ${nextLevelName.toUpperCase()}!\n\nGiao diện thám hiểm, bảng xếp hạng và danh hiệu vương giả mới đã được cập nhật!`);
@@ -4992,7 +4992,7 @@ function finishTest() {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
   // Save score log entry
@@ -5021,7 +5021,7 @@ function finishTest() {
   };
 
   scores.push(scoreEntry);
-  window.saveData(window.IC3_KEYS.SCORES, scores);
+  window.saveData(window.IC3_KEYS.SCORES, scores, scoreEntry.id);
 
   // Render Victory Overlay Screen
   showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained, correctAnswersCount, totalQ);
@@ -5267,7 +5267,7 @@ function buyStoreItem(id, cost, type) {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
     }
 
     loadStudentProfile();
@@ -5485,9 +5485,7 @@ async function selectCustomItem(type, value) {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
-    const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, currentStudent.email);
-    await window.fStore.setDoc(studentDocRef, currentStudent);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
   loadStudentProfile();
@@ -5683,7 +5681,7 @@ function renderBadges() {
   const idx = students.findIndex(s => s.email === currentStudent.email);
   if (idx !== -1) {
     students[idx].badges = unlockedBadges;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
   allBadgesDef.forEach(b => {

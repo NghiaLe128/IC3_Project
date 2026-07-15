@@ -470,7 +470,7 @@ function handleStudentToClassSubmit(e) {
   const idx = students.findIndex(s => s.email === email);
   if (idx !== -1) {
     students[idx].classId = activeClassId;
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
+    window.saveData(window.IC3_KEYS.STUDENTS, students, email);
   }
 
   closeAddStudentToClassModal();
@@ -484,7 +484,7 @@ function removeStudentFromClass(email) {
     const idx = students.findIndex(s => s.email === email);
     if (idx !== -1) {
       students[idx].classId = ""; // No class assigned
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, email);
     }
     renderOverview();
     renderClassStudentsTable();
@@ -2177,7 +2177,7 @@ function handleClassSubmit(e) {
   };
 
   classes.push(newClass);
-  window.saveData(window.IC3_KEYS.CLASSES, classes);
+  window.saveData(window.IC3_KEYS.CLASSES, classes, id);
 
   closeClassModal();
   initClassSelector();
@@ -2527,7 +2527,7 @@ window.toggleRewardLock = async function(rewardId) {
   const idx = rewards.findIndex(r => r.id === rewardId);
   if (idx > -1) {
     rewards[idx].isLocked = !rewards[idx].isLocked;
-    const res = await window.saveData(window.IC3_KEYS.REWARDS, rewards);
+    const res = await window.saveData(window.IC3_KEYS.REWARDS, rewards, rewardId);
     if (res && res.success) {
       window.showToast(rewards[idx].isLocked ? "Đã khóa phần thưởng!" : "Đã mở khóa phần thưởng!");
       renderTeacherRewards();

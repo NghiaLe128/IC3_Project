@@ -322,9 +322,14 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
     }
 
     let targetClassId = "";
-    const classesRef = collection(db, "classes");
-    const classesSnap = await getDocs(classesRef);
-    const classesList = classesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    let classesList = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+    
+    if (classesList.length === 0) {
+      const classesRef = collection(db, "classes");
+      const classesSnap = await getDocs(classesRef);
+      classesList = classesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      window.IC3_CACHE[window.IC3_KEYS.CLASSES] = classesList;
+    }
 
     const matchingClass = classesList.find(c => c.name.toLowerCase() === className.toLowerCase());
     if (matchingClass) targetClassId = matchingClass.id;
