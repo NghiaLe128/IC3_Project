@@ -97,6 +97,7 @@ const getPortal = () => {
 // Seed Database with initial data if empty
 // OPTIMIZED: Portal-specific fetching and deduplication
 async function initData() {
+  if (window.IC3_DB_INITIALIZED) return;
   if (isInitializing) return;
   isInitializing = true;
 
@@ -185,6 +186,7 @@ async function initData() {
     console.error("❌ Critical initialization error:", error);
   } finally {
     isInitializing = false;
+    window.IC3_DB_INITIALIZED = true;
     window.dispatchEvent(new CustomEvent('ic3-db-ready'));
     startSessionMonitor();
   }

@@ -798,7 +798,7 @@ function toggleTheme() {
 applySavedTheme();
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (window.IC3_CACHE && window.IC3_CACHE.users && window.IC3_CACHE.users.length > 0) {
+  if (window.IC3_DB_INITIALIZED) {
     startStudentApp();
   } else {
     window.addEventListener('ic3-db-ready', startStudentApp);

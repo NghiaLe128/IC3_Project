@@ -26,7 +26,7 @@ let activeClassId = "";
 let activeQuestionId = ""; // Track selected question in manage-tests tab
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (window.IC3_CACHE && window.IC3_CACHE.users && window.IC3_CACHE.users.length > 0) {
+  if (window.IC3_DB_INITIALIZED) {
     startTeacherApp();
   } else {
     window.addEventListener('ic3-db-ready', startTeacherApp);

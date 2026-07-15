@@ -4,7 +4,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   // Wait for Cloud DB to be ready
-  if (window.IC3_CACHE && window.IC3_CACHE.users && window.IC3_CACHE.users.length > 0) {
+  if (window.IC3_DB_INITIALIZED) {
     startAdminApp();
   } else {
     window.addEventListener('ic3-db-ready', startAdminApp);
