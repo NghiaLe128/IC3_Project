@@ -305,17 +305,6 @@
     <script type="module">
       // Check if user is already logged in, then auto-redirect
       async function initApp() {
-        // Wait a bit for db-init.js to define window.IC3_KEYS if needed
-        if (!window.IC3_KEYS) {
-          await new Promise(resolve => {
-            const check = () => {
-              if (window.IC3_KEYS) resolve();
-              else setTimeout(check, 50);
-            };
-            check();
-          });
-        }
-
         const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
         if (userStr) {
           const user = JSON.parse(userStr);
@@ -327,24 +316,6 @@
               if (studentData && studentData.pokemon) {
                 window.location.href = './student/index.html';
               } else {
-                // Prepare pending data for pokemon-select.html
-                const newStudent = studentData || {
-                  email: user.email,
-                  name: user.name || user.email.split('@')[0],
-                  classId: user.classId || "C1",
-                  blockId: "block_3",
-                  level: "Beginner",
-                  exp: 150,
-                  maxExp: 500,
-                  coins: 50,
-                  rank: "Bronze",
-                  badges: [],
-                  unlockedLessons: ["lesson_l1_1"],
-                  unlockedZones: ["level_1"],
-                  bananas: 0,
-                  pokemonFedBananas: 0
-                };
-                localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
                 window.location.href = './pokemon-select.html';
               }
               return;
@@ -451,9 +422,9 @@
                         bananas: 0,
                         pokemonFedBananas: 0
                       };
-                      localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
+                      localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
                     } else {
-                      localStorage.setItem("pendingUserData", JSON.stringify(studentData));
+                      localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
                     }
                     window.location.href = './pokemon-select.html';
                   }
@@ -536,9 +507,9 @@
                     bananas: 0,
                     pokemonFedBananas: 0
                   };
-                  localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
+                  localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
                 } else {
-                  localStorage.setItem("pendingUserData", JSON.stringify(studentData));
+                  localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
                 }
                 window.location.href = './pokemon-select.html';
               }
@@ -733,25 +704,6 @@
                     window.location.href = './student/index.html';
                   }, 1000);
                 } else {
-                  // Prepare pending data for pokemon-select.html
-                  const newStudent = studentData.email ? studentData : {
-                    email: res.user.email,
-                    name: res.user.name || res.user.email.split('@')[0],
-                    classId: res.user.classId || "C1",
-                    blockId: "block_3",
-                    level: "Beginner",
-                    exp: 150,
-                    maxExp: 500,
-                    coins: 50,
-                    rank: "Bronze",
-                    badges: [],
-                    unlockedLessons: ["lesson_l1_1"],
-                    unlockedZones: ["level_1"],
-                    bananas: 0,
-                    pokemonFedBananas: 0
-                  };
-                  localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
-                  
                   // No Pokémon, show selection
                   window.location.href = './pokemon-select.html';
                 }
