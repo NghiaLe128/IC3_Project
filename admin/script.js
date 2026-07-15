@@ -1345,3 +1345,8 @@ function downloadSheetTemplate() {
   window.showToast("Đã tải xuống file mẫu thành công!");
 }
 window.downloadSheetTemplate = downloadSheetTemplate;
+
+// EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
+Object.assign(window, {
+  adjustQuestionAnswers, checkAdminAuth, closeBossModal, closeQuestionModal, closeRewardModal, closeStudentModal, closeTeacherModal, closeTestModal, deleteBoss, deleteQuestion, deleteReward, deleteStudent, deleteTeacher, deleteTest, downloadSheetTemplate, editStudent, filterQuestionsForTestSelection, getBossHuntDayKey, handleBossSubmit, handleQuestionSubmit, handleRewardSubmit, handleStudentSubmit, handleTeacherSubmit, handleTestSubmit, initClock, initDashboard, logoutAdmin, openBossModal, openQuestionModal, openRewardModal, openStudentModal, openTeacherModal, openTestModal, renderAdminSettings, renderBossesGrid, renderDashboardRecentScores, renderDashboardTopStudents, renderQuestionsTable, renderRankingList, renderRewardsGrid, renderStudentsTable, renderTeachersGrid, renderTestsGrid, resetDatabaseToDefault, saveAdminSettings, startAdminApp, switchTab, updateLevelsQuestionCount
+});

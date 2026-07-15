@@ -842,13 +842,23 @@ async function checkStudentAuth() {
     return;
   }
   
-  // Load specific student details from Firestore
   try {
-    const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, user.email);
-    const studentDoc = await window.fStore.getDoc(studentDocRef);
+    let studentData = null;
+    if (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.STUDENTS]) {
+       const cachedStudents = window.IC3_CACHE[window.IC3_KEYS.STUDENTS];
+       studentData = cachedStudents.find(s => s.id === user.email || s.email === user.email);
+    }
     
-    if (studentDoc.exists()) {
-      currentStudent = studentDoc.data();
+    if (!studentData) {
+      const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, user.email);
+      const studentDoc = await window.fStore.getDoc(studentDocRef);
+      if (studentDoc.exists()) {
+        studentData = studentDoc.data();
+      }
+    }
+    
+    if (studentData) {
+      currentStudent = studentData;
       if (!currentStudent.blockId) {
         currentStudent.blockId = "block_3";
       }
@@ -859,14 +869,12 @@ async function checkStudentAuth() {
         return;
       }
     } else {
-      // Fallback for demo accounts or missing profile - DO NOT set default pokemon here
-      // Instead, we will redirect to pokemon-select.html if it's a new user
+      // Fallback for demo accounts or missing profile
       window.location.href = "../pokemon-select.html";
       return;
     }
   } catch (error) {
     console.error("Error loading student profile:", error);
-    // Use fallback if network fails but only if we have local info or redirect
     window.location.href = "../index.html";
     return;
   }
@@ -6294,3 +6302,8 @@ window.renderStudentDashboard = function() {
     });
   }
 }
+
+// EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
+Object.assign(window, {
+  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerEvolvePokemon, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo
+});

@@ -266,6 +266,38 @@
             
             await window.fStore.setDoc(studentDocRef, pendingData);
             localStorage.setItem("pendingStudentData", "");
+          } else {
+            // If there's no pending data, directly fetch and update the student doc
+            const studentDocRef = window.fStore.doc(window.db, 'students', user.email);
+            const docSnap = await window.fStore.getDoc(studentDocRef);
+            if (docSnap.exists()) {
+              const studentData = docSnap.data();
+              studentData.pokemon = pokemon;
+              let baseKey = pokemon;
+              if (pokemon === "pichu") baseKey = "pikachu";
+              studentData.unlockedPokemons = studentData.unlockedPokemons || [];
+              if (!studentData.unlockedPokemons.includes(baseKey)) {
+                studentData.unlockedPokemons.push(baseKey);
+              }
+              await window.fStore.setDoc(studentDocRef, studentData);
+            } else {
+               // Fallback: create a basic student record if none exists
+               let baseKey = pokemon;
+               if (pokemon === "pichu") baseKey = "pikachu";
+               await window.fStore.setDoc(studentDocRef, {
+                 email: user.email,
+                 name: user.name || user.email.split('@')[0],
+                 role: "student",
+                 classId: "C1",
+                 pokemon: pokemon,
+                 unlockedPokemons: [baseKey],
+                 coins: 0,
+                 bananas: 0,
+                 exp: 0,
+                 level: 1,
+                 hp: 100
+               });
+            }
           }
           
           if (pendingUserData) {

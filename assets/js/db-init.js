@@ -98,23 +98,6 @@ const getPortal = () => {
 // OPTIMIZED: Portal-specific fetching and deduplication
 async function initData() {
   if (isInitializing) return;
-  
-  // Prevent duplicate initialization in same session
-  if (sessionStorage.getItem('ic3_db_initialized') === 'true') {
-    console.log("📦 IC3 LMS Database already initialized in this session.");
-    // Restore from localStorage if not in window.IC3_CACHE
-    Object.values(IC3_KEYS).forEach(key => {
-      if (!window.IC3_CACHE[key]) {
-        const cached = localStorage.getItem(`ic3_cache_${key}`);
-        if (cached) {
-          try { window.IC3_CACHE[key] = JSON.parse(cached).data; } catch (e) {}
-        }
-      }
-    });
-    window.dispatchEvent(new CustomEvent('ic3-db-ready'));
-    return;
-  }
-
   isInitializing = true;
 
   const portal = getPortal();
@@ -129,34 +112,14 @@ async function initData() {
   if (portal === "admin") {
     collectionsToFetch = Object.values(IC3_KEYS).filter(k => k !== IC3_KEYS.CURRENT_USER);
   } else if (portal === "teacher") {
-    // Teachers need classes, students in their classes, and relevant scores
     collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.REWARDS];
   } else if (portal === "student") {
-    // Students need their class, their own record, and active tests
     collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.REWARDS, IC3_KEYS.BOSSES, IC3_KEYS.SETTINGS];
   }
-
-  const now = Date.now();
-  const CACHE_TTL = 600000; // 10 minutes cache
-  const STATIC_TTL = 3600000; // 1 hour for static data
 
   try {
     // Phase 1: Parallel fetch of primary collections
     await Promise.all(collectionsToFetch.map(async (key) => {
-      const cacheKey = `ic3_cache_${key}`;
-      const cachedStr = localStorage.getItem(cacheKey);
-      const ttl = (key === IC3_KEYS.QUESTIONS || key === IC3_KEYS.TESTS || key === IC3_KEYS.SETTINGS) ? STATIC_TTL : CACHE_TTL;
-
-      if (cachedStr) {
-        try {
-          const cacheObj = JSON.parse(cachedStr);
-          if (now - cacheObj.timestamp < ttl) {
-            window.IC3_CACHE[key] = cacheObj.data;
-            return;
-          }
-        } catch (e) {}
-      }
-
       // Fetch from Firestore
       if (window.FETCH_PROMISES[key]) return window.FETCH_PROMISES[key];
 
@@ -175,7 +138,6 @@ async function initData() {
           const snapshot = await getDocs(colRef);
           const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           window.IC3_CACHE[key] = data;
-          localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: now }));
           return data;
         } catch (e) {
           console.warn(`Fetch failed for [${key}]:`, e.message);
@@ -188,42 +150,36 @@ async function initData() {
 
     // Phase 2: Contextual Sub-fetches (Students and Scores)
     if (portal === "teacher" && currentUser?.email) {
-      // Fetch only students in teacher's classes
       const myClasses = (window.IC3_CACHE[IC3_KEYS.CLASSES] || []).map(c => c.id);
       if (myClasses.length > 0) {
         console.log(`☁️ Fetching students for ${myClasses.length} classes...`);
-        const studentQuery = query(collection(db, IC3_KEYS.STUDENTS), where("classId", "in", myClasses.slice(0, 10))); // Firestore "in" limit is 10
+        const studentQuery = query(collection(db, IC3_KEYS.STUDENTS), where("classId", "in", myClasses.slice(0, 10)));
         const studentSnap = await getDocs(studentQuery);
         window.IC3_CACHE[IC3_KEYS.STUDENTS] = studentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         
-        // Fetch relevant scores (limited for performance)
         console.log(`☁️ Fetching recent scores for class...`);
         const scoreQuery = query(collection(db, IC3_KEYS.SCORES), limit(500)); 
         const scoreSnap = await getDocs(scoreQuery);
         window.IC3_CACHE[IC3_KEYS.SCORES] = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       }
     } else if (portal === "student" && currentUser?.email) {
-      // Fetch current student only
       console.log(`☁️ Fetching individual student profile [${currentUser.email}]...`);
       const studentDoc = await getDoc(doc(db, IC3_KEYS.STUDENTS, currentUser.email));
       if (studentDoc.exists()) {
         window.IC3_CACHE[IC3_KEYS.STUDENTS] = [{ ...studentDoc.data(), id: studentDoc.id }];
       }
       
-      // Fetch student's own scores only
       console.log(`☁️ Fetching personal scores...`);
       const scoreQuery = query(collection(db, IC3_KEYS.SCORES), where("studentEmail", "==", currentUser.email));
       const scoreSnap = await getDocs(scoreQuery);
       window.IC3_CACHE[IC3_KEYS.SCORES] = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       
-      // Fetch leaderboard (top 50) instead of all scores
       console.log(`☁️ Fetching global leaderboard...`);
       const topScoreQuery = query(collection(db, IC3_KEYS.SCORES), orderBy("score", "desc"), limit(50));
       const topSnap = await getDocs(topScoreQuery);
       window.IC3_CACHE["leaderboard"] = topSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     }
 
-    sessionStorage.setItem('ic3_db_initialized', 'true');
     console.log("✅ Cloud Data Initialization Optimized & Complete");
   } catch (error) {
     console.error("❌ Critical initialization error:", error);
@@ -369,10 +325,6 @@ window.logoutUser = async () => {
 window.saveData = async (key, data, specificItemId = null) => {
   // Update local cache first
   window.IC3_CACHE[key] = data;
-  localStorage.setItem(`ic3_cache_${key}`, JSON.stringify({
-    data,
-    timestamp: Date.now()
-  }));
 
   console.log(`📡 Syncing [${key}] to cloud...`);
   
