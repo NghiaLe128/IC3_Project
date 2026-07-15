@@ -729,16 +729,41 @@ function handleQuestionSubmit(e) {
 function deleteQuestion(id) {
   window.showConfirmModal(
     "Xác nhận xóa câu hỏi",
-    `Bạn muốn xóa câu hỏi ${id} khỏi kho dữ liệu?`,
-    () => {
+    `Bạn muốn xóa câu hỏi ${id} khỏi kho dữ liệu? (ID này cũng sẽ tự động được xóa khỏi các bộ đề liên quan)`,
+    async () => {
+      // 1. Update questions list local cache
       let questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
       questions = questions.filter(q => q.id !== id);
       window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions;
-      window.deleteData(window.IC3_KEYS.QUESTIONS, id);
       
+      // 2. Clean up local tests cache referencing this question
+      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+      const updatedTests = [];
+      for (const t of tests) {
+        if (t.questions && t.questions.includes(id)) {
+          t.questions = t.questions.filter(qid => qid !== id);
+          t.questionCount = t.questions.length;
+          updatedTests.push(t);
+        }
+      }
+
+      // 3. Render and update the UI immediately
       renderQuestionsTable();
       updateLevelsQuestionCount();
       window.showToast("Đã xóa câu hỏi thành công!", "success");
+
+      // 4. Update the DB asynchronously in background
+      try {
+        await window.deleteData(window.IC3_KEYS.QUESTIONS, id);
+        
+        // Save each modified test set back to Firestore
+        for (const t of updatedTests) {
+          await window.saveData(window.IC3_KEYS.TESTS, tests, t.id);
+        }
+      } catch (error) {
+        console.error("❌ Cloud sync error during admin question deletion:", error);
+        window.showToast("Lỗi đồng bộ đám mây: " + error.message, "error");
+      }
     }
   );
 }

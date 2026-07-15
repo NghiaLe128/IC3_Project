@@ -479,16 +479,20 @@ function handleStudentToClassSubmit(e) {
 }
 
 function removeStudentFromClass(email) {
-  if (confirm(`Bạn muốn đưa học sinh ${email} ra khỏi lớp học này?`)) {
-    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-    const idx = students.findIndex(s => s.email === email);
-    if (idx !== -1) {
-      students[idx].classId = ""; // No class assigned
-      window.saveData(window.IC3_KEYS.STUDENTS, students, email);
+  showConfirmModal(
+    "Đưa học sinh ra khỏi lớp",
+    `Bạn muốn đưa học sinh ${email} ra khỏi lớp học này?`,
+    () => {
+      const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
+      const idx = students.findIndex(s => s.email === email);
+      if (idx !== -1) {
+        students[idx].classId = ""; // No class assigned
+        window.saveData(window.IC3_KEYS.STUDENTS, students, email);
+      }
+      renderOverview();
+      renderClassStudentsTable();
     }
-    renderOverview();
-    renderClassStudentsTable();
-  }
+  );
 }
 
 function getBossHuntDayKey() {
@@ -513,20 +517,23 @@ function getBossHuntDayKey() {
 }
 
 window.resetBossHunts = function(studentEmail) {
-  if (!confirm(`Bạn có chắc muốn đặt lại (reset) số lượt săn Boss hôm nay của học sinh ${studentEmail} về 0?`)) {
-    return;
-  }
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  const stdIdx = students.findIndex(s => s.email === studentEmail);
-  if (stdIdx !== -1) {
-    const today = getBossHuntDayKey();
-    students[stdIdx].bossHunts = { date: today, count: 0 };
-    window.saveData(window.IC3_KEYS.STUDENTS, students);
-    window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
-    renderClassStudentsTable();
-  } else {
-    window.showToast("Không tìm thấy thông tin tài khoản học sinh!", 'error');
-  }
+  showConfirmModal(
+    "Reset lượt săn Boss",
+    `Bạn có chắc muốn đặt lại (reset) số lượt săn Boss hôm nay của học sinh ${studentEmail} về 0?`,
+    () => {
+      const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
+      const stdIdx = students.findIndex(s => s.email === studentEmail);
+      if (stdIdx !== -1) {
+        const today = getBossHuntDayKey();
+        students[stdIdx].bossHunts = { date: today, count: 0 };
+        window.saveData(window.IC3_KEYS.STUDENTS, students);
+        window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
+        renderClassStudentsTable();
+      } else {
+        window.showToast("Không tìm thấy thông tin tài khoản học sinh!", 'error');
+      }
+    }
+  );
 }
 
 // ==================== POPUP MODAL: STUDENT DETAILS & HISTORY ====================
@@ -680,6 +687,8 @@ function onBlockSelectionChange() {
 
   const blockTests = tests.filter(t => t.blockId === blockId);
   const testSelector = document.getElementById("m-testSelector");
+  const previousTestId = testSelector ? testSelector.value : "";
+  
   testSelector.innerHTML = `<option value="">-- Chọn bộ đề thám hiểm --</option>`;
 
   blockTests.forEach(t => {
@@ -688,6 +697,10 @@ function onBlockSelectionChange() {
     if (t.difficulty === "hard") diffIcon = "🔴 Khó";
     testSelector.innerHTML += `<option value="${t.id}">[${diffIcon}] ${t.title} (${t.questions.length} câu)</option>`;
   });
+
+  if (previousTestId && Array.from(testSelector.options).some(opt => opt.value === previousTestId)) {
+    testSelector.value = previousTestId;
+  }
 
   onTestSelectionChange();
 }
@@ -1658,37 +1671,50 @@ async function handleQuestionFormSubmit(e) {
 function deleteCurrentQuestion() {
   if (!activeQuestionId) return;
 
-  if (confirm("Bạn có chắc chắn muốn xóa câu hỏi này ra khỏi bộ đề thám hiểm?")) {
-    const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
-    window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions.filter(q => q.id !== activeQuestionId);
-    
-    // Actually delete the doc from Firestore
-    window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, activeQuestionId));
+  showConfirmModal(
+    "Xác nhận xóa câu hỏi",
+    "Bạn có chắc chắn muốn xóa câu hỏi này ra khỏi bộ đề thám hiểm?",
+    async () => {
+      const targetQId = activeQuestionId;
+      
+      // 1. Update local cache for QUESTIONS first
+      const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+      window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions.filter(q => q.id !== targetQId);
+      
+      // 2. Update local cache for TESTS first
+      const testId = document.getElementById("m-testSelector").value;
+      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+      const tIdx = tests.findIndex(t => t.id === testId);
+      if (tIdx !== -1) {
+        tests[tIdx].questions = (tests[tIdx].questions || []).filter(id => id !== targetQId);
+        tests[tIdx].questionCount = tests[tIdx].questions.length;
+      }
 
-    const testId = document.getElementById("m-testSelector").value;
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-    const tIdx = tests.findIndex(t => t.id === testId);
-    if (tIdx !== -1) {
-      // We must fetch latest to prevent overwriting other concurrent modifications
-      window.fStore.getDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId)).then(snap => {
-        if (snap.exists()) {
-          const latestTest = snap.data();
-          latestTest.questions = latestTest.questions || [];
-          latestTest.questions = latestTest.questions.filter(id => id !== activeQuestionId);
-          latestTest.questionCount = latestTest.questions.length;
-          
-          window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId), latestTest, { merge: true });
-          
-          tests[tIdx].questions = latestTest.questions;
-          tests[tIdx].questionCount = latestTest.questionCount;
+      // 3. Render list, update counts in selectors, and reset details workspace immediately
+      window.showToast("Đã xóa câu hỏi thành công!");
+      onBlockSelectionChange();
+
+      // 4. Asynchronously sync deletions with Firestore
+      try {
+        await window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, targetQId));
+        
+        if (tIdx !== -1) {
+          const snap = await window.fStore.getDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId));
+          if (snap.exists()) {
+            const latestTest = snap.data();
+            latestTest.questions = latestTest.questions || [];
+            latestTest.questions = latestTest.questions.filter(id => id !== targetQId);
+            latestTest.questionCount = latestTest.questions.length;
+            
+            await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId), latestTest, { merge: true });
+          }
         }
-      });
+      } catch (error) {
+        console.error("❌ Cloud sync error during question deletion:", error);
+        window.showToast("Lỗi đồng bộ đám mây: " + error.message, "error");
+      }
     }
-
-    window.showToast("Đã xóa câu hỏi thành công!");
-    renderQuestionsList();
-    resetQuestionWorkspace();
-  }
+  );
 }
 
 
@@ -1765,23 +1791,27 @@ function deleteCurrentBlock() {
     return;
   }
 
-  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa khối lớp này? Mọi bộ đề liên kết với khối này cũng sẽ bị xóa bỏ!")) {
-    const blocks = getBlocks().filter(b => b.id !== blockId);
-    saveBlocks(blocks);
+  showConfirmModal(
+    "Xóa khối lớp",
+    "CẢNH BÁO: Bạn có chắc chắn muốn xóa khối lớp này? Mọi bộ đề liên kết với khối này cũng sẽ bị xóa bỏ!",
+    () => {
+      const blocks = getBlocks().filter(b => b.id !== blockId);
+      saveBlocks(blocks);
 
-    // Delete associated tests
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-    const testsToDelete = tests.filter(t => t.blockId === blockId);
-    window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.blockId !== blockId);
-    
-    // Actually delete the docs from Firestore
-    testsToDelete.forEach(t => {
-      window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, t.id));
-    });
+      // Delete associated tests
+      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+      const testsToDelete = tests.filter(t => t.blockId === blockId);
+      window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.blockId !== blockId);
+      
+      // Actually delete the docs from Firestore
+      testsToDelete.forEach(t => {
+        window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, t.id));
+      });
 
-    window.showToast("Đã xóa khối lớp thành công!");
-    initManageTestsTab();
-  }
+      window.showToast("Đã xóa khối lớp thành công!");
+      initManageTestsTab();
+    }
+  );
 }
 
 function openTestSetModal(action) {
@@ -2026,16 +2056,20 @@ function deleteCurrentTestSet() {
     return;
   }
 
-  if (confirm("Bạn có chắc chắn muốn xóa bộ đề thám hiểm này? Mọi liên kết và câu hỏi đi kèm sẽ bị gỡ bỏ.")) {
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-    window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.id !== testId);
-    
-    // Actually delete the doc from Firestore
-    window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId));
+  showConfirmModal(
+    "Xóa bộ đề",
+    "Bạn có chắc chắn muốn xóa bộ đề thám hiểm này? Mọi liên kết và câu hỏi đi kèm sẽ bị gỡ bỏ.",
+    () => {
+      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+      window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.id !== testId);
+      
+      // Actually delete the doc from Firestore
+      window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId));
 
-    window.showToast("Đã xóa bộ đề thành công!");
-    onBlockSelectionChange();
-  }
+      window.showToast("Đã xóa bộ đề thành công!");
+      onBlockSelectionChange();
+    }
+  );
 }
 
 
@@ -2537,7 +2571,34 @@ window.toggleRewardLock = async function(rewardId) {
   }
 }
 
+let deleteCallback = null;
+
+function showConfirmModal(title, message, onConfirm) {
+  const modal = document.getElementById("confirmModal");
+  if (modal) {
+    document.getElementById("confirmModalTitle").innerText = title;
+    document.getElementById("confirmModalMessage").innerText = message;
+    deleteCallback = onConfirm;
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeConfirmModal() {
+  const modal = document.getElementById("confirmModal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+  deleteCallback = null;
+}
+
+function handleConfirmAction() {
+  if (deleteCallback) {
+    deleteCallback();
+  }
+  closeConfirmModal();
+}
+
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab
+  adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction
 });

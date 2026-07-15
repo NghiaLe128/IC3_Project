@@ -115,7 +115,7 @@ async function initData() {
   } else if (portal === "teacher") {
     collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.REWARDS];
   } else if (portal === "student") {
-    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.REWARDS, IC3_KEYS.BOSSES, IC3_KEYS.SETTINGS];
+    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.REWARDS, IC3_KEYS.BOSSES, IC3_KEYS.SETTINGS];
   }
 
   try {

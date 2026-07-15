@@ -730,6 +730,23 @@
       </div>
     </div>
 
+    <!-- Modal: Reusable Custom Confirmation -->
+    <div id="confirmModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-sm p-6 rounded-2xl shadow-2xl relative text-center">
+        <button onclick="closeConfirmModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-100 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div class="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-4 text-xl">
+          <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+        </div>
+        <h3 id="confirmModalTitle" class="font-poppins font-bold text-lg text-indigo-50 mb-2">Xác nhận xóa</h3>
+        <p id="confirmModalMessage" class="text-xs text-indigo-300 mb-6 leading-relaxed">Bạn có chắc chắn muốn thực hiện hành động này không? Hành động này không thể hoàn tác.</p>
+        
+        <div class="flex gap-3">
+          <button onclick="closeConfirmModal()" class="flex-1 py-2 bg-indigo-950 hover:bg-indigo-900 text-indigo-200 text-xs font-bold rounded-xl transition-all cursor-pointer">Hủy</button>
+          <button onclick="handleConfirmAction()" class="flex-1 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/20 transition-all cursor-pointer">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Excel XLSX parsing dependency library -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 

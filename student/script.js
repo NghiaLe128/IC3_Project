@@ -1458,7 +1458,7 @@ function placeBossDraggedText(text, btnIdx) {
   bossDraggedTextAnswers[emptyIdx] = text;
   const slot = document.getElementById(`boss-drag-text-target-${emptyIdx}`);
   slot.innerText = text;
-  slot.className = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-white cursor-pointer hover:bg-red-500/20 transition-all";
+  slot.className = "flex items-center justify-center min-w-[200px] min-h-11 h-auto py-2 px-4 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-white cursor-pointer hover:bg-red-500/20 transition-all text-center break-words whitespace-normal";
   const poolBtn = document.getElementById(`boss-drag-text-pool-btn-${btnIdx}`);
   poolBtn.classList.add("opacity-30", "pointer-events-none");
   slot.dataset.btnIdx = btnIdx;
@@ -1473,7 +1473,7 @@ function clearBossDraggedText(slotIdx) {
   const btnIdx = slot.dataset.btnIdx;
   bossDraggedTextAnswers[slotIdx] = "";
   slot.innerText = "Nhấp từ khóa để điền...";
-  slot.className = "flex items-center justify-center min-w-[200px] h-11 px-4 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+  slot.className = "flex items-center justify-center min-w-[200px] min-h-11 h-auto py-2 px-4 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all text-center break-words whitespace-normal";
   if (btnIdx !== undefined) {
     const poolBtn = document.getElementById(`boss-drag-text-pool-btn-${btnIdx}`);
     if (poolBtn) poolBtn.classList.remove("opacity-30", "pointer-events-none");
@@ -1491,7 +1491,7 @@ function placeBossDraggedImageText(text, btnIdx) {
   bossDraggedTextAnswers[emptyIdx] = text;
   const slot = document.getElementById(`boss-drag-image-target-${emptyIdx}`);
   slot.innerText = text;
-  slot.className = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-red-500/20 transition-all";
+  slot.className = "w-full min-h-11 h-auto py-2 px-3 rounded-xl border border-red-500 bg-red-500/10 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-red-500/20 transition-all text-center break-words whitespace-normal";
   const poolBtn = document.getElementById(`boss-drag-image-pool-btn-${btnIdx}`);
   poolBtn.classList.add("opacity-30", "pointer-events-none");
   slot.dataset.btnIdx = btnIdx;
@@ -1506,7 +1506,7 @@ function clearBossDraggedImageText(slotIdx) {
   const btnIdx = slot.dataset.btnIdx;
   bossDraggedTextAnswers[slotIdx] = "";
   slot.innerText = "Nhấp nhãn để ghép...";
-  slot.className = "w-full h-11 px-3 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+  slot.className = "w-full min-h-11 h-auto py-2 px-3 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all text-center break-words whitespace-normal";
   if (btnIdx !== undefined) {
     const poolBtn = document.getElementById(`boss-drag-image-pool-btn-${btnIdx}`);
     if (poolBtn) poolBtn.classList.remove("opacity-30", "pointer-events-none");
@@ -1604,10 +1604,10 @@ function renderBossQuestion() {
         extraClass = " border-red-500 bg-red-500/10";
       }
 
-      btn.className = "group flex items-center p-4 w-full bg-slate-900/60 border-2 border-slate-800 rounded-[1.5rem] transition-all text-left cursor-pointer text-slate-100 hover:border-red-500/50" + extraClass;
+      btn.className = "group flex items-start p-4 w-full bg-slate-900/60 border-2 border-slate-800 rounded-[1.5rem] transition-all text-left cursor-pointer text-slate-100 hover:border-red-500/50" + extraClass;
       btn.innerHTML = `
-        <span class="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 text-slate-500 flex items-center justify-center text-[10px] font-black mr-3 shrink-0 group-hover:bg-red-600 group-hover:text-white transition-colors">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
-        <span class="text-sm font-bold">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</span>
+        <span class="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 text-slate-500 flex items-center justify-center text-[10px] font-black mr-3 shrink-0 group-hover:bg-red-600 group-hover:text-white transition-colors mt-0.5">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
+        <div class="flex-1 min-w-0 text-sm font-bold leading-relaxed pt-0.5 break-words whitespace-normal text-slate-200">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</div>
       `;
       btn.onclick = () => {
         if (bossIsAnswerChecked) return;
@@ -1630,27 +1630,27 @@ function renderBossQuestion() {
       const placed = savedAnswers[rIdx];
       const correct = q.correctAnswers[rIdx];
       const rowLabel = row.label || row.text || row;
-      let slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+      let slotClass = "flex items-center justify-center min-w-[180px] min-h-11 h-auto py-2 px-4 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all text-center break-words whitespace-normal";
       let slotText = "Nhấp từ khóa để điền...";
       let tipHtml = "";
       if (isQuestionAnswered) {
         if (placed === correct) {
-          slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border border-emerald-500 bg-emerald-500/15 text-xs font-bold text-emerald-400";
+          slotClass = "flex items-center justify-center min-w-[180px] min-h-11 h-auto py-2 px-4 rounded-xl border border-emerald-500 bg-emerald-500/15 text-xs font-bold text-emerald-400 text-center break-words whitespace-normal";
           slotText = placed;
         } else {
-          slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-red-400";
+          slotClass = "flex items-center justify-center min-w-[180px] min-h-11 h-auto py-2 px-4 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-red-400 text-center break-words whitespace-normal";
           slotText = placed || "(Trống)";
-          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đúng: ${correct}</span>`;
+          tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1 text-center">✓ Đúng: ${correct}</span>`;
         }
       } else if (placed) {
-        slotClass = "flex items-center justify-center min-w-[180px] h-11 px-4 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-white cursor-pointer hover:bg-red-500/25 transition-all";
+        slotClass = "flex items-center justify-center min-w-[180px] min-h-11 h-auto py-2 px-4 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-white cursor-pointer hover:bg-red-500/25 transition-all text-center break-words whitespace-normal";
         slotText = placed;
       }
       rowsHtml += `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-900/50 border border-slate-800 gap-3">
-          <span class="text-sm font-bold text-slate-200">${rowLabel}</span>
-          <div>
-            <div id="boss-drag-text-target-${rIdx}" onclick="clearBossDraggedText(${rIdx})" class="${slotClass}">${slotText}</div>
+          <span class="text-sm font-bold text-slate-200 flex-1 min-w-0 break-words whitespace-normal">${rowLabel}</span>
+          <div class="w-full sm:w-auto">
+            <div id="boss-drag-text-target-${rIdx}" onclick="clearBossDraggedText(${rIdx})" class="${slotClass} w-full sm:w-auto">${slotText}</div>
             ${tipHtml}
           </div>
         </div>`;
@@ -1665,7 +1665,7 @@ function renderBossQuestion() {
             ${q.options.map((opt, idx) => {
               const isUsed = savedAnswers.includes(opt);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
-              return `<button id="boss-drag-text-pool-btn-${idx}" onclick="placeBossDraggedText('${opt.replace(/'/g, "\\'")}', ${idx})" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer${disabledClass}">${opt}</button>`;
+              return `<button id="boss-drag-text-pool-btn-${idx}" onclick="placeBossDraggedText('${opt.replace(/'/g, "\\'")}', ${idx})" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer break-words whitespace-normal text-left sm:text-center max-w-full h-auto${disabledClass}">${opt}</button>`;
             }).join("")}
           </div>
         </div>`;
@@ -1683,20 +1683,20 @@ function renderBossQuestion() {
     q.leftImages.forEach((imgUrl, idx) => {
       const placed = savedAnswers[idx];
       const correct = q.correctAnswers[idx];
-      let slotClass = "w-full h-11 px-3 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all";
+      let slotClass = "w-full min-h-11 h-auto py-2 px-3 rounded-xl border-2 border-dashed border-red-500/30 bg-slate-900/40 text-xs font-bold text-red-400 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-900/80 transition-all text-center break-words whitespace-normal";
       let slotText = "Ghép nhãn...";
       let tipHtml = "";
       if (isQuestionAnswered) {
         if (placed === correct) {
-          slotClass = "w-full h-11 px-3 rounded-xl border border-emerald-500 bg-emerald-500/15 text-xs font-bold text-emerald-400 flex items-center justify-center";
+          slotClass = "w-full min-h-11 h-auto py-2 px-3 rounded-xl border border-emerald-500 bg-emerald-500/15 text-xs font-bold text-emerald-400 flex items-center justify-center text-center break-words whitespace-normal";
           slotText = placed;
         } else {
-          slotClass = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-red-400 flex items-center justify-center";
+          slotClass = "w-full min-h-11 h-auto py-2 px-3 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-red-400 flex items-center justify-center text-center break-words whitespace-normal";
           slotText = placed || "(Trống)";
           tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1 text-center">✓ Đúng: ${correct}</span>`;
         }
       } else if (placed) {
-        slotClass = "w-full h-11 px-3 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-red-500/25 transition-all";
+        slotClass = "w-full min-h-11 h-auto py-2 px-3 rounded-xl border border-red-500 bg-red-500/15 text-xs font-bold text-white flex items-center justify-center cursor-pointer hover:bg-red-500/25 transition-all text-center break-words whitespace-normal";
         slotText = placed;
       }
       const itemDiv = document.createElement("div");
@@ -1718,7 +1718,7 @@ function renderBossQuestion() {
           ${q.options.map((opt, idx) => {
             const isUsed = savedAnswers.includes(opt);
             const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
-            return `<button id="boss-drag-image-pool-btn-${idx}" onclick="placeBossDraggedImageText('${opt.replace(/'/g, "\\'")}', ${idx})" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer${disabledClass}">${opt}</button>`;
+            return `<button id="boss-drag-image-pool-btn-${idx}" onclick="placeBossDraggedImageText('${opt.replace(/'/g, "\\'")}', ${idx})" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer break-words whitespace-normal text-left sm:text-center max-w-full h-auto${disabledClass}">${opt}</button>`;
           }).join("")}
         </div>`;
       wrapper.appendChild(poolDiv);
@@ -1746,7 +1746,7 @@ function renderBossQuestion() {
           tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đúng: ${q.options[correctIdx]}</span>`;
         }
       } else if (placedIdx !== undefined && placedIdx !== "") selectClass = "w-full bg-slate-900/60 border-2 border-red-500 text-white text-xs font-bold rounded-xl p-2.5 outline-none";
-      tableHtml += `<tr class="border-b border-slate-900"><td class="p-3 text-xs font-bold text-slate-200">${row}</td><td class="p-3"><select id="boss-table-match-select-${rIdx}" onchange="changeBossTableMatchSelect(${rIdx})" ${disabledAttr} class="${selectClass}"><option value="">-- Chọn --</option>${q.options.map((opt, oIdx) => `<option value="${oIdx}" ${placedIdx === oIdx ? "selected" : ""}>${opt}</option>`).join("")}</select>${tipHtml}</td></tr>`;
+      tableHtml += `<tr class="border-b border-slate-900"><td class="p-3 text-xs font-bold text-slate-200 break-words whitespace-normal">${row}</td><td class="p-3 max-w-xs md:max-w-md"><select id="boss-table-match-select-${rIdx}" onchange="changeBossTableMatchSelect(${rIdx})" ${disabledAttr} class="${selectClass} max-w-full"><option value="">-- Chọn --</option>${q.options.map((opt, oIdx) => `<option value="${oIdx}" ${placedIdx === oIdx ? "selected" : ""}>${opt}</option>`).join("")}</select>${tipHtml}</td></tr>`;
     });
     tableHtml += `</tbody></table>`;
     wrapper.innerHTML = tableHtml;
@@ -1779,8 +1779,8 @@ function renderBossQuestion() {
         boxClass = "w-6 h-6 rounded-lg border-2 border-red-500 bg-red-500 flex items-center justify-center mr-4";
         boxInner = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
       }
-      btn.className = "flex items-center p-4 w-full bg-slate-900/60 border-2 border-slate-800 rounded-[1.5rem] transition-all text-left cursor-pointer group text-slate-100" + extraClass;
-      btn.innerHTML = `<span id="boss-multi-check-box-${idx}" class="${boxClass}">${boxInner}</span><span class="text-sm font-bold">${opt}</span>`;
+      btn.className = "flex items-start p-4 w-full bg-slate-900/60 border-2 border-slate-800 rounded-[1.5rem] transition-all text-left cursor-pointer group text-slate-100" + extraClass;
+      btn.innerHTML = `<span id="boss-multi-check-box-${idx}" class="${boxClass} shrink-0 mt-0.5">${boxInner}</span><div class="flex-1 min-w-0 text-sm font-bold leading-relaxed pt-0.5 break-words whitespace-normal text-slate-200">${opt}</div>`;
       btn.onclick = () => {
         if (bossIsAnswerChecked) return;
         const box = document.getElementById(`boss-multi-check-box-${idx}`);
@@ -3634,10 +3634,10 @@ function renderGameQuestion() {
         }
       }
 
-      btn.className = "option-card-btn flex items-center p-3 sm:p-4 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
+      btn.className = "option-card-btn flex items-start p-3.5 sm:p-4 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
       btn.innerHTML = `
-        <span class="w-10 h-10 rounded-full bg-indigo-950/80 border-2 border-indigo-500/30 text-indigo-400 flex items-center justify-center text-base font-black mr-4 shrink-0 transition-all group-hover:border-indigo-500 group-hover:text-indigo-300 shadow-inner">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
-        <span class="text-base sm:text-lg font-semibold leading-relaxed">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</span>
+        <span class="w-10 h-10 rounded-full bg-indigo-950/80 border-2 border-indigo-500/30 text-indigo-400 flex items-center justify-center text-base font-black mr-4 shrink-0 transition-all group-hover:border-indigo-500 group-hover:text-indigo-300 shadow-inner mt-0.5">${isLegacyMultChoice ? opt.slice(0, 2) : (idx + 1)}</span>
+        <div class="flex-1 min-w-0 text-base sm:text-lg font-semibold leading-relaxed pt-1 break-words whitespace-normal text-slate-200 group-hover:text-white transition-colors">${isLegacyMultChoice ? opt.slice(2).trim() : opt}</div>
       `;
       btn.onclick = () => {
         if (isAnswerChecked) return;
@@ -3675,30 +3675,30 @@ function renderGameQuestion() {
     q.rows.forEach((row, rIdx) => {
       const placed = savedAnswers[rIdx];
       const correct = q.correctAnswers[rIdx];
-      let slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all";
+      let slotClass = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all text-center break-words whitespace-normal";
       let slotText = "Nhấp từ khóa để điền...";
       let tipHtml = "";
 
       if (isQuestionAnswered) {
         if (placed === correct) {
-          slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border border-emerald-500 bg-emerald-500/15 text-sm font-black text-emerald-400";
+          slotClass = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border border-emerald-500 bg-emerald-500/15 text-sm font-black text-emerald-400 text-center break-words whitespace-normal";
           slotText = placed;
         } else {
-          slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border border-red-500 bg-red-500/15 text-sm font-black text-red-400";
+          slotClass = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border border-red-500 bg-red-500/15 text-sm font-black text-red-400 text-center break-words whitespace-normal";
           slotText = placed || "(Trống)";
-          tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5">✓ Đáp án đúng: ${correct}</span>`;
+          tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5 text-center">✓ Đáp án đúng: ${correct}</span>`;
         }
       } else if (placed) {
-        slotClass = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border-2 border-indigo-500 bg-indigo-500/15 text-sm font-black text-white cursor-pointer hover:bg-indigo-500/25 transition-all";
+        slotClass = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border-2 border-indigo-500 bg-indigo-500/15 text-sm font-black text-white cursor-pointer hover:bg-indigo-500/25 transition-all text-center break-words whitespace-normal";
         slotText = placed;
       }
 
       rowsHtml += `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#0f172a]/60 border border-slate-800/60 gap-3">
-          <span class="text-sm font-bold text-slate-200 flex-grow">${row}</span>
-          <div class="shrink-0">
+          <span class="text-sm font-bold text-slate-200 flex-1 min-w-0 break-words whitespace-normal">${row}</span>
+          <div class="shrink-0 w-full sm:w-auto">
             <div id="drag-text-target-${rIdx}" onclick="clearDraggedText(${rIdx})" 
-                 class="${slotClass}">
+                 class="${slotClass} w-full sm:w-auto">
               ${slotText}
             </div>
             ${tipHtml}
@@ -3720,7 +3720,7 @@ function renderGameQuestion() {
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
                 <button id="drag-text-pool-btn-${idx}" onclick="placeDraggedText(${idx})" 
-                        class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150${disabledClass}">
+                        class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150 break-words whitespace-normal text-left sm:text-center max-w-full h-auto${disabledClass}">
                   ${opt}
                 </button>
               `;
@@ -3757,21 +3757,21 @@ function renderGameQuestion() {
     q.leftImages.forEach((imgUrl, idx) => {
       const placed = savedAnswers[idx];
       const correct = q.correctAnswers[idx];
-      let slotClass = "w-full h-14 px-4 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all";
+      let slotClass = "w-full min-h-14 h-auto py-3 px-4 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all text-center break-words whitespace-normal";
       let slotText = "Nhấp nhãn để ghép...";
       let tipHtml = "";
 
       if (isQuestionAnswered) {
         if (placed === correct) {
-          slotClass = "w-full h-14 px-4 rounded-2xl border border-emerald-500 bg-emerald-500/15 text-sm font-black text-emerald-400 flex items-center justify-center";
+          slotClass = "w-full min-h-14 h-auto py-3 px-4 rounded-2xl border border-emerald-500 bg-emerald-500/15 text-sm font-black text-emerald-400 flex items-center justify-center text-center break-words whitespace-normal";
           slotText = placed;
         } else {
-          slotClass = "w-full h-14 px-4 rounded-2xl border border-red-500 bg-red-500/15 text-sm font-black text-red-400 flex items-center justify-center";
+          slotClass = "w-full min-h-14 h-auto py-3 px-4 rounded-2xl border border-red-500 bg-red-500/15 text-sm font-black text-red-400 flex items-center justify-center text-center break-words whitespace-normal";
           slotText = placed || "(Trống)";
           tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5 text-center">✓ Đúng: ${correct}</span>`;
         }
       } else if (placed) {
-        slotClass = "w-full h-14 px-4 rounded-2xl border-2 border-indigo-500 bg-indigo-500/15 text-sm font-black text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/25 transition-all";
+        slotClass = "w-full min-h-14 h-auto py-3 px-4 rounded-2xl border-2 border-indigo-500 bg-indigo-500/15 text-sm font-black text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/25 transition-all text-center break-words whitespace-normal";
         slotText = placed;
       }
 
@@ -3802,7 +3802,7 @@ function renderGameQuestion() {
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
                 <button id="drag-image-pool-btn-${idx}" onclick="placeDraggedImageText(${idx})" 
-                        class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150${disabledClass}">
+                        class="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all shadow-md cursor-pointer hover:scale-[1.03] active:scale-95 duration-150 break-words whitespace-normal text-left sm:text-center max-w-full h-auto${disabledClass}">
                   ${opt}
                 </button>
               `;
@@ -3870,10 +3870,10 @@ function renderGameQuestion() {
 
       tableHtml += `
         <tr class="border-b border-slate-900 hover:bg-white/2 transition-colors">
-          <td class="p-5 text-sm font-black text-slate-200">${row}</td>
-          <td class="p-5">
+          <td class="p-5 text-sm font-black text-slate-200 break-words whitespace-normal">${row}</td>
+          <td class="p-5 max-w-xs md:max-w-md">
             <select id="table-match-select-${rIdx}" onchange="changeTableMatchSelect(${rIdx})" ${disabledAttr}
-                    class="${selectClass}">
+                    class="${selectClass} max-w-full">
               <option value="">-- Chọn đáp án --</option>
               ${q.options.map((opt, oIdx) => {
                 const isSelected = placedIdx === oIdx;
@@ -4066,11 +4066,11 @@ function renderGameQuestion() {
         boxInner = `<i class="fa-solid fa-check text-[10px] text-white"></i>`;
       }
 
-      btn.className = "option-card-btn flex items-center justify-between p-5 sm:p-6 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-2xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
+      btn.className = "option-card-btn flex items-start justify-between p-4 sm:p-5 w-full bg-[#131b2e]/60 hover:bg-[#1c2742]/85 border-2 border-slate-800/90 rounded-2xl transition-all duration-250 text-left cursor-pointer group text-slate-100 shadow-md relative" + extraClass;
       btn.innerHTML = `
-        <div class="flex items-center">
-          <span id="multi-check-box-${idx}" class="${boxClass}">${boxInner}</span>
-          <span class="text-base sm:text-lg font-semibold text-slate-100 leading-relaxed">${opt}</span>
+        <div class="flex items-start w-full">
+          <span id="multi-check-box-${idx}" class="${boxClass} shrink-0 mt-0.5">${boxInner}</span>
+          <div class="flex-1 min-w-0 text-base sm:text-lg font-semibold text-slate-100 leading-relaxed break-words whitespace-normal">${opt}</div>
         </div>
       `;
       btn.onclick = () => {
@@ -4222,7 +4222,7 @@ function placeDraggedText(btnIdx) {
   
   const slot = document.getElementById(`drag-text-target-${emptyIdx}`);
   slot.innerText = text;
-  slot.className = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border border-indigo-500 bg-indigo-500/10 text-sm font-black text-white cursor-pointer hover:bg-indigo-500/20 transition-all";
+  slot.className = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border border-indigo-500 bg-indigo-500/10 text-sm font-black text-white cursor-pointer hover:bg-indigo-500/20 transition-all text-center break-words whitespace-normal";
   
   const poolBtn = document.getElementById(`drag-text-pool-btn-${btnIdx}`);
   poolBtn.classList.add("opacity-30", "pointer-events-none");
@@ -4246,7 +4246,7 @@ function clearDraggedText(slotIdx) {
   window.draggedTextAnswers[slotIdx] = "";
   
   slot.innerText = "Nhấp từ khóa để điền...";
-  slot.className = "flex items-center justify-center min-w-[220px] h-14 px-6 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-sm font-black text-indigo-400 cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
+  slot.className = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all text-center break-words whitespace-normal";
   
   if (btnIdx !== undefined) {
     const poolBtn = document.getElementById(`drag-text-pool-btn-${btnIdx}`);
@@ -4276,7 +4276,7 @@ function placeDraggedImageText(btnIdx) {
   
   const slot = document.getElementById(`drag-image-target-${emptyIdx}`);
   slot.innerText = text;
-  slot.className = "w-full h-14 px-4 rounded-2xl border border-indigo-500 bg-indigo-500/10 text-sm font-black text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/20 transition-all";
+  slot.className = "w-full min-h-14 h-auto py-3 px-4 rounded-2xl border border-indigo-500 bg-indigo-500/10 text-sm font-black text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500/20 transition-all text-center break-words whitespace-normal";
   
   const poolBtn = document.getElementById(`drag-image-pool-btn-${btnIdx}`);
   poolBtn.classList.add("opacity-30", "pointer-events-none");
@@ -4300,7 +4300,7 @@ function clearDraggedImageText(slotIdx) {
   window.draggedTextAnswers[slotIdx] = "";
   
   slot.innerText = "Nhấp nhãn để ghép...";
-  slot.className = "w-full h-14 px-4 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-slate-900/40 text-sm font-black text-indigo-400 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-900/80 transition-all";
+  slot.className = "w-full min-h-14 h-auto py-3 px-4 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all text-center break-words whitespace-normal";
   
   if (btnIdx !== undefined) {
     const poolBtn = document.getElementById(`drag-image-pool-btn-${btnIdx}`);
