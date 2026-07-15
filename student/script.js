@@ -852,50 +852,23 @@ async function checkStudentAuth() {
       if (!currentStudent.blockId) {
         currentStudent.blockId = "block_3";
       }
+      
+      // If student exists but has no pokemon, redirect to selection
+      if (!currentStudent.pokemon) {
+        window.location.href = "../pokemon-select.html";
+        return;
+      }
     } else {
-      // Fallback for demo accounts or missing profile
-      currentStudent = {
-        email: user.email,
-        name: user.displayName || user.name,
-        classId: "C1",
-        blockId: "block_3",
-        pokemon: "pichu",
-        level: "Beginner",
-        exp: 150,
-        maxExp: 500,
-        coins: 50,
-        rank: "Bronze",
-        badges: [],
-        unlockedLessons: ["lesson_l1_1"],
-        unlockedZones: ["level_1"],
-        unlockedAvatars: ["⚡", "🔥", "🍃", "💧"],
-        unlockedFrames: ["border-indigo-500/50"],
-        unlockedNicknames: ["Thám hiểm viên"],
-        currentAvatar: "⚡",
-        currentFrame: "border-indigo-500/50",
-        currentNickname: "Thám hiểm viên"
-      };
-      currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
-      await window.fStore.setDoc(studentDocRef, currentStudent);
+      // Fallback for demo accounts or missing profile - DO NOT set default pokemon here
+      // Instead, we will redirect to pokemon-select.html if it's a new user
+      window.location.href = "../pokemon-select.html";
+      return;
     }
   } catch (error) {
     console.error("Error loading student profile:", error);
-    // Use fallback if network fails
-    currentStudent = {
-      email: user.email,
-      name: user.displayName || user.name,
-      classId: "C1",
-      blockId: "block_3",
-      pokemon: "pichu",
-      level: "Beginner",
-      exp: 150,
-      maxExp: 500,
-      coins: 50,
-      rank: "Bronze",
-      badges: [],
-      unlockedLessons: ["lesson_l1_1"],
-      unlockedZones: ["level_1"]
-    };
+    // Use fallback if network fails but only if we have local info or redirect
+    window.location.href = "../index.html";
+    return;
   }
 }
 

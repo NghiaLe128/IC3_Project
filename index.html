@@ -304,11 +304,50 @@
     <script type="module" src="./assets/js/db-init.js"></script>
     <script type="module">
       // Check if user is already logged in, then auto-redirect
-      function initApp() {
+      async function initApp() {
         const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
         if (userStr) {
           const user = JSON.parse(userStr);
-          redirectUser(user.role);
+          
+          if (user.role === 'student') {
+            try {
+              const studentDoc = await window.fStore.getDoc(window.fStore.doc(window.db, 'students', user.email));
+              const studentData = studentDoc.exists() ? studentDoc.data() : null;
+              if (studentData && studentData.pokemon) {
+                window.location.href = './student/index.html';
+              } else {
+                // Prepare pending data for pokemon-select.html
+                if (!studentData) {
+                  const newStudent = {
+                    email: user.email,
+                    name: user.name || user.email.split('@')[0],
+                    classId: "C1",
+                    blockId: "block_3",
+                    level: "Beginner",
+                    exp: 150,
+                    maxExp: 500,
+                    coins: 50,
+                    rank: "Bronze",
+                    badges: [],
+                    unlockedLessons: ["lesson_l1_1"],
+                    unlockedZones: ["level_1"],
+                    bananas: 0,
+                    pokemonFedBananas: 0
+                  };
+                  localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
+                } else {
+                  localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+                }
+                window.location.href = './pokemon-select.html';
+              }
+              return;
+            } catch (e) {
+              console.error("Error checking student pokemon:", e);
+              redirectUser(user.role);
+            }
+          } else {
+            redirectUser(user.role);
+          }
         }
         
         // Enable login button when DB is ready
@@ -377,9 +416,46 @@
             const result = await window.loginUser(email, password);
             if (result.success) {
               successBox.classList.remove('hidden');
-              setTimeout(() => {
-                redirectUser(result.user.role);
-              }, 1000);
+              
+              // Check if it is a student and if they have a Pokémon
+              if (result.user.role === 'student') {
+                const studentDoc = await window.fStore.getDoc(window.fStore.doc(window.db, 'students', result.user.email));
+                const studentData = studentDoc.exists() ? studentDoc.data() : null;
+                
+                setTimeout(() => {
+                  if (studentData && studentData.pokemon) {
+                    window.location.href = './student/index.html';
+                  } else {
+                    // Prepare pending data for pokemon-select.html
+                    if (!studentData) {
+                      const newStudent = {
+                        email: result.user.email,
+                        name: result.user.name || result.user.email.split('@')[0],
+                        classId: "C1",
+                        blockId: "block_3",
+                        level: "Beginner",
+                        exp: 150,
+                        maxExp: 500,
+                        coins: 50,
+                        rank: "Bronze",
+                        badges: [],
+                        unlockedLessons: ["lesson_l1_1"],
+                        unlockedZones: ["level_1"],
+                        bananas: 0,
+                        pokemonFedBananas: 0
+                      };
+                      localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
+                    } else {
+                      localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+                    }
+                    window.location.href = './pokemon-select.html';
+                  }
+                }, 1000);
+              } else {
+                setTimeout(() => {
+                  redirectUser(result.user.role);
+                }, 1000);
+              }
             } else {
               errorBox.classList.remove('hidden');
               document.getElementById('errorMessage').innerText = result.message;
@@ -425,9 +501,46 @@
         
         if (result.success) {
           successBox.classList.remove('hidden');
-          setTimeout(() => {
-            redirectUser(result.user.role);
-          }, 800);
+          
+          // Check if it is a student and if they have a Pokémon
+          if (result.user.role === 'student') {
+            const studentDoc = await window.fStore.getDoc(window.fStore.doc(window.db, 'students', result.user.email));
+            const studentData = studentDoc.exists() ? studentDoc.data() : null;
+            
+            setTimeout(() => {
+              if (studentData && studentData.pokemon) {
+                window.location.href = './student/index.html';
+              } else {
+                // Prepare pending data for pokemon-select.html
+                if (!studentData) {
+                  const newStudent = {
+                    email: result.user.email,
+                    name: result.user.name || result.user.email.split('@')[0],
+                    classId: "C1",
+                    blockId: "block_3",
+                    level: "Beginner",
+                    exp: 150,
+                    maxExp: 500,
+                    coins: 50,
+                    rank: "Bronze",
+                    badges: [],
+                    unlockedLessons: ["lesson_l1_1"],
+                    unlockedZones: ["level_1"],
+                    bananas: 0,
+                    pokemonFedBananas: 0
+                  };
+                  localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
+                } else {
+                  localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+                }
+                window.location.href = './pokemon-select.html';
+              }
+            }, 800);
+          } else {
+            setTimeout(() => {
+              redirectUser(result.user.role);
+            }, 800);
+          }
         } else {
           errorBox.classList.remove('hidden');
           document.getElementById('errorMessage').innerText = result.message;
