@@ -305,6 +305,17 @@
     <script type="module">
       // Check if user is already logged in, then auto-redirect
       async function initApp() {
+        // Wait a bit for db-init.js to define window.IC3_KEYS if needed
+        if (!window.IC3_KEYS) {
+          await new Promise(resolve => {
+            const check = () => {
+              if (window.IC3_KEYS) resolve();
+              else setTimeout(check, 50);
+            };
+            check();
+          });
+        }
+
         const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
         if (userStr) {
           const user = JSON.parse(userStr);
@@ -334,9 +345,9 @@
                     bananas: 0,
                     pokemonFedBananas: 0
                   };
-                  localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
+                  localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
                 } else {
-                  localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+                  localStorage.setItem("pendingUserData", JSON.stringify(studentData));
                 }
                 window.location.href = './pokemon-select.html';
               }
@@ -444,9 +455,9 @@
                         bananas: 0,
                         pokemonFedBananas: 0
                       };
-                      localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
+                      localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
                     } else {
-                      localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+                      localStorage.setItem("pendingUserData", JSON.stringify(studentData));
                     }
                     window.location.href = './pokemon-select.html';
                   }
@@ -529,9 +540,9 @@
                     bananas: 0,
                     pokemonFedBananas: 0
                   };
-                  localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
+                  localStorage.setItem("pendingUserData", JSON.stringify(newStudent));
                 } else {
-                  localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
+                  localStorage.setItem("pendingUserData", JSON.stringify(studentData));
                 }
                 window.location.href = './pokemon-select.html';
               }

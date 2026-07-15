@@ -250,28 +250,28 @@
           if (!userStr) throw new Error("Phiên làm việc hết hạn. Vui lòng đăng nhập lại.");
 
           const user = JSON.parse(userStr);
-          const pendingData = JSON.parse(localStorage.getItem("pendingStudentData"));
-          const pendingUserData = JSON.parse(localStorage.getItem("pendingUserData"));
+          const pendingUserData = JSON.parse(localStorage.getItem("pendingUserData") || "null");
           
           // Kiểm tra Firebase sẵn sàng
           if (!window.db || !window.fStore) throw new Error("Hệ thống chưa sẵn sàng, hãy đợi vài giây.");
 
-          if (pendingData) {
+          if (pendingUserData) {
             const studentDocRef = window.fStore.doc(window.db, 'students', user.email);
-            pendingData.pokemon = pokemon;
+            pendingUserData.pokemon = pokemon;
             // Map pokemon choice to base key for unlockedPokemons
             let baseKey = pokemon;
             if (pokemon === "pichu") baseKey = "pikachu";
-            pendingData.unlockedPokemons = [baseKey];
+            pendingUserData.unlockedPokemons = [baseKey];
             
-            await window.fStore.setDoc(studentDocRef, pendingData);
-            localStorage.setItem("pendingStudentData", "");
-          }
-          
-          if (pendingUserData) {
+            // Sync current state
+            pendingUserData.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${pokemon}.gif`;
+            
+            await window.fStore.setDoc(studentDocRef, pendingUserData, { merge: true });
+            localStorage.removeItem("pendingUserData");
+            
+            // Also update user record if needed to ensure sync
             const userDocRef = window.fStore.doc(window.db, 'users', user.email);
-            await window.fStore.setDoc(userDocRef, pendingUserData);
-            localStorage.setItem("pendingUserData", "");
+            await window.fStore.updateDoc(userDocRef, { role: 'student' });
           }
           
           alert("Tuyệt vời! Hành trình của bạn cùng " + pokemon.toUpperCase() + " chính thức bắt đầu!");
