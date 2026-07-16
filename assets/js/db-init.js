@@ -164,21 +164,17 @@ async function initData() {
         window.IC3_CACHE[IC3_KEYS.SCORES] = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       }
     } else if (portal === "student" && currentUser?.email) {
-      console.log(`☁️ Fetching individual student profile [${currentUser.email}]...`);
-      const studentDoc = await getDoc(doc(db, IC3_KEYS.STUDENTS, currentUser.email));
-      if (studentDoc.exists()) {
-        window.IC3_CACHE[IC3_KEYS.STUDENTS] = [{ ...studentDoc.data(), id: studentDoc.id }];
-      }
+      console.log(`☁️ Fetching student data for portal...`);
       
-      console.log(`☁️ Fetching personal scores...`);
-      const scoreQuery = query(collection(db, IC3_KEYS.SCORES), where("studentEmail", "==", currentUser.email));
+      // Fetch ALL students so leaderboard and block ranking work across the server
+      const studentsSnap = await getDocs(collection(db, IC3_KEYS.STUDENTS));
+      window.IC3_CACHE[IC3_KEYS.STUDENTS] = studentsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      
+      console.log(`☁️ Fetching recent top scores...`);
+      // Fetch top 200 scores so the block ranking on dashboard has data
+      const scoreQuery = query(collection(db, IC3_KEYS.SCORES), orderBy("score", "desc"), limit(200));
       const scoreSnap = await getDocs(scoreQuery);
       window.IC3_CACHE[IC3_KEYS.SCORES] = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      
-      console.log(`☁️ Fetching global leaderboard...`);
-      const topScoreQuery = query(collection(db, IC3_KEYS.SCORES), orderBy("score", "desc"), limit(50));
-      const topSnap = await getDocs(topScoreQuery);
-      window.IC3_CACHE["leaderboard"] = topSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     }
 
     console.log("✅ Cloud Data Initialization Optimized & Complete");

@@ -5915,33 +5915,40 @@ function closePokemonSelectorModal() {
 
 // ==================== RENDERING: LEADERBOARD ====================
 function renderLeaderboard() {
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
 
-  // Sort by exp descending
-  const sortedStudents = [...students].sort((a, b) => (b.exp || 0) - (a.exp || 0));
-
-  const tableBody = document.getElementById("student-leaderboard-table-body");
-  tableBody.innerHTML = "";
-
-  const pokemonAvatars = window.pokemonAvatars || {
-    pikachu: "⚡",
-    charmander: "🔥",
-    bulbasaur: "🌱",
-    squirtle: "💧",
-    eevee: "🦊"
+  // Helper to get blockId for a student
+  const getStudentBlockId = (s) => {
+    if (s.blockId) return s.blockId;
+    const cls = classes.find(c => c.id === s.classId);
+    if (cls && cls.blockId) return cls.blockId;
+    if (cls && typeof window.getBlockIdFromClass === "function") return window.getBlockIdFromClass(cls);
+    return "block_3"; // Default fallback
   };
 
-  // Find user's rank
+  const currentBlockId = getStudentBlockId(currentStudent);
+
+  // Filter students in the same grade (khối)
+  const filteredStudents = students.filter(s => getStudentBlockId(s) === currentBlockId);
+
+  // Sort by exp descending
+  const sortedStudents = [...filteredStudents].sort((a, b) => (b.exp || 0) - (a.exp || 0));
+
+  const tableBody = document.getElementById("student-leaderboard-table-body");
+  if (!tableBody) return;
+  tableBody.innerHTML = "";
+
+  // Find user's rank in this block
   const myRankIndex = sortedStudents.findIndex(s => isSameStudent(s, currentStudent));
   const myRank = myRankIndex !== -1 ? myRankIndex + 1 : "-";
-  document.getElementById("player-leaderboard-rank").innerText = `#${myRank}`;
+  const rankEl = document.getElementById("player-leaderboard-rank");
+  if (rankEl) rankEl.innerText = `#${myRank}`;
 
   sortedStudents.forEach((st, idx) => {
     const rankNum = idx + 1;
     let rankBadge = `${rankNum}`;
     
-    // Nice medal indicators for top 3
     if (rankNum === 1) rankBadge = "🥇";
     else if (rankNum === 2) rankBadge = "🥈";
     else if (rankNum === 3) rankBadge = "🥉";
@@ -5958,6 +5965,9 @@ function renderLeaderboard() {
     const tr = document.createElement("tr");
     tr.className = `hover:bg-white/5 transition-all text-xs ${highlightClass}`;
     
+    // Correctly get current pokemon form
+    const currentPoke = window.validateAndGetCorrectPokemonForm(finalStudent);
+
     tr.innerHTML = `
       <td class="px-5 py-4 text-center font-bold text-sm">${rankBadge}</td>
       <td class="px-5 py-4">
@@ -5966,9 +5976,7 @@ function renderLeaderboard() {
             <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-slate-900/60">
               ${finalStudent.currentAvatar && finalStudent.currentAvatar.includes("://") ? 
                 `<img src="${finalStudent.currentAvatar}" class="w-full h-full object-contain">` :
-                (finalStudent.currentAvatar ? 
-                  `<span class="text-sm">${finalStudent.currentAvatar}</span>` :
-                  `<img src="${window.getPokemonSpriteUrl(window.validateAndGetCorrectPokemonForm(finalStudent))}" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(finalStudent)}.gif'">`)
+                `<img src="${window.getPokemonSpriteUrl(currentPoke)}" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${currentPoke}.gif'">`
               }
             </div>
           </div>
@@ -6343,12 +6351,28 @@ window.renderStudentDashboard = function() {
   if (dashExpBar) dashExpBar.style.width = (currentLevelExp / 1000 * 100) + "%";
   
   const allTests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
   const testFilterSelect = document.getElementById("dashboard-test-filter");
+
+  // Helper to get blockId for a student
+  const getStudentBlockIdLocal = (s) => {
+    if (s.blockId) return s.blockId;
+    const cls = classes.find(c => c.id === s.classId);
+    if (cls && cls.blockId) return cls.blockId;
+    if (cls && typeof window.getBlockIdFromClass === "function") return window.getBlockIdFromClass(cls);
+    return "block_3"; // Default fallback
+  };
+
+  const studentBlockId = getStudentBlockIdLocal(currentStudent);
   
   if (testFilterSelect) {
     const selectedVal = testFilterSelect.value;
     testFilterSelect.innerHTML = '<option value="all">🏆 Tất cả Bộ Đề</option>';
-    allTests.forEach(t => {
+    
+    // Filter tests by student's blockId
+    const relevantTests = allTests.filter(t => t.blockId === studentBlockId);
+    
+    relevantTests.forEach(t => {
       const opt = document.createElement("option");
       opt.value = t.id;
       opt.textContent = `📝 ${t.title}`;
@@ -6366,13 +6390,15 @@ window.renderStudentDashboard = function() {
   const allScores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   const allStudents = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   
-  // Filter students in the same grade (khối)
-  const blockId = currentStudent.blockId || "block_3";
-  const blockStudents = allStudents.filter(s => s.blockId === blockId);
-  const blockStudentEmails = blockStudents.map(s => s.email);
+  // Filter students in the same grade (khối) using robust logic
+  const blockStudents = allStudents.filter(s => getStudentBlockIdLocal(s) === studentBlockId);
+  const blockStudentIdentifiers = blockStudents.map(s => (s.email || s.id || "").toLowerCase()).filter(id => id);
 
   // Filter scores for students in the same block, and optionally by test
-  let filteredScores = allScores.filter(score => blockStudentEmails.includes(score.studentEmail));
+  let filteredScores = allScores.filter(score => {
+    const sId = (score.studentEmail || "").toLowerCase();
+    return blockStudentIdentifiers.includes(sId);
+  });
   if (selectedTest !== "all") {
     filteredScores = filteredScores.filter(score => score.testId === selectedTest);
   }
@@ -6572,7 +6598,7 @@ window.renderStudentDashboard = function() {
                 
                 <!-- Player Name -->
                 <div class="text-center font-poppins font-black text-xs md:text-sm tracking-wide truncate ${theme.nameText}">
-                  ${(studentInfo.fullName || studentInfo.name || "HỌC VIÊN VÔ DANH").toUpperCase()}
+                  ${window.stylizeNickname(studentInfo.currentNickname || studentInfo.fullName || studentInfo.name || "HỌC VIÊN VÔ DANH").toUpperCase()}
                 </div>
                 
                 <!-- Separator line -->
@@ -6686,7 +6712,7 @@ window.renderStudentDashboard = function() {
                ${isMe ? '<span class="absolute -top-1 -right-1 flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>' : ''}
              </div>
              <div>
-               <span class="font-poppins font-black text-white block leading-tight">${studentInfo.fullName || studentInfo.name || "Học viên vô danh"} ${isMe ? ' <span class="text-[8px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-black uppercase ml-1 border border-yellow-500/30">Cá nhân</span>' : ''}</span>
+               <span class="font-poppins font-black text-white block leading-tight">${window.stylizeNickname(studentInfo.currentNickname || studentInfo.fullName || studentInfo.name || "Học viên vô danh")} ${isMe ? ' <span class="text-[8px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-black uppercase ml-1 border border-yellow-500/30">Cá nhân</span>' : ''}</span>
              </div>
            </div>
         </td>
