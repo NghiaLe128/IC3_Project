@@ -2,6 +2,59 @@
  * IC3 LMS - Admin Dashboard Logic
  */
 
+// ==================== PAGINATION UTILS ====================
+window.adminPagination = {
+  students: 1,
+  teachers: 1,
+  questions: 1,
+  tests: 1,
+  ranking: 1,
+  rewards: 1,
+  bosses: 1,
+  pokemons: 1
+};
+const ITEMS_PER_PAGE = 8;
+
+function renderPagination(totalItems, currentPage, containerId, sectionKey) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  if (totalPages <= 1) {
+    container.innerHTML = "";
+    return;
+  }
+
+  let html = "";
+  html += `<button onclick="changePage('${sectionKey}', ${currentPage - 1})" class="px-3 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+  
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+      html += `<button onclick="changePage('${sectionKey}', ${i})" class="px-3 py-1 rounded ${i === currentPage ? 'bg-blue-600 text-white font-bold' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">${i}</button>`;
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+      html += `<span class="px-2 text-slate-500">...</span>`;
+    }
+  }
+
+  html += `<button onclick="changePage('${sectionKey}', ${currentPage + 1})" class="px-3 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
+  
+  container.innerHTML = html;
+}
+
+window.changePage = function(sectionKey, page) {
+  window.adminPagination[sectionKey] = page;
+  switch (sectionKey) {
+    case 'students': renderStudentsTable(); break;
+    case 'teachers': renderTeachersGrid(); break;
+    case 'questions': renderQuestionsTable(); break;
+    case 'tests': renderTestsGrid(); break;
+    case 'ranking': renderRankingList(); break;
+    case 'rewards': renderRewardsGrid(); break;
+    case 'bosses': renderBossesGrid(); break;
+    case 'pokemons': renderPokemonEvoList(); break;
+  }
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   // Wait for Cloud DB to be ready
   if (window.IC3_DB_INITIALIZED) {
@@ -215,10 +268,13 @@ function renderStudentsTable() {
   const tableBody = document.getElementById("students-table-body");
   tableBody.innerHTML = "";
 
-  const filtered = students.filter(s => 
+  const filteredAll = students.filter(s => 
     s.name.toLowerCase().includes(searchQuery) || 
     s.email.toLowerCase().includes(searchQuery)
   );
+  const currentPage = window.adminPagination.students || 1;
+  const filtered = filteredAll.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(filteredAll.length, currentPage, 'students-pagination', 'students');
 
   const pokemonIcons = {
     pikachu: "⚡ Pikachu",
@@ -480,12 +536,19 @@ function renderTeachersGrid() {
   const gridEl = document.getElementById("teachers-grid");
   gridEl.innerHTML = "";
 
+  const paginationEl = document.getElementById("teachers-pagination");
+  if (paginationEl) paginationEl.innerHTML = "";
+
   if (teachers.length === 0) {
     gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Chưa có giáo viên nào trong hệ thống.</div>`;
     return;
   }
 
-  teachers.forEach(tc => {
+  const currentPage = window.adminPagination.teachers || 1;
+  const filtered = teachers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(teachers.length, currentPage, 'teachers-pagination', 'teachers');
+
+  filtered.forEach(tc => {
     // Find classes managed by this teacher
     const tcClasses = classes.filter(c => c.teacherEmail === tc.email).map(c => c.name);
     const classesStr = tcClasses.length > 0 ? tcClasses.join(", ") : "Chưa có lớp nhận";
@@ -613,6 +676,9 @@ function renderQuestionsTable() {
   const tableBody = document.getElementById("questions-table-body");
   tableBody.innerHTML = "";
 
+  const paginationEl = document.getElementById("questions-pagination");
+  if (paginationEl) paginationEl.innerHTML = "";
+
   const levelLabels = {
     level_1: `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-500/15 text-blue-400">Level 1</span>`,
     level_2: `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/15 text-emerald-400">Level 2</span>`,
@@ -631,7 +697,11 @@ function renderQuestionsTable() {
     return;
   }
 
-  questions.forEach(q => {
+  const currentPage = window.adminPagination.questions || 1;
+  const filtered = questions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(questions.length, currentPage, 'questions-pagination', 'questions');
+
+  filtered.forEach(q => {
     const tr = document.createElement("tr");
     tr.className = "hover:bg-slate-800/30 transition-all text-xs";
     tr.innerHTML = `
@@ -775,6 +845,9 @@ function renderTestsGrid() {
   const gridEl = document.getElementById("tests-list-grid");
   gridEl.innerHTML = "";
 
+  const paginationEl = document.getElementById("tests-pagination");
+  if (paginationEl) paginationEl.innerHTML = "";
+
   const levelStyles = {
     level_1: "from-blue-600 to-indigo-600 bg-blue-500/10 text-blue-400 border-blue-500/20",
     level_2: "from-emerald-600 to-teal-600 bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -786,7 +859,11 @@ function renderTestsGrid() {
     return;
   }
 
-  tests.forEach(test => {
+  const currentPage = window.adminPagination.tests || 1;
+  const filtered = tests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(tests.length, currentPage, 'tests-pagination', 'tests');
+
+  filtered.forEach(test => {
     const styleClass = levelStyles[test.level] || "from-slate-600 to-slate-800 bg-slate-800/50 border-slate-700/50";
     
     const div = document.createElement("div");
@@ -900,8 +977,20 @@ function renderRankingList() {
   const listEl = document.getElementById("ranking-list-full");
   listEl.innerHTML = "";
 
+  const paginationEl = document.getElementById("ranking-pagination");
+  if (paginationEl) paginationEl.innerHTML = "";
+
   // Sort students by EXP descending
-  const sorted = [...students].sort((a, b) => b.exp - a.exp);
+  const sortedAll = [...students].sort((a, b) => b.exp - a.exp);
+
+  if (sortedAll.length === 0) {
+    listEl.innerHTML = `<div class="py-8 text-center text-slate-500 text-sm">Chưa có học sinh nào.</div>`;
+    return;
+  }
+
+  const currentPage = window.adminPagination.ranking || 1;
+  const filtered = sortedAll.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(sortedAll.length, currentPage, 'ranking-pagination', 'ranking');
 
   const pokemonIcons = {
     pikachu: "⚡",
@@ -924,7 +1013,8 @@ function renderRankingList() {
     return "bg-amber-700/10 border-amber-700/20 text-amber-500";
   };
 
-  sorted.forEach((std, index) => {
+  filtered.forEach((std, i) => {
+    const index = (currentPage - 1) * ITEMS_PER_PAGE + i;
     let medal = `<span class="font-poppins font-extrabold text-base text-slate-500 w-8 text-center">${index + 1}</span>`;
     if (index === 0) medal = `<span class="w-8 flex justify-center text-xl animate-bounce">🥇</span>`;
     else if (index === 1) medal = `<span class="w-8 flex justify-center text-xl">🥈</span>`;
@@ -972,12 +1062,19 @@ function renderRewardsGrid() {
   const gridEl = document.getElementById("admin-rewards-grid");
   gridEl.innerHTML = "";
 
+  const paginationEl = document.getElementById("rewards-pagination");
+  if (paginationEl) paginationEl.innerHTML = "";
+
   if (rewards.length === 0) {
     gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Cửa hàng phần quà đang trống.</div>`;
     return;
   }
 
-  rewards.forEach(r => {
+  const currentPage = window.adminPagination.rewards || 1;
+  const filtered = rewards.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(rewards.length, currentPage, 'rewards-pagination', 'rewards');
+
+  filtered.forEach(r => {
     // Check if link or symbol for illustration
     let imgRender = `<div class="text-3xl">${r.image}</div>`;
     if (r.image.startsWith("http")) {
@@ -1165,6 +1262,9 @@ function renderBossesGrid() {
   container.innerHTML = "";
   let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
 
+  const paginationEl = document.getElementById("bosses-pagination");
+  if (paginationEl) paginationEl.innerHTML = "";
+
   if (bosses.length === 0) {
     // Seed default bosses
     const defaultBosses = [
@@ -1178,7 +1278,11 @@ function renderBossesGrid() {
     bosses = defaultBosses;
   }
 
-  bosses.forEach(boss => {
+  const currentPage = window.adminPagination.bosses || 1;
+  const filtered = bosses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(bosses.length, currentPage, 'bosses-pagination', 'bosses');
+
+  filtered.forEach(boss => {
     const card = document.createElement("div");
     card.className = "bg-slate-950 border border-indigo-950/50 p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-lg hover:border-red-500/30 transition-all";
     
@@ -1381,108 +1485,306 @@ Object.assign(window, {
 // ==========================================
 
 let currentAdminEvoMap = {};
+window.currentAdminEvoMap = currentAdminEvoMap;
+
+let currentAdminEvoImagesMap = {};
+window.currentAdminEvoImagesMap = currentAdminEvoImagesMap;
 
 function initPokemonEvoAdmin() {
   if (window.evoMap) {
     currentAdminEvoMap = JSON.parse(JSON.stringify(window.evoMap));
+    window.currentAdminEvoMap = currentAdminEvoMap;
+  }
+  if (window.currentEvoImagesMap) {
+    currentAdminEvoImagesMap = JSON.parse(JSON.stringify(window.currentEvoImagesMap));
+    window.currentAdminEvoImagesMap = currentAdminEvoImagesMap;
   }
   renderPokemonEvoList();
 }
+window.initPokemonEvoAdmin = initPokemonEvoAdmin;
 
 function renderPokemonEvoList() {
   const container = document.getElementById("pokemon-evo-list");
   if (!container) return;
-  container.innerHTML = "";
   
-  const bases = Object.keys(currentAdminEvoMap);
-  if (bases.length === 0) {
-    container.innerHTML = '<p class="text-slate-400 text-sm">Chưa có dữ liệu tiến hóa. Hãy thêm mới.</p>';
+  const pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+  const searchQuery = document.getElementById("searchPokemon") ? document.getElementById("searchPokemon").value.trim().toLowerCase() : "";
+  
+  const filteredAll = pokemons.filter(p => 
+      p.id.toLowerCase().includes(searchQuery) || 
+      p.name.toLowerCase().includes(searchQuery)
+  );
+  
+  const currentPage = window.adminPagination.pokemons || 1;
+  const filtered = filteredAll.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(filteredAll.length, currentPage, 'pokemons-pagination', 'pokemons');
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<p class="text-slate-500 text-sm py-4 text-center">Không tìm thấy Pokemon nào.</p>`;
     return;
   }
+
+  let html = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">`;
   
-  bases.forEach(base => {
-    const forms = currentAdminEvoMap[base].join(", ");
-    const row = document.createElement("div");
-    row.className = "flex flex-col gap-2 p-4 bg-slate-950 border border-slate-800 rounded-xl relative";
-    row.innerHTML = `
-      <div class="flex items-center gap-4">
-        <div class="w-16 shrink-0 text-center">
-            <img src="https://projectpokemon.org/images/normal-sprite/${base}.gif" class="w-12 h-12 object-contain mx-auto" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default'">
-            <p class="text-[10px] font-bold text-slate-400 mt-1 uppercase">${base}</p>
+  filtered.forEach(poke => {
+    const evos = window.currentAdminEvoMap[poke.id] || [];
+    const rarityColors = poke.rarity === "Hiếm" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" : 
+                        (poke.rarity === "Thần Thoại" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : 
+                        "bg-slate-700/50 text-slate-300 border-slate-600");
+                        
+    html += `
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col hover:border-blue-500/50 transition-colors">
+        <div class="flex items-start gap-4">
+          <div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center shrink-0">
+            <img src="${poke.image}" class="w-12 h-12 object-contain drop-shadow-md" alt="${poke.name}">
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-white text-sm truncate">${poke.name}</h4>
+            <p class="text-xs text-slate-400 truncate mt-0.5">ID: ${poke.id}</p>
+            <div class="flex gap-2 mt-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${rarityColors}">${poke.rarity || 'Thường'}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${poke.element || 'Không rõ'}</span>
+            </div>
+          </div>
         </div>
-        <div class="flex-1">
-          <label class="block text-xs font-semibold text-slate-500 mb-1">Base Pokemon (ID)</label>
-          <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white mb-2" value="${base}" onchange="updateEvoBase('${base}', this.value)" />
-          
-          <label class="block text-xs font-semibold text-slate-500 mb-1">Dạng tiến hóa (cách nhau bởi dấu phẩy)</label>
-          <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white" value="${forms}" onchange="updateEvoForms('${base}', this.value)" />
+        
+        ${evos.length > 0 ? `
+        <div class="mt-4 pt-4 border-t border-slate-700">
+          <p class="text-[10px] uppercase font-bold text-slate-500 mb-2">Tiến Hóa</p>
+          <div class="flex flex-wrap gap-2">
+            ${evos.map(e => `<span class="px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300">${e}</span>`).join('')}
+          </div>
         </div>
-        <button onclick="removePokemonEvoRow('${base}')" class="w-8 h-8 rounded bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-      <div class="flex gap-2 mt-2 pl-20 overflow-x-auto pb-2">
-        ${currentAdminEvoMap[base].map(f => `<div class="shrink-0 text-center"><img src="https://projectpokemon.org/images/normal-sprite/${f}.gif" class="h-10 object-contain mx-auto" title="${f}" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default'"><span class="text-[9px] text-slate-500 mt-1 block">${f}</span></div>`).join('')}
+        ` : ''}
+        
+        <div class="mt-4 pt-3 border-t border-slate-700 flex justify-end gap-2">
+            <button onclick="window.openEditPokemonModal('${poke.id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors">
+                <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="window.deletePokemon('${poke.id}')" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white text-xs font-bold rounded-lg transition-colors">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
       </div>
     `;
-    container.appendChild(row);
   });
+  
+  html += `</div>`;
+  container.innerHTML = html;
 }
 
-window.updateEvoBase = function(oldBase, newBase) {
-  if (!newBase || oldBase === newBase) return;
-  currentAdminEvoMap[newBase] = currentAdminEvoMap[oldBase];
-  delete currentAdminEvoMap[oldBase];
-  renderPokemonEvoList();
+// Add Evolution Row to dynamic 2-column list
+window.addEvoRow = function(formId = "", imgUrl = "") {
+    const container = document.getElementById("evoRowsContainer");
+    if (!container) return;
+
+    const row = document.createElement("div");
+    row.className = "evo-row grid grid-cols-2 gap-3 items-center relative pr-10";
+    row.innerHTML = `
+      <div>
+        <input type="text" placeholder="Vd: pikachu" value="${formId}" class="evo-id-input w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500" required>
+      </div>
+      <div>
+        <input type="url" placeholder="URL hình ảnh (Để trống tự sinh)" value="${imgUrl}" class="evo-img-input w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500">
+      </div>
+      <button type="button" onclick="this.parentElement.remove()" class="absolute right-0 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400 p-2" title="Xóa hàng">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    `;
+    container.appendChild(row);
 };
 
-window.updateEvoForms = function(base, formsStr) {
-  currentAdminEvoMap[base] = formsStr.split(',').map(s => s.trim()).filter(s => s);
-  renderPokemonEvoList();
+window.openAddPokemonModal = function() {
+    document.getElementById("pokeMode").value = "add";
+    document.getElementById("pokeOriginalId").value = "";
+    document.getElementById("pokeId").value = "";
+    document.getElementById("pokeName").value = "";
+    document.getElementById("pokeRarity").value = "Thường";
+    document.getElementById("pokeElement").value = "";
+    document.getElementById("pokeImage").value = "https://projectpokemon.org/images/normal-sprite/";
+    
+    const container = document.getElementById("evoRowsContainer");
+    if (container) {
+        container.innerHTML = "";
+    }
+    
+    document.getElementById("pokemonModalTitle").innerText = "Thêm Pokemon Mới";
+    document.getElementById("pokemonModal").classList.remove("hidden");
 };
 
-window.addPokemonEvoRow = function() {
-  const newBase = "new_pokemon_" + Date.now().toString().slice(-4);
-  currentAdminEvoMap[newBase] = [newBase];
-  renderPokemonEvoList();
+window.openEditPokemonModal = function(id) {
+    const pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+    const poke = pokemons.find(p => p.id === id);
+    if (!poke) return;
+    
+    document.getElementById("pokeMode").value = "edit";
+    document.getElementById("pokeOriginalId").value = poke.id;
+    document.getElementById("pokeId").value = poke.id;
+    document.getElementById("pokeName").value = poke.name || "";
+    document.getElementById("pokeRarity").value = poke.rarity || "Thường";
+    document.getElementById("pokeElement").value = poke.element || "";
+    document.getElementById("pokeImage").value = poke.image || "";
+    
+    const container = document.getElementById("evoRowsContainer");
+    if (container) {
+        container.innerHTML = "";
+        const evos = window.currentAdminEvoMap[poke.id] || [];
+        const evoImages = window.currentAdminEvoImagesMap[poke.id] || [];
+        evos.forEach((evo, idx) => {
+            window.addEvoRow(evo, evoImages[idx] || "");
+        });
+    }
+    
+    document.getElementById("pokemonModalTitle").innerText = "Chỉnh Sửa Pokemon";
+    document.getElementById("pokemonModal").classList.remove("hidden");
 };
 
-window.removePokemonEvoRow = function(base) {
-  if (confirm(`Bạn có chắc muốn xóa dữ liệu tiến hóa của ${base}?`)) {
-    delete currentAdminEvoMap[base];
+window.closePokemonModal = function() {
+    document.getElementById("pokemonModal").classList.add("hidden");
+};
+
+window.handlePokemonSubmit = async function(e) {
+    e.preventDefault();
+    
+    const mode = document.getElementById("pokeMode").value;
+    const originalId = document.getElementById("pokeOriginalId").value;
+    
+    const id = document.getElementById("pokeId").value.trim().toLowerCase();
+    const name = document.getElementById("pokeName").value.trim();
+    const rarity = document.getElementById("pokeRarity").value;
+    const element = document.getElementById("pokeElement").value.trim();
+    const image = document.getElementById("pokeImage").value.trim();
+    
+    const evoRows = document.querySelectorAll("#evoRowsContainer .evo-row");
+    const evosList = [];
+    const evoImagesList = [];
+    
+    evoRows.forEach(row => {
+        const idVal = row.querySelector(".evo-id-input").value.trim().toLowerCase();
+        const imgVal = row.querySelector(".evo-img-input").value.trim();
+        if (idVal) {
+            evosList.push(idVal);
+            evoImagesList.push(imgVal);
+        }
+    });
+    
+    if (!id || !name || !image) {
+        alert("Vui lòng điền đầy đủ ID, Tên và Ảnh.");
+        return;
+    }
+    
+    let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+    
+    if (mode === "add" && pokemons.some(p => p.id === id)) {
+        alert("ID Pokemon này đã tồn tại!");
+        return;
+    }
+    
+    const newPoke = { id, name, rarity, element, image };
+    
+    if (mode === "add") {
+        pokemons.push(newPoke);
+    } else {
+        const idx = pokemons.findIndex(p => p.id === originalId);
+        if (idx !== -1) {
+            pokemons[idx] = newPoke;
+        }
+    }
+    
+    // Save to Cache & Cloud
+    window.IC3_CACHE[window.IC3_KEYS.POKEMONS] = pokemons;
+    await window.saveData(window.IC3_KEYS.POKEMONS, pokemons, [id]);
+    
+    if (mode === "edit" && originalId !== id) {
+        // ID changed, delete old evo
+        delete window.currentAdminEvoMap[originalId];
+        delete window.currentAdminEvoImagesMap[originalId];
+    }
+    
+    if (evosList.length > 0) {
+        window.currentAdminEvoMap[id] = evosList;
+        // Map/adjust images to match forms length exactly!
+        window.currentAdminEvoImagesMap[id] = evosList.map((f, i) => {
+            if (evoImagesList[i] && evoImagesList[i].trim().startsWith("http")) {
+                return evoImagesList[i].trim();
+            }
+            return `https://projectpokemon.org/images/normal-sprite/${f}.gif`;
+        });
+    } else {
+        delete window.currentAdminEvoMap[id];
+        delete window.currentAdminEvoImagesMap[id];
+    }
+    
+    // Save Evolutions to Cloud
+    await window.savePokemonEvolutions();
+    
+    window.closePokemonModal();
     renderPokemonEvoList();
-  }
+};
+
+window.deletePokemon = async function(id) {
+    if (!confirm("Bạn có chắc chắn muốn xóa Pokemon này?")) return;
+    
+    let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+    pokemons = pokemons.filter(p => p.id !== id);
+    window.IC3_CACHE[window.IC3_KEYS.POKEMONS] = pokemons;
+    
+    try {
+        await window.saveData(window.IC3_KEYS.POKEMONS, pokemons, [id]);
+    } catch(e) {}
+    
+    delete window.currentAdminEvoMap[id];
+    delete window.currentAdminEvoImagesMap[id];
+    await window.savePokemonEvolutions();
+    
+    renderPokemonEvoList();
 };
 
 window.savePokemonEvolutions = async function() {
   try {
     const colRef = window.fStore.collection(window.db, "pokemonEvolutions");
     const snapshot = await window.fStore.getDocs(colRef);
-    
-    // First, delete forms that were removed
+         
     for (const docSnap of snapshot.docs) {
       if (!currentAdminEvoMap[docSnap.id]) {
         await window.fStore.deleteDoc(docSnap.ref);
       }
     }
     
-    // Upsert all current maps
+    // Then save/update existing forms
     for (const [base, forms] of Object.entries(currentAdminEvoMap)) {
       const docRef = window.fStore.doc(window.db, "pokemonEvolutions", base);
-      const images = forms.map(f => `https://projectpokemon.org/images/normal-sprite/${f}.gif`);
+      
+      // Get the corresponding images list from currentAdminEvoImagesMap or fallback
+      let images = currentAdminEvoImagesMap[base] || [];
+      
+      // Map/adjust images to match forms length exactly!
+      // "các dạng tiến hóa có bao nhiêu dạng thì có bấy nhiêu link ảnh"
+      images = forms.map((f, i) => {
+        if (images[i] && images[i].trim().startsWith("http")) {
+          return images[i].trim();
+        }
+        return `https://projectpokemon.org/images/normal-sprite/${f}.gif`;
+      });
+      
+      // Save it back to currentAdminEvoImagesMap too
+      currentAdminEvoImagesMap[base] = images;
+      
       await window.fStore.setDoc(docRef, {
         id: base,
         basePokemon: base,
         forms: forms,
-        images: images
-      });
+        images: images,
+        updatedAt: window.fStore.serverTimestamp()
+      }, { merge: true });
     }
     
+    // Sync with global maps
     window.evoMap = JSON.parse(JSON.stringify(currentAdminEvoMap));
-    alert("Lưu dữ liệu tiến hóa thành công!");
+    window.currentEvoImagesMap = JSON.parse(JSON.stringify(currentAdminEvoImagesMap));
+    console.log("Evolutions saved.");
   } catch (e) {
-    console.error(e);
-    alert("Có lỗi khi lưu tiến hóa: " + e.message);
+    console.error("Lỗi khi lưu evos:", e);
   }
 };
 

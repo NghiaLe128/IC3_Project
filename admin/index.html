@@ -238,7 +238,7 @@
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="relative w-full sm:w-80">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="text" id="searchStudent" oninput="renderStudentsTable()" placeholder="Tìm kiếm học sinh theo tên, email..." 
+              <input type="text" id="searchStudent" oninput="window.adminPagination.students=1; renderStudentsTable()" placeholder="Tìm kiếm học sinh theo tên, email..." 
                 class="w-full bg-slate-900 border border-slate-700 focus:border-blue-500 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none">
             </div>
             <button onclick="openStudentModal()" class="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all">
@@ -266,6 +266,7 @@
                 </tbody>
               </table>
             </div>
+            <div id="students-pagination" class="flex justify-center items-center py-4 bg-slate-900 border-t border-slate-800 gap-2"></div>
           </div>
         </section>
 
@@ -283,6 +284,7 @@
           <div id="teachers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Injected by JS -->
           </div>
+          <div id="teachers-pagination" class="flex justify-center items-center mt-6 gap-2"></div>
         </section>
 
 
@@ -371,6 +373,7 @@
                 </tbody>
               </table>
             </div>
+            <div id="questions-pagination" class="flex justify-center items-center py-4 bg-slate-900 border-t border-slate-800 gap-2"></div>
           </div>
         </section>
 
@@ -387,6 +390,7 @@
           <div id="tests-list-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- JS Injection -->
           </div>
+          <div id="tests-pagination" class="flex justify-center items-center mt-6 gap-2"></div>
         </section>
 
 
@@ -401,6 +405,7 @@
             <div class="space-y-4 max-w-4xl mx-auto" id="ranking-list-full">
               <!-- JS Injected Leaderboard -->
             </div>
+            <div id="ranking-pagination" class="flex justify-center items-center mt-6 gap-2"></div>
           </div>
         </section>
 
@@ -418,6 +423,7 @@
           <div id="admin-rewards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <!-- JS Injected Rewards -->
           </div>
+          <div id="rewards-pagination" class="flex justify-center items-center mt-6 gap-2"></div>
         </section>
 
 
@@ -434,28 +440,94 @@
           <div id="admin-bosses-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <!-- JS Injected Bosses -->
           </div>
+          <div id="bosses-pagination" class="flex justify-center items-center mt-6 gap-2"></div>
         </section>
 
 
         <!-- ==================== TAB: POKEMON EVO ==================== -->
         <section id="tab-pokemon-evo" class="tab-content space-y-6 hidden">
           <div class="flex justify-between items-center">
-            <h3 class="font-bold text-white text-base">Cấu hình dạng tiến hóa Pokemon (3D Models)</h3>
-            <button onclick="window.savePokemonEvolutions()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-yellow-500/10">
-              <i class="fa-solid fa-save"></i> Lưu cấu hình
-            </button>
+            <h3 class="font-bold text-white text-base">Quản lý Pokemon & Tiến Hóa</h3>
+            <div class="flex gap-2">
+                <input type="text" id="searchPokemon" placeholder="Tìm Pokemon..." oninput="window.adminPagination.pokemons=1; renderPokemonEvoList()" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 w-64">
+                <button onclick="window.openAddPokemonModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/10">
+                  <i class="fa-solid fa-plus"></i> Thêm Pokemon Mới
+                </button>
+            </div>
           </div>
-
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <div id="pokemon-evo-list" class="space-y-4">
               <!-- Dynamically populated -->
               <p class="text-slate-400">Đang tải dữ liệu...</p>
             </div>
-            <button onclick="window.addPokemonEvoRow()" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg transition-colors border border-slate-700">
-              <i class="fa-solid fa-plus mr-1"></i> Thêm Pokemon
-            </button>
+            <div id="pokemons-pagination" class="flex justify-center items-center mt-6 gap-2"></div>
           </div>
         </section>
+
+        <!-- Modal: Add/Edit Pokemon -->
+        <div id="pokemonModal" class="modal-overlay hidden">
+          <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl p-6 rounded-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closePokemonModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 id="pokemonModalTitle" class="font-poppins font-bold text-lg text-white mb-4">Thêm Pokemon Mới</h3>
+            <form id="pokemonForm" onsubmit="handlePokemonSubmit(event)" class="space-y-4">
+              <input type="hidden" id="pokeMode" value="add">
+              <input type="hidden" id="pokeOriginalId" value="">
+              
+              <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">ID (vd: pikachu)</label>
+                    <input type="text" id="pokeId" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Tên Hiển Thị</label>
+                    <input type="text" id="pokeName" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Độ Hiếm</label>
+                    <select id="pokeRarity" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                      <option value="Thường" class="bg-slate-900 text-white" style="background-color: #0f172a; color: #ffffff;">Thường</option>
+                      <option value="Hiếm" class="bg-slate-900 text-white" style="background-color: #0f172a; color: #ffffff;">Hiếm</option>
+                      <option value="Thần Thoại" class="bg-slate-900 text-white" style="background-color: #0f172a; color: #ffffff;">Thần Thoại</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Hệ (Element)</label>
+                    <input type="text" id="pokeElement" placeholder="vd: Hệ Điện" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                  </div>
+              </div>
+              
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">URL Hình Ảnh</label>
+                <input type="url" id="pokeImage" placeholder="https://..." required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+              </div>
+              
+              <div class="border-t border-slate-800 pt-4 mt-4 space-y-3">
+                <h4 class="font-bold text-white text-sm">Các Dạng Tiến Hóa</h4>
+                <p class="text-xs text-slate-400">Nhập ID và URL hình ảnh của các dạng tiến hóa tương ứng. Nhấp "+ Thêm hàng" để bổ sung dạng tiến hóa mới.</p>
+                
+                <!-- Headers for the columns -->
+                <div class="grid grid-cols-2 gap-3 pr-10 text-xs font-semibold text-slate-400">
+                  <div>Dạng tiến hóa (ID)</div>
+                  <div>Hình ảnh (URL - Để trống tự sinh)</div>
+                </div>
+
+                <!-- Container of dynamic rows -->
+                <div id="evoRowsContainer" class="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                  <!-- JS Injected dynamic rows -->
+                </div>
+
+                <button type="button" onclick="window.addEvoRow('', '')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all">
+                  <i class="fa-solid fa-plus text-[10px]"></i> Thêm hàng tiến hóa
+                </button>
+              </div>
+              
+              <div class="pt-4 border-t border-slate-800 flex justify-end gap-3">
+                <button type="button" onclick="closePokemonModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold">Hủy</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md">Lưu Pokemon</button>
+              </div>
+            </form>
+          </div>
+        </div>
 
 
         <!-- ==================== TAB: SETTINGS ==================== -->

@@ -517,12 +517,15 @@ window.loadPokemonEvolutions = async function() {
     try {
         const snapshot = await getDocs(collection(db, "pokemonEvolutions"));
         const newEvoMap = {};
+        const newEvoImagesMap = {};
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             if (data.forms && data.basePokemon) {
                 newEvoMap[data.basePokemon] = data.forms;
+                newEvoImagesMap[data.basePokemon] = data.images || data.forms.map(f => `https://projectpokemon.org/images/normal-sprite/${f}.gif`);
             }
         });
+        window.currentEvoImagesMap = { ...(window.currentEvoImagesMap || {}), ...newEvoImagesMap };
         if (Object.keys(newEvoMap).length > 0) {
             window.evoMap = { ...(window.evoMap || {}), ...newEvoMap };
             // trigger re-renders if methods exist
