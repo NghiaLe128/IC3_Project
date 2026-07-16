@@ -2810,6 +2810,19 @@ function switchInventoryTab(tabId) {
 }
 
 // ==================== RENDERING: 6. TÚI ĐỒ (INVENTORY) ====================
+const NICKNAME_DEFINITIONS = [
+  { id: "newbie", name: "Thám hiểm viên", req: "Mặc định", check: () => true },
+  { id: "boss_hunter", name: "Thợ Săn Boss", req: "Đánh bại 5 Boss", check: (s) => (s.bossDefeated || 0) >= 5 },
+  { id: "coin_collector", name: "Thợ Săn Coin", req: "Có trên 1000 Coin", check: (s) => (s.coins || 0) >= 1000 },
+  { id: "expert", name: "Bậc Thầy Logic", req: "Đạt cấp độ Expert", check: (s) => ["Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"].includes(s.level) },
+  { id: "legend", name: "Huyền Thoại IC3", req: "Đạt cấp độ Legendary", check: (s) => s.level === "Legendary" },
+  { id: "pokemon_master", name: "Chúa Tể Pokemon", req: "Sở hữu 5 Pokemon", check: (s) => (s.unlockedPokemons || []).length >= 5 },
+  { id: "evolve_expert", name: "Bậc Thầy Tiến Hóa", req: "Sử dụng 10 Chuối Vàng", check: (s) => (s.bananasUsed || 0) >= 10 },
+  { id: "speedrun", name: "Siêu Cấp Thần Thú", req: "Tổng điểm > 5000", check: (s) => (s.totalScore || 0) >= 5000 },
+  { id: "pro_coder", name: "Lập Trình Viên Đại Tài", req: "Hoàn thành 20 bài học", check: (s) => (s.completedLessons || []).length >= 20 },
+  { id: "rich_kid", name: "Đại Hiệp Rừng Xanh", req: "Sở hữu 3 vật phẩm Store", check: (s) => (s.ownedItems || []).length >= 3 }
+];
+
 function renderInventory() {
   if (!currentStudent.unlockedPokemons) {
     currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
@@ -2873,18 +2886,26 @@ function renderInventory() {
       allItems.push({ type: 'frame', data: fr });
     });
   } else if (window.currentInventoryTab === "nickname") {
-    const defaultNicknames = [
-      "Thám hiểm viên", "Siêu Cấp Thần Thú", "Huyền Thoại IC3", "Thợ Săn Coin", 
-      "Chúa Tể Pokemon", "Bậc Thầy Tiến Hóa", "Đại Hiệp Rừng Xanh", "Thần Sét Pikachu", 
-      "Rồng Thần Lửa", "Nhà Thông Thái", "Chiến Binh Ánh Sáng", "Kẻ Hủy Diệt", 
-      "Đại Sứ Hòa Bình", "Kỵ Sĩ Rồng", "Pháp Sư Tối Thượng", "Vua Hải Tặc",
-      "Anh Hùng Bàn Phím", "Lập Trình Viên Đại Tài", "Thiên Tài Giải Đố", "Thợ Săn Boss",
-      "Mầm Non Giải Thuật", "Bậc Thầy Logic", "Kiện Tướng Công Nghệ", "Đặc Vụ Số Hóa",
-      "Người Gác Đền Tri Thức", "Kẻ Du Hành Không Gian", "Chiến Binh Tương Lai"
-    ];
-    const nicknames = Array.from(new Set([...defaultNicknames, ...(currentStudent.unlockedNicknames || [])]));
-    nicknames.forEach(nn => {
-      allItems.push({ type: 'nickname', data: nn });
+    // Only show unlocked nicknames in Inventory
+    NICKNAME_DEFINITIONS.forEach(def => {
+      const isUnlocked = def.check(currentStudent) || (currentStudent.unlockedNicknames || []).includes(def.name);
+      if (isUnlocked) {
+        allItems.push({ type: 'nickname', data: def.name });
+      }
+    });
+    // Add any other custom unlocked nicknames not in definitions
+    (currentStudent.unlockedNicknames || []).forEach(nn => {
+      if (!NICKNAME_DEFINITIONS.find(d => d.name === nn)) {
+        allItems.push({ type: 'nickname', data: nn });
+      }
+    });
+  } else if (window.currentInventoryTab === "locked") {
+    // Show locked nicknames and their requirements
+    NICKNAME_DEFINITIONS.forEach(def => {
+      const isUnlocked = def.check(currentStudent) || (currentStudent.unlockedNicknames || []).includes(def.name);
+      if (!isUnlocked) {
+        allItems.push({ type: 'locked_nickname', data: def });
+      }
     });
   }
 
@@ -3006,6 +3027,17 @@ function renderInventory() {
       slot.innerHTML = `
         ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
         <span class="text-[9px] font-black text-center uppercase break-all w-full p-2">${window.stylizeNickname(item.data)}</span>
+      `;
+      grid.appendChild(slot);
+    } else if (item.type === 'locked_nickname') {
+      const slot = document.createElement("div");
+      slot.className = "inventory-slot cursor-not-allowed opacity-60 grayscale";
+      slot.innerHTML = `
+        <i class="fa-solid fa-lock text-xl text-slate-500 mb-2"></i>
+        <span class="text-[8px] font-bold text-center uppercase break-words w-full px-1 mb-1 text-slate-400">${item.data.name}</span>
+        <div class="bg-indigo-500/10 border border-indigo-500/20 rounded p-1 w-full">
+           <span class="text-[7px] font-bold text-indigo-300 block text-center">${item.data.req}</span>
+        </div>
       `;
       grid.appendChild(slot);
     }
@@ -5758,16 +5790,16 @@ function renderProfileCustomizationContent() {
       grid.appendChild(btn);
     });
   } else if (currentCustomTab === "nickname") {
-    const defaultNicknames = [
-      "Thám hiểm viên", "Siêu Cấp Thần Thú", "Huyền Thoại IC3", "Thợ Săn Coin", 
-      "Chúa Tể Pokemon", "Bậc Thầy Tiến Hóa", "Đại Hiệp Rừng Xanh", "Thần Sét Pikachu", 
-      "Rồng Thần Lửa", "Nhà Thông Thái", "Chiến Binh Ánh Sáng", "Kẻ Hủy Diệt", 
-      "Đại Sứ Hòa Bình", "Kỵ Sĩ Rồng", "Pháp Sư Tối Thượng", "Vua Hải Tặc",
-      "Anh Hùng Bàn Phím", "Lập Trình Viên Đại Tài", "Thiên Tài Giải Đố", "Thợ Săn Boss",
-      "Mầm Non Giải Thuật", "Bậc Thầy Logic", "Kiện Tướng Công Nghệ", "Đặc Vụ Số Hóa",
-      "Người Gác Đền Tri Thức", "Kẻ Du Hành Không Gian", "Chiến Binh Tương Lai"
-    ];
-    const nicknames = Array.from(new Set([...defaultNicknames, ...(currentStudent.unlockedNicknames || [])]));
+    // Collect all unlocked nicknames
+    const nicknames = [];
+    NICKNAME_DEFINITIONS.forEach(def => {
+      const isUnlocked = def.check(currentStudent) || (currentStudent.unlockedNicknames || []).includes(def.name);
+      if (isUnlocked) nicknames.push(def.name);
+    });
+    (currentStudent.unlockedNicknames || []).forEach(nn => {
+      if (!nicknames.includes(nn)) nicknames.push(nn);
+    });
+
     nicknames.forEach(nn => {
       const currentNN = currentStudent.currentNickname || "Thám hiểm viên";
       const isCurrent = currentNN === nn;
@@ -5775,7 +5807,7 @@ function renderProfileCustomizationContent() {
       btn.className = `p-3 rounded-xl border bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400 flex items-center justify-center transition-all text-center ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
       btn.onclick = () => selectCustomItem("nickname", nn);
       
-      btn.innerHTML = `<span class="text-[10px] font-black truncate w-full uppercase">${nn}</span>`;
+      btn.innerHTML = `<span class="text-[10px] font-black truncate w-full uppercase">${window.stylizeNickname(nn)}</span>`;
       grid.appendChild(btn);
     });
   }
