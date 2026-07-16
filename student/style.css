@@ -575,6 +575,78 @@ html.light-mode,
   100% { transform: translateY(0) scale(1); }
 }
 
+/* Pro Frame Styles */
+.pro-frame-vjp {
+  position: relative;
+  background: #0f172a !important;
+  border: none !important;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+}
+
+.pro-frame-vjp::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(45deg, #f59e0b, #6366f1, #ec4899, #10b981, #f59e0b);
+  background-size: 300% 300%;
+  border-radius: inherit;
+  z-index: -1;
+  animation: vjp-gradient 4s linear infinite;
+}
+
+@keyframes vjp-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.pro-frame-glow {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.5), inset 0 0 10px rgba(245, 158, 11, 0.3);
+  animation: glow-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse {
+  from { box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+  to { box-shadow: 0 0 25px rgba(245, 158, 11, 0.7); }
+}
+
+/* Stylized Nickname Character */
+.nick-char {
+  display: inline-block;
+  font-weight: 900;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+}
+
+.nick-char:hover {
+  transform: translateY(-5px) scale(1.3) rotate(8deg);
+  filter: brightness(1.2);
+  z-index: 10;
+}
+
+/* Fire Effect */
+.nick-fire {
+  animation: fire-flicker 1.5s infinite alternate;
+  text-shadow: 0 0 8px #ff4500, 0 0 15px #ff8c00;
+}
+
+@keyframes fire-flicker {
+  0% { transform: scale(1) skewX(0deg); filter: brightness(1); }
+  100% { transform: scale(1.05) skewX(2deg); filter: brightness(1.3); }
+}
+
+/* Ice Effect */
+.nick-ice {
+  animation: ice-shimmer 2s infinite alternate;
+  text-shadow: 0 0 8px #00ffff, 0 0 15px #ffffff;
+}
+
+@keyframes ice-shimmer {
+  0% { opacity: 0.8; filter: hue-rotate(0deg); }
+  100% { opacity: 1; filter: hue-rotate(20deg); }
+}
+
 @keyframes fire-burn {
   0%, 100% { filter: brightness(1.2) drop-shadow(0 0 20px #ff4500) contrast(1.2); }
   50% { filter: brightness(1.6) drop-shadow(0 0 45px #ff8c00) contrast(1.5); }
@@ -628,5 +700,16 @@ html.light-mode,
 /* 3D perspective rotates for pedestals */
 .rotateX-45 {
   transform: rotateX(45deg);
+}
+
+/* Enable wrapping for select elements in matching games */
+select, select option {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+select {
+  height: auto !important;
+  line-height: 1.5 !important;
 }
 

@@ -177,17 +177,20 @@ window.validateAndGetCorrectPokemonForm = function(student) {
 
 window.getShowdownFormName = function(name) {
     if (!name) return "";
-    // Showdown animated sprites strip hyphens for megas, gmax, alola, etc.
-    if (name.includes("-mega") || name.includes("-gmax") || name.includes("-alola")) {
-        return name.replace(/-/g, "");
-    }
-    return name;
+    return name.toLowerCase();
+};
+
+window.getPokemonSpriteUrl = function(formName) {
+    if (!formName) return "";
+    const name = window.getShowdownFormName(formName);
+    return `https://projectpokemon.org/images/normal-sprite/${name}.gif`;
 };
 
 window.useEvolutionForm = async function(formName) {
     if (!currentStudent) return;
     currentStudent.pokemon = formName;
-    currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(formName)}.gif`;
+    // We no longer automatically change the avatar as per user request
+    // currentStudent.avatar = window.getPokemonSpriteUrl(formName);
     
     // Save to database
     const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -260,7 +263,7 @@ window.renderEvolutionSlideshow = function() {
     
     if (avatarEl) {
         // ALWAYS use 3D Showdown GIF for beautiful preview
-        avatarEl.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(slideTargetName)}.gif`;
+        avatarEl.src = window.getPokemonSpriteUrl(slideTargetName);
         avatarEl.classList.remove("hidden");
         avatarEl.onerror = function() {
             this.src = `https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif`;
@@ -525,6 +528,7 @@ function convertDriveUrl(url) {
 
 let currentStudent = null;
 let currentStoreTab = "pokemon";
+window.currentPokeFilter = "all";
 
 function switchStoreTab(tabId) {
   currentStoreTab = tabId;
@@ -534,8 +538,36 @@ function switchStoreTab(tabId) {
   const activeBtn = document.getElementById(`btn-store-${tabId}`);
   if (activeBtn) activeBtn.classList.add('active');
   
+  // Show/Hide Pokémon sub-filters
+  const subFilters = document.getElementById("store-pokemon-filters");
+  if (subFilters) {
+    if (tabId === "pokemon") {
+      subFilters.style.display = "flex";
+    } else {
+      subFilters.style.display = "none";
+    }
+  }
+  
   renderRewardsStore();
 }
+
+window.filterStorePokemon = function(filterVal) {
+  window.currentPokeFilter = filterVal;
+  
+  const filters = ["all", "buy", "boss"];
+  filters.forEach(f => {
+    const btn = document.getElementById(`btn-poke-filter-${f}`);
+    if (btn) {
+      if (f === filterVal) {
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-indigo-600 text-white border border-indigo-500 shadow-md cursor-pointer";
+      } else {
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-slate-900/60 text-slate-400 hover:text-white border border-white/5 cursor-pointer";
+      }
+    }
+  });
+  
+  renderRewardsStore();
+};
 
 function isSameStudent(s1, s2) {
   if (!s1 || !s2) return false;
@@ -717,14 +749,14 @@ function initBattleSceneVisuals(testId) {
   // Set animated sprites for Battle Scene
   const scenePlayerImg = document.getElementById("battle-scene-player-img");
   if (scenePlayerImg) {
-    scenePlayerImg.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+    scenePlayerImg.src = window.getPokemonSpriteUrl(activePoke);
     scenePlayerImg.onerror = function() { this.src = `https://projectpokemon.org/images/normal-sprite/${activePoke}.gif`; };
   }
 
   const sceneBossImg = document.getElementById("battle-scene-boss-img");
   if (sceneBossImg) {
     const bossPoke = bossProf.poke || "exeggutor";
-    sceneBossImg.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(bossPoke)}.gif`;
+    sceneBossImg.src = window.getPokemonSpriteUrl(bossPoke);
     sceneBossImg.onerror = function() { this.src = `https://projectpokemon.org/images/normal-sprite/${bossPoke}.gif`; };
     // Boss in Test mode faces left, so flip it
     sceneBossImg.style.transform = "scaleX(-1)";
@@ -887,7 +919,7 @@ function loadStudentProfile() {
   const correctedForm = window.validateAndGetCorrectPokemonForm(currentStudent);
   if (currentStudent.pokemon !== correctedForm) {
     currentStudent.pokemon = correctedForm;
-    currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(correctedForm)}.gif`;
+    currentStudent.avatar = window.getPokemonSpriteUrl(correctedForm);
     
     // Save to cache and DB
     const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -924,7 +956,10 @@ function loadStudentProfile() {
   };
 
   // Render top status indicators
-  document.getElementById("playerName").innerText = currentStudent.currentNickname || currentStudent.name;
+  const playerNameEl = document.getElementById("playerName");
+  if (playerNameEl) {
+      playerNameEl.innerHTML = window.stylizeNickname(currentStudent.currentNickname || currentStudent.name);
+  }
   document.getElementById("playerRankBadge").innerText = rankBadges[currentStudent.rank] || "🥉 Bronze";
   document.getElementById("playerLevelTitle").innerText = currentStudent.level;
   document.getElementById("playerCoinsCount").innerText = currentStudent.coins;
@@ -933,6 +968,9 @@ function loadStudentProfile() {
   // Render Avatar & Frame
   const frameEl = document.getElementById("playerAvatarFrame");
   if (frameEl) {
+    // ALWAYS apply vjp frame for "pro" look
+    frameEl.classList.add("pro-frame-vjp");
+
     // Apply custom frame if exists
     if (currentStudent.currentFrame) {
       // Clear previous border classes
@@ -956,14 +994,22 @@ function loadStudentProfile() {
       frameEl.innerHTML = `<span class="text-2xl">${currentStudent.currentAvatar}</span>`;
     } else {
       const activePoke = currentStudent.pokemon || "pikachu";
-      frameEl.innerHTML = `<img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif" class="w-10 h-10 object-contain drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
+      frameEl.innerHTML = `<img src="${window.getPokemonSpriteUrl(activePoke)}" class="w-10 h-10 object-contain drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
     }
   }
 
   // Dashboard specific profile
   const dashName = document.getElementById("dashboard-name");
-  if (dashName) dashName.innerText = currentStudent.currentNickname || currentStudent.name;
+  if (dashName) dashName.innerHTML = window.stylizeNickname(currentStudent.currentNickname || currentStudent.name);
   
+  const dashAvatarContainer = document.getElementById("dashboard-avatar-container");
+  if (dashAvatarContainer) {
+    dashAvatarContainer.className = "w-24 h-24 rounded-full flex items-center justify-center pro-frame-vjp";
+    if (currentStudent.currentFrame) {
+       dashAvatarContainer.classList.add(...currentStudent.currentFrame.split(' '));
+    }
+  }
+
   const dashAvatar = document.getElementById("dashboard-avatar");
   if (dashAvatar) {
     if (currentStudent.currentAvatar && currentStudent.currentAvatar.includes("://")) {
@@ -971,11 +1017,6 @@ function loadStudentProfile() {
     } else if (currentStudent.currentAvatar) {
       // Create a canvas/text avatar for dashboard if it's an emoji
       dashAvatar.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentStudent.currentAvatar)}`;
-    }
-    
-    if (currentStudent.currentFrame) {
-      dashAvatar.className = dashAvatar.className.split(' ').filter(c => !c.startsWith('border-')).join(' ');
-      dashAvatar.classList.add(...currentStudent.currentFrame.split(' '));
     }
   }
 
@@ -1265,7 +1306,7 @@ async function startBossHunt(bossId) {
   const activePoke = currentStudent.pokemon || "pikachu";
   const playerImg = document.getElementById("boss-battle-scene-player-img");
   if (playerImg) {
-    playerImg.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+    playerImg.src = window.getPokemonSpriteUrl(activePoke);
   }
   document.getElementById("boss-battle-scene-player-name").innerText = pokemonNames[activePoke] || "Pikachu";
   document.getElementById("boss-battle-scene-player-avatar").innerText = window.pokemonAvatars[activePoke] || "⚡";
@@ -1735,17 +1776,17 @@ function renderBossQuestion() {
     q.rows.forEach((row, rIdx) => {
       const placedIdx = savedAnswers[rIdx];
       const correctIdx = q.correctAnswers[rIdx];
-      let selectClass = "w-full bg-slate-900/60 border-2 border-slate-800 focus:border-red-500 text-xs font-bold text-slate-100 rounded-xl p-2.5 outline-none transition-all cursor-pointer";
+      let selectClass = "w-full bg-slate-900/60 border-2 border-slate-800 focus:border-red-500 text-xs font-bold text-slate-100 rounded-xl p-2.5 outline-none transition-all cursor-pointer whitespace-normal break-words h-auto leading-relaxed";
       let disabledAttr = "";
       let tipHtml = "";
       if (isQuestionAnswered) {
         disabledAttr = "disabled";
-        if (placedIdx === correctIdx) selectClass = "w-full bg-slate-900/60 border-2 border-emerald-500 text-emerald-400 text-xs font-bold rounded-xl p-2.5 outline-none";
+        if (placedIdx === correctIdx) selectClass = "w-full bg-slate-900/60 border-2 border-emerald-500 text-emerald-400 text-xs font-bold rounded-xl p-2.5 outline-none whitespace-normal break-words h-auto leading-relaxed";
         else {
-          selectClass = "w-full bg-slate-900/60 border-2 border-red-500 text-red-400 text-xs font-bold rounded-xl p-2.5 outline-none";
+          selectClass = "w-full bg-slate-900/60 border-2 border-red-500 text-red-400 text-xs font-bold rounded-xl p-2.5 outline-none whitespace-normal break-words h-auto leading-relaxed";
           tipHtml = `<span class="block text-[10px] font-bold text-emerald-400 mt-1">✓ Đúng: ${q.options[correctIdx]}</span>`;
         }
-      } else if (placedIdx !== undefined && placedIdx !== "") selectClass = "w-full bg-slate-900/60 border-2 border-red-500 text-white text-xs font-bold rounded-xl p-2.5 outline-none";
+      } else if (placedIdx !== undefined && placedIdx !== "") selectClass = "w-full bg-slate-900/60 border-2 border-indigo-500 text-white text-xs font-bold rounded-xl p-2.5 outline-none whitespace-normal break-words h-auto leading-relaxed";
       tableHtml += `<tr class="border-b border-slate-900"><td class="p-3 text-xs font-bold text-slate-200 break-words whitespace-normal">${row}</td><td class="p-3 max-w-xs md:max-w-md"><select id="boss-table-match-select-${rIdx}" onchange="changeBossTableMatchSelect(${rIdx})" ${disabledAttr} class="${selectClass} max-w-full"><option value="">-- Chọn --</option>${q.options.map((opt, oIdx) => `<option value="${oIdx}" ${placedIdx === oIdx ? "selected" : ""}>${opt}</option>`).join("")}</select>${tipHtml}</td></tr>`;
     });
     tableHtml += `</tbody></table>`;
@@ -2220,7 +2261,7 @@ function renderBattleArena() {
   const elAvatar = document.getElementById("battle-poke-avatar");
   if(elAvatar) {
     elAvatar.className = `transition-all duration-300 flex justify-center w-full`;
-    const avatarImg = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+    const avatarImg = window.getPokemonSpriteUrl(activePoke);
     elAvatar.innerHTML = `<img src="${avatarImg}" class="w-24 h-24 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
   }
   
@@ -2743,10 +2784,12 @@ function submitSkillQuiz(nodeId) {
   }
 }
 
-let currentInventoryTab = "pokemon";
+window.currentInventoryTab = "pokemon";
 
 function switchInventoryTab(tabId) {
-  currentInventoryTab = tabId;
+  window.currentInventoryTab = tabId;
+  window.inventoryPage = 0;
+  
   document.querySelectorAll('.inv-tab-btn').forEach(btn => btn.classList.remove('active'));
   const activeBtn = document.getElementById(`btn-inv-${tabId}`);
   if (activeBtn) activeBtn.classList.add('active');
@@ -2758,8 +2801,6 @@ function switchInventoryTab(tabId) {
   if (tabId === 'evolution') {
       if (grid) grid.classList.add('hidden');
       if (evoArea) evoArea.classList.remove('hidden');
-      // If we had the evolution logic separated, we'd call it here
-      // For now, let's just make sure renderInventory handles it or we re-inject the old UI
   } else {
       if (grid) grid.classList.remove('hidden');
       if (evoArea) evoArea.classList.add('hidden');
@@ -2779,9 +2820,9 @@ function renderInventory() {
   if (!grid) return;
   
   grid.innerHTML = "";
-  let itemsCount = 0;
-
-  if (currentInventoryTab === "pokemon") {
+  let allItems = [];
+  
+  if (window.currentInventoryTab === "pokemon") {
     const allCompanionsDef = [
       { id: "pikachu", name: "Pikachu", img: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Sở hữu chiêu thức sấm sét rền vang." },
       { id: "charmander", name: "Charmander", img: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Sở hữu ngọn lửa thiêng bùng nổ." },
@@ -2796,30 +2837,9 @@ function renderInventory() {
 
     allCompanionsDef.forEach(comp => {
       const isUnlocked = currentStudent.unlockedPokemons.includes(comp.id);
-      if (!isUnlocked) return;
-      itemsCount++;
-
-      const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-      const currentLvlName = currentStudent.level || "Beginner";
-      let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
-      const evolutions = window.evoMap[comp.id] || [comp.id];
-      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || comp.id;
-      
-      const baseActiveKey = window.getBasePokemonKey(currentStudent.pokemon || "pichu");
-      const isCurrent = baseActiveKey === comp.id;
-
-      const slot = document.createElement("div");
-      slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
-      slot.onclick = () => selectInventoryCompanion(comp.id);
-      
-      slot.innerHTML = `
-        ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-        <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif" class="w-12 h-12 object-contain filter drop-shadow-md">
-        <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${window.pokemonNames[targetForm] || comp.name}</span>
-      `;
-      grid.appendChild(slot);
+      if (isUnlocked) allItems.push({ type: 'pokemon', data: comp });
     });
-  } else if (currentInventoryTab === "item") {
+  } else if (window.currentInventoryTab === "item") {
     const storeItemsDef = {
       reward_banana: { name: "Chuối Vàng", img: "🍌", desc: "Thức ăn giúp Pokémon tiến hóa." },
       reward_neon_frame: { name: "Khung Neon", img: "✨", desc: "Trang trí rực rỡ khung avatar." },
@@ -2828,119 +2848,251 @@ function renderInventory() {
     };
 
     if (currentStudent.bananas > 0) {
-        itemsCount++;
+        allItems.push({ type: 'banana', count: currentStudent.bananas });
+    }
+
+    (currentStudent.ownedItems || []).forEach((itemId, idx) => {
+      const item = storeItemsDef[itemId] || { name: "Vật phẩm", img: "📦", desc: "Vật phẩm thám hiểm" };
+      allItems.push({ type: 'item', data: item, id: itemId, index: idx });
+    });
+  } else if (window.currentInventoryTab === "avatar") {
+    const defaultAvatars = [
+      "⚡", "🔥", "🍃", "💧", "🦊", "👑", "💎", "🌟", "🚀", "🐲", 
+      "🐯", "🤖", "👻", "🦄", "🌈", "🥋", "🎭", "🎨", "🎮", "🎸", 
+      "⚽", "🍀", "🍕", "🍔", "🍦", "🍭", "🍩", "🍓", "🍎", "🍉",
+      "🌞", "🌙", "⭐", "🌍", "🌋", "⚓", "🛸", "📡", "💻", "🧠",
+      "🥷", "🧙", "🧛", "🧟", "🦁", "🐼", "🐨", "🦋", "🍄", "🥑"
+    ];
+    const avatars = Array.from(new Set([...defaultAvatars, ...(currentStudent.unlockedAvatars || [])]));
+    avatars.forEach(av => {
+      allItems.push({ type: 'avatar', data: av });
+    });
+  } else if (window.currentInventoryTab === "frame") {
+    const frames = currentStudent.unlockedFrames || ["border-indigo-500/50"];
+    frames.forEach(fr => {
+      allItems.push({ type: 'frame', data: fr });
+    });
+  } else if (window.currentInventoryTab === "nickname") {
+    const defaultNicknames = [
+      "Thám hiểm viên", "Siêu Cấp Thần Thú", "Huyền Thoại IC3", "Thợ Săn Coin", 
+      "Chúa Tể Pokemon", "Bậc Thầy Tiến Hóa", "Đại Hiệp Rừng Xanh", "Thần Sét Pikachu", 
+      "Rồng Thần Lửa", "Nhà Thông Thái", "Chiến Binh Ánh Sáng", "Kẻ Hủy Diệt", 
+      "Đại Sứ Hòa Bình", "Kỵ Sĩ Rồng", "Pháp Sư Tối Thượng", "Vua Hải Tặc",
+      "Anh Hùng Bàn Phím", "Lập Trình Viên Đại Tài", "Thiên Tài Giải Đố", "Thợ Săn Boss",
+      "Mầm Non Giải Thuật", "Bậc Thầy Logic", "Kiện Tướng Công Nghệ", "Đặc Vụ Số Hóa",
+      "Người Gác Đền Tri Thức", "Kẻ Du Hành Không Gian", "Chiến Binh Tương Lai"
+    ];
+    const nicknames = Array.from(new Set([...defaultNicknames, ...(currentStudent.unlockedNicknames || [])]));
+    nicknames.forEach(nn => {
+      allItems.push({ type: 'nickname', data: nn });
+    });
+  }
+
+  // Handle evolution tab visibility separately
+  if (window.currentInventoryTab === 'evolution') {
+      grid.classList.add('hidden');
+      const evoArea = document.getElementById("inventory-evolution-area");
+      if (evoArea) evoArea.classList.remove('hidden');
+      renderEvolutionInInventory();
+      return;
+  } else {
+      grid.classList.remove('hidden');
+      const evoArea = document.getElementById("inventory-evolution-area");
+      if (evoArea) evoArea.classList.add('hidden');
+  }
+
+  // Pagination logic
+  const totalItems = allItems.length;
+  const totalPages = Math.ceil(totalItems / window.inventoryItemsPerPage);
+  if (window.inventoryPage >= totalPages && totalPages > 0) window.inventoryPage = totalPages - 1;
+  const startIdx = window.inventoryPage * window.inventoryItemsPerPage;
+  const pageItems = allItems.slice(startIdx, startIdx + window.inventoryItemsPerPage);
+
+  pageItems.forEach(item => {
+    if (item.type === 'pokemon') {
+      const comp = item.data;
+      const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+      const currentLvlName = currentStudent.level || "Beginner";
+      let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
+      const evolutions = window.evoMap[comp.id] || [comp.id];
+      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || comp.id;
+      const baseActiveKey = window.getBasePokemonKey(currentStudent.pokemon || "pichu");
+      const isCurrent = baseActiveKey === comp.id;
+
+      const slot = document.createElement("div");
+      slot.className = `inventory-slot cursor-pointer group relative ${isCurrent ? 'active' : ''}`;
+      slot.onclick = (e) => {
+          if (e.target.closest('.mini-avatar-btn')) return;
+          selectInventoryCompanion(comp.id);
+      };
+      
+      slot.innerHTML = `
+        ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+        <img src="${window.getPokemonSpriteUrl(targetForm)}" class="w-12 h-12 object-contain filter drop-shadow-md">
+        <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${window.pokemonNames[targetForm] || comp.name}</span>
+        <button class="mini-avatar-btn absolute -top-1 -right-1 w-6 h-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-white/20 z-20" title="Đặt làm ảnh đại diện">
+            <i class="fa-solid fa-user-tag text-[10px]"></i>
+        </button>
+      `;
+      const miniBtn = slot.querySelector('.mini-avatar-btn');
+      if (miniBtn) {
+          miniBtn.onclick = (e) => {
+              e.stopPropagation();
+              const imgUrl = window.getPokemonSpriteUrl(targetForm);
+              currentStudent.currentAvatar = imgUrl;
+              if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
+              if (!currentStudent.unlockedAvatars.includes(imgUrl)) currentStudent.unlockedAvatars.push(imgUrl);
+              const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+              const idx = students.findIndex(s => s.email === currentStudent.email);
+              if (idx !== -1) { students[idx] = currentStudent; window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email); }
+              window.showToast("Đã cập nhật Ảnh đại diện!", "success");
+              loadStudentProfile();
+              renderInventory();
+          };
+      }
+      grid.appendChild(slot);
+    } else if (item.type === 'banana') {
         const slot = document.createElement("div");
         slot.className = "inventory-slot cursor-pointer";
         slot.onclick = () => switchInventoryTab('evolution');
         slot.innerHTML = `
           <div class="text-3xl">🍌</div>
           <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">Chuối Vàng</span>
-          <span class="absolute bottom-2 right-2 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 rounded-md">x${currentStudent.bananas}</span>
+          <span class="absolute bottom-2 right-2 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 rounded-md">x${item.count}</span>
         `;
         grid.appendChild(slot);
-    }
-
-    (currentStudent.ownedItems || []).forEach((itemId, idx) => {
-      itemsCount++;
-      const item = storeItemsDef[itemId] || { name: "Vật phẩm", img: "📦", desc: "Vật phẩm thám hiểm" };
+    } else if (item.type === 'item') {
       const slot = document.createElement("div");
       slot.className = "inventory-slot cursor-pointer";
-      
-      if (itemId === "reward_lucky_box") {
-        slot.onclick = () => useInventoryItem(idx);
-      }
-      
+      if (item.id === "reward_lucky_box") slot.onclick = () => useInventoryItem(item.index);
       slot.innerHTML = `
-        <div class="text-3xl">${item.img}</div>
-        <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${item.name}</span>
+        <div class="text-3xl">${item.data.img}</div>
+        <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${item.data.name}</span>
       `;
       grid.appendChild(slot);
-    });
-  } else if (currentInventoryTab === "avatar") {
-    const avatars = currentStudent.unlockedAvatars || ["⚡", "🔥", "🍃", "💧"];
-    avatars.forEach(av => {
-      itemsCount++;
-      const isCurrent = currentStudent.currentAvatar === av;
+    } else if (item.type === 'avatar') {
+      const isCurrent = currentStudent.currentAvatar === item.data || (!currentStudent.currentAvatar && item.data === "⚡");
       const slot = document.createElement("div");
       slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
-      slot.onclick = () => selectCustomItem('avatar', av);
-      
-      if (av.includes("://")) {
+      slot.onclick = () => selectCustomItem('avatar', item.data);
+      if (item.data.includes("://")) {
         slot.innerHTML = `
           ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-          <img src="${av}" class="w-10 h-10 object-contain">
+          <img src="${item.data}" class="w-10 h-10 object-contain">
         `;
       } else {
         slot.innerHTML = `
           ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-          <span class="text-3xl">${av}</span>
+          <span class="text-3xl">${item.data}</span>
         `;
       }
       grid.appendChild(slot);
-    });
-  } else if (currentInventoryTab === "frame") {
-    const frames = currentStudent.unlockedFrames || ["border-indigo-500/50"];
-    frames.forEach(fr => {
-      itemsCount++;
-      const isCurrent = currentStudent.currentFrame === fr;
+    } else if (item.type === 'frame') {
+      const isCurrent = currentStudent.currentFrame === item.data;
       const slot = document.createElement("div");
       slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
-      slot.onclick = () => selectCustomItem('frame', fr);
+      slot.onclick = () => selectCustomItem('frame', item.data);
       slot.innerHTML = `
         ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-        <div class="w-12 h-12 rounded-full border-4 ${fr} bg-slate-800"></div>
+        <div class="w-12 h-12 rounded-full border-4 ${item.data} bg-slate-800"></div>
       `;
       grid.appendChild(slot);
-    });
-  } else if (currentInventoryTab === "nickname") {
-    const nicknames = currentStudent.unlockedNicknames || ["Thám hiểm viên"];
-    nicknames.forEach(nn => {
-      itemsCount++;
-      const isCurrent = (currentStudent.currentNickname || currentStudent.name) === nn;
+    } else if (item.type === 'nickname') {
+      const currentNN = currentStudent.currentNickname || "Thám hiểm viên";
+      const isCurrent = currentNN === item.data;
       const slot = document.createElement("div");
       slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
-      slot.onclick = () => selectCustomItem('nickname', nn);
+      slot.onclick = () => selectCustomItem('nickname', item.data);
       slot.innerHTML = `
         ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-        <span class="text-[9px] font-black text-center uppercase break-all w-full p-2">${nn}</span>
+        <span class="text-[9px] font-black text-center uppercase break-all w-full p-2">${window.stylizeNickname(item.data)}</span>
       `;
       grid.appendChild(slot);
-    });
-  } else if (currentInventoryTab === "evolution") {
-      itemsCount = 1; // Fake count to hide empty state
-      renderEvolutionInInventory();
+    }
+  });
+
+  // Add Pagination Controls
+  if (totalPages > 1) {
+    const pagContainer = document.createElement("div");
+    pagContainer.className = "col-span-full flex justify-center items-center gap-4 mt-4 pt-4 border-t border-white/5";
+    pagContainer.innerHTML = `
+      <button onclick="window.changeInventoryPage(-1)" ${window.inventoryPage === 0 ? 'disabled' : ''} class="w-8 h-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+        <i class="fa-solid fa-chevron-left text-[10px]"></i>
+      </button>
+      <span class="text-[9px] font-black text-indigo-400">TRANG ${window.inventoryPage + 1} / ${totalPages}</span>
+      <button onclick="window.changeInventoryPage(1)" ${window.inventoryPage === totalPages - 1 ? 'disabled' : ''} class="w-8 h-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+        <i class="fa-solid fa-chevron-right text-[10px]"></i>
+      </button>
+    `;
+    grid.appendChild(pagContainer);
   }
 
-  if (itemsCount === 0) {
+  // Show/Hide Empty State
+  if (totalItems === 0) {
     if (emptyState) emptyState.classList.remove("hidden");
   } else {
     if (emptyState) emptyState.classList.add("hidden");
   }
+
+  // Update tabs active state
+  document.querySelectorAll('.inv-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.id === `btn-inv-${window.currentInventoryTab}`) btn.classList.add('active');
+  });
 }
 
 function renderEvolutionInInventory() {
     const evoArea = document.getElementById("inventory-evolution-area");
     if (!evoArea) return;
     
-    // Check if evolution slides exist
-    if (!window.evolutionSlides) {
-        window.evolutionSlides = []; 
+    if (!currentStudent) return;
+    const pokeKey = window.getBasePokemonKey(currentStudent.pokemon || "pikachu");
+    const evolutions = window.evoMap[pokeKey] || [pokeKey];
+    const maxIndex = evolutions.length - 1;
+    
+    // Clamp evolution index
+    if (window.currentEvolutionIndex > maxIndex) {
+        window.currentEvolutionIndex = maxIndex;
+    }
+    if (window.currentEvolutionIndex < 0) {
+        window.currentEvolutionIndex = 0;
     }
     
-    // We can't easily move the old UI without more complex DOM manipulation
-    // So let's re-inject the evolution UI here
+    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+    const currentLvlName = currentStudent.level || "Beginner";
+    let unlockedIndex = levels.indexOf(currentLvlName);
+    if (unlockedIndex === -1) unlockedIndex = 0;
+
+    const slideTargetName = evolutions[window.currentEvolutionIndex];
+    const prettyName = window.pokemonNames[slideTargetName] || slideTargetName.toUpperCase();
+    const stageText = "STAGE " + (window.currentEvolutionIndex + 1) + " / " + evolutions.length;
+    
     evoArea.innerHTML = `
-        <div class="bg-game-card border border-white/10 p-8 rounded-[40px] space-y-6 shadow-2xl relative overflow-hidden max-w-md w-full">
+        <div class="bg-game-card border border-white/10 p-8 rounded-[40px] space-y-6 shadow-2xl relative overflow-hidden max-w-md w-full mx-auto">
             <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none"></div>
             
+            <!-- NEW: Back Button -->
+            <button onclick="window.switchInventoryTab('pokemon')" class="absolute top-4 left-4 z-30 w-10 h-10 flex items-center justify-center bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full transition-all border border-white/5">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+
             <div id="evo-slideshow-inv" class="flex items-center justify-between relative z-10">
                 <button onclick="window.prevEvolution(); renderEvolutionInInventory();" class="text-slate-400 hover:text-white p-3 text-2xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all"><i class="fa-solid fa-chevron-left"></i></button>
                 <div class="text-center py-2 relative flex-grow">
+                    <span class="text-[10px] font-black text-indigo-400 tracking-widest uppercase mb-1 block" id="evo-stage-text-inv">${stageText}</span>
                     <div class="h-40 flex justify-center mb-4 items-center relative perspective-500">
                         <div class="absolute w-28 h-28 rounded-full bg-gradient-to-tr from-yellow-500/10 to-indigo-500/20 blur-xl animate-pulse"></div>
-                        <img id="evo-target-avatar-inv" src="" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10">
+                        <img id="evo-target-avatar-inv" src="${window.getPokemonSpriteUrl(slideTargetName)}" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif'">
+                        <div id="evo-lock-overlay-inv" class="absolute inset-0 flex items-center justify-center bg-slate-950/60 rounded-full hidden z-20">
+                            <span class="text-white text-3xl drop-shadow-md"><i class="fa-solid fa-lock text-red-500"></i></span>
+                        </div>
                     </div>
-                    <h5 id="evo-target-title-inv" class="font-poppins font-black text-lg text-white uppercase tracking-wider">Loading...</h5>
+                    <h5 id="evo-target-title-inv" class="font-poppins font-black text-lg text-white uppercase tracking-wider">${prettyName}</h5>
+                    
+                    <!-- NEW: Set as Avatar Button -->
+                    <button id="set-as-avatar-btn" class="mt-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white text-[11px] font-black rounded-xl border border-white/20 transition-all uppercase tracking-tight shadow-lg shadow-indigo-500/20 active:scale-95">
+                        <i class="fa-solid fa-user-astronaut mr-1"></i> Làm Ảnh Đại Diện
+                    </button>
                 </div>
                 <button onclick="window.nextEvolution(); renderEvolutionInInventory();" class="text-slate-400 hover:text-white p-3 text-2xl hover:scale-125 hover:text-yellow-400 active:scale-95 transition-all"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
@@ -2954,47 +3106,164 @@ function renderEvolutionInInventory() {
                     <div id="evo-req-bar-inv" class="h-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mt-4">
-                    <button onclick="window.feedBananaToPokemon(); renderEvolutionInInventory();" class="py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-2xl hover:shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all uppercase">Cho Ăn</button>
-                    <button onclick="window.triggerEvolvePokemon(); renderEvolutionInInventory();" class="py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-2xl hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all uppercase">Tiến Hóa</button>
+                    <button id="evo-feed-btn-inv" class="py-3 text-xs font-black rounded-2xl transition-all uppercase"></button>
+                    <button id="evo-evolve-btn-inv" class="py-3 text-xs font-black rounded-2xl transition-all uppercase"></button>
                 </div>
             </div>
         </div>
     `;
+
+    const lockEl = document.getElementById("evo-lock-overlay-inv");
+    if (lockEl) {
+        if (window.currentEvolutionIndex > unlockedIndex) {
+            lockEl.classList.remove("hidden");
+        } else {
+            lockEl.classList.add("hidden");
+        }
+    }
+
+    // Banana requirement logic
+    const bananaReqs = [0, 5, 10, 15, 20, 30, 50];
+    const targetBananas = bananaReqs[window.currentEvolutionIndex] || 0;
     
-    // Sync with existing evolution logic
-    if (typeof window.renderEvolutionSlideshow === 'function') {
-        // We need to map the new IDs to the function
-        const originalTargetAvatar = document.getElementById("evolution-target-avatar");
-        const originalTargetTitle = document.getElementById("evolution-target-title");
-        const originalReqBananas = document.getElementById("evolution-req-bananas");
-        const originalReqBar = document.getElementById("evolution-req-bar");
-        
-        // Temporarily swap IDs or just update manually
-        const slide = window.evolutionSlides[window.currentEvolutionIndex];
-        if (slide) {
-            document.getElementById("evo-target-avatar-inv").src = slide.img;
-            document.getElementById("evo-target-title-inv").innerText = slide.name;
+    const reqBananasEl = document.getElementById("evo-req-bananas-inv");
+    const barExpEl = document.getElementById("evo-req-bar-inv");
+
+    let pct = 0;
+    if (window.currentEvolutionIndex <= unlockedIndex) {
+        // Already unlocked
+        if (reqBananasEl) reqBananasEl.innerText = "Đã Đạt Cấp ✅";
+        pct = 100;
+    } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
+        // Next stage
+        const fed = currentStudent.pokemonFedBananas || 0;
+        if (reqBananasEl) reqBananasEl.innerText = `${fed} / ${targetBananas} 🍌`;
+        pct = targetBananas === 0 ? 100 : Math.min(100, Math.round((fed / targetBananas) * 100));
+    } else {
+        // Locked stage further in the future
+        if (reqBananasEl) reqBananasEl.innerText = `Cần ${targetBananas} 🍌 (Khóa 🔒)`;
+        pct = 0;
+    }
+
+    if (barExpEl) {
+        barExpEl.style.width = `${pct}%`;
+    }
+
+    // Set as avatar click handler
+    const setAvatarBtn = document.getElementById("set-as-avatar-btn");
+    if (setAvatarBtn) {
+        setAvatarBtn.onclick = async () => {
+            const imgUrl = window.getPokemonSpriteUrl(slideTargetName);
+            currentStudent.currentAvatar = imgUrl;
             
-            const req = window.evolutionReqs[window.currentEvolutionIndex] || 5;
-            const current = currentStudent.fedBananas || 0;
-            document.getElementById("evo-req-bananas-inv").innerText = `${current} / ${req} 🍌`;
-            document.getElementById("evo-req-bar-inv").style.width = `${Math.min(100, (current / req) * 100)}%`;
+            // Add to unlocked avatars if not already there
+            if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
+            if (!currentStudent.unlockedAvatars.includes(imgUrl)) {
+                currentStudent.unlockedAvatars.push(imgUrl);
+            }
+            
+            // Save to DB
+            const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+            const idx = students.findIndex(s => s.email === currentStudent.email);
+            if (idx !== -1) {
+                students[idx] = currentStudent;
+                window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+            }
+            
+            window.showToast("Đã cập nhật Ảnh đại diện thành công!", "success");
+            loadStudentProfile();
+            // Switch tab to avatar to show it's equipped
+            window.currentInventoryTab = 'avatar';
+            if (typeof renderInventory === "function") renderInventory();
+        };
+    }
+
+    // Update buttons
+    const feedBtn = document.getElementById("evo-feed-btn-inv");
+    const evolveBtn = document.getElementById("evo-evolve-btn-inv");
+
+    if (feedBtn) {
+        if (window.currentEvolutionIndex <= unlockedIndex) {
+            feedBtn.innerText = "Đã Tiến Hóa";
+            feedBtn.className = "w-full py-3 bg-slate-800 text-slate-500 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
+            feedBtn.disabled = true;
+            feedBtn.onclick = null;
+        } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
+            const fed = currentStudent.pokemonFedBananas || 0;
+            if (fed >= targetBananas) {
+                feedBtn.innerText = "Đã Ăn Đủ 🍌";
+                feedBtn.className = "w-full py-3 bg-slate-800 text-yellow-500 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-yellow-500/25";
+                feedBtn.disabled = true;
+                feedBtn.onclick = null;
+            } else {
+                feedBtn.innerText = "Cho Ăn 🍌";
+                feedBtn.className = "w-full py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-2xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider";
+                feedBtn.disabled = false;
+                feedBtn.onclick = async function() {
+                    await window.feedBananaToPokemon();
+                    renderEvolutionInInventory();
+                };
+            }
+        } else {
+            feedBtn.innerText = "Chưa Đủ Cấp 🔒";
+            feedBtn.className = "w-full py-3 bg-slate-950 text-slate-600 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
+            feedBtn.disabled = true;
+            feedBtn.onclick = null;
+        }
+    }
+
+    if (evolveBtn) {
+        if (window.currentEvolutionIndex <= unlockedIndex) {
+            const isCurrentlyEquipped = (currentStudent.pokemon || "pikachu") === slideTargetName;
+            if (isCurrentlyEquipped) {
+                evolveBtn.innerText = "Đang Đồng Hành ⚡";
+                evolveBtn.className = "w-full py-3 bg-indigo-900/40 text-indigo-300 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-indigo-500/20";
+                evolveBtn.onclick = null;
+            } else {
+                evolveBtn.innerText = "Chọn Dạng Này 🔮";
+                evolveBtn.className = "w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 text-xs font-black rounded-2xl cursor-pointer hover:from-amber-600 hover:to-yellow-600 transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(245,158,11,0.3)]";
+                evolveBtn.onclick = async function() {
+                    await window.useEvolutionForm(slideTargetName);
+                    renderEvolutionInInventory();
+                };
+            }
+        } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
+            const fed = currentStudent.pokemonFedBananas || 0;
+            if (fed >= targetBananas) {
+                evolveBtn.innerText = "Tiến Hóa Ngay 🔮";
+                evolveBtn.className = "w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-2xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.3)]";
+                evolveBtn.onclick = async function() {
+                    await window.triggerEvolvePokemon();
+                    renderEvolutionInInventory();
+                };
+            } else {
+                evolveBtn.innerText = "Chưa Đủ Chuối 🔒";
+                evolveBtn.className = "w-full py-3 bg-slate-800 text-slate-400 text-xs font-black rounded-2xl cursor-pointer hover:bg-slate-750 transition-all text-center uppercase tracking-wider";
+                evolveBtn.onclick = function() {
+                    window.showToast("Hãy cho Pokémon ăn đủ " + targetBananas + " quả Chuối Vàng 🍌 để tiến hóa nhé!", "info");
+                };
+            }
+        } else {
+            evolveBtn.innerText = "Đã Khóa 🔒";
+            evolveBtn.className = "w-full py-3 bg-red-950/40 text-red-400 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-red-900/30";
+            evolveBtn.onclick = null;
         }
     }
 }
 
 function selectInventoryCompanion(pokeId) {
   const baseKey = window.getBasePokemonKey(pokeId);
+  const evolutions = window.evoMap[baseKey] || [baseKey];
+  
   const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
   const currentLvlName = currentStudent.level || "Beginner";
   let unlockedIndex = levels.indexOf(currentLvlName);
   if (unlockedIndex === -1) unlockedIndex = 0;
   
-  const evolutions = window.evoMap[baseKey] || [baseKey];
   const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
   
+  // EQUIP the pokemon as companion
   currentStudent.pokemon = targetForm;
-  currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
   
   // Save changes to database
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -3004,11 +3273,19 @@ function selectInventoryCompanion(pokeId) {
     window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
   }
 
-  const prettyName = window.pokemonNames[targetForm] || targetForm.toUpperCase();
-  window.showToast(`🎉 Đã đổi Pokémon đồng hành thành công! Bạn đồng hành hiện tại của bạn là ${prettyName}.`);
-  loadStudentProfile();
+  // Set evolution view context
+  window.currentEvolutionIndex = evolutions.indexOf(targetForm);
+
+  // Switch to evolution tab to show details & avatar option
+  window.currentInventoryTab = 'evolution';
   renderInventory();
-  renderBattleArena();
+  
+  // Update battle arena if visible
+  if (typeof renderBattleArena === "function") renderBattleArena();
+  
+  const prettyName = window.pokemonNames[targetForm] || targetForm.toUpperCase();
+  window.showToast(`🎉 Đã đổi Pokémon đồng hành thành ${prettyName}!`, "success");
+  loadStudentProfile();
 }
 
 function useInventoryItem(itemIndex) {
@@ -3849,22 +4126,22 @@ function renderGameQuestion() {
       const placedIdx = savedAnswers[rIdx];
       const correctIdx = q.correctAnswers[rIdx];
       
-      let selectClass = "w-full bg-[#131b2e]/60 border-2 border-slate-800/90 focus:border-indigo-500 text-sm font-bold text-slate-100 rounded-2xl p-3.5 outline-none transition-all cursor-pointer";
+      let selectClass = "w-full bg-[#131b2e]/60 border-2 border-slate-800/90 focus:border-indigo-500 text-sm font-bold text-slate-100 rounded-2xl p-3.5 outline-none transition-all cursor-pointer whitespace-normal break-words h-auto leading-relaxed";
       let disabledAttr = "";
       let tipHtml = "";
 
       if (isQuestionAnswered) {
         disabledAttr = "disabled";
         if (placedIdx === correctIdx) {
-          selectClass = "w-full bg-[#131b2e]/60 border-2 border-emerald-500 text-emerald-400 focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all";
+          selectClass = "w-full bg-[#131b2e]/60 border-2 border-emerald-500 text-emerald-400 focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all whitespace-normal break-words h-auto leading-relaxed";
         } else {
-          selectClass = "w-full bg-[#131b2e]/60 border-2 border-red-500 text-red-400 focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all";
+          selectClass = "w-full bg-[#131b2e]/60 border-2 border-red-500 text-red-400 focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all whitespace-normal break-words h-auto leading-relaxed";
           tipHtml = `<span class="block text-xs font-black text-emerald-400 mt-1.5">✓ Đúng: ${q.options[correctIdx]}</span>`;
         }
       } else {
         // If has value chosen
         if (placedIdx !== undefined && placedIdx !== "") {
-          selectClass = "w-full bg-[#131b2e]/60 border-2 border-indigo-500 text-white focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all cursor-pointer";
+          selectClass = "w-full bg-[#131b2e]/60 border-2 border-indigo-500 text-white focus:border-indigo-500 text-sm font-bold rounded-2xl p-3.5 outline-none transition-all cursor-pointer whitespace-normal break-words h-auto leading-relaxed";
         }
       }
 
@@ -5080,11 +5357,11 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
     </div>
   `;
   document.getElementById("victory-exp").innerText = `+${expGained} EXP`;
-  document.getElementById("victory-coins").innerText = `+${coinsGained} COINS`;
+  document.getElementById("victory-coins").innerHTML = `+${coinsGained} <i class="fa-solid fa-coins text-yellow-400"></i>`;
 
   const bananasEl = document.getElementById("victory-bananas");
   if (bananasEl) {
-    bananasEl.innerText = `+${bananasGained} BANANAS`;
+    bananasEl.innerText = `+${bananasGained} 🍌`;
   }
 
   const lvlBadge = document.getElementById("victory-lvl-up-badge");
@@ -5108,49 +5385,47 @@ function closeVictoryScreen() {
 
 // ==================== STORE & SHOPPING ENGINE ====================
 function renderRewardsStore() {
-  let rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
   const grid = document.getElementById("student-rewards-store-grid");
   if (grid) grid.innerHTML = "";
 
-  // Check if rewards list needs to be expanded or initialized
-  const hasBanana = rewards.some(r => r.id === "reward_banana");
-  if (!hasBanana || rewards.length < 10) {
-    rewards = [
-      // Pokémon (Category: pokemon)
-      { id: "reward_bulbasaur", type: "pokemon", name: "Bulbasaur (Hạt Giống)", image: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Thuộc tính: Cỏ / Độc 🍃\nHP: 45 | ATK: 49 | DEF: 49\nNgười bạn đồng hành tuyệt vời cho người mới bắt đầu.", cost: 100, reqMode: "buy" },
-      { id: "reward_charmander", type: "pokemon", name: "Charmander (Thằn Lằn Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nNhanh nhẹn và mạnh mẽ trong chiến đấu.", cost: 100, reqMode: "buy" },
-      { id: "reward_squirtle", type: "pokemon", name: "Squirtle (Rùa Nước)", image: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Thuộc tính: Nước 💧\nHP: 44 | ATK: 48 | DEF: 65\nPhòng thủ cực tốt với lớp mai cứng.", cost: 100, reqMode: "buy" },
-      { id: "reward_pikachu", type: "pokemon", name: "Pichu (Chuột Điện)", image: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Thuộc tính: Điện ⚡\nHP: 20 | ATK: 40 | DEF: 15\nNhanh như chớp, biểu tượng của sự nhanh nhẹn.", cost: 150, reqMode: "buy" },
-      { id: "reward_eevee", type: "pokemon", name: "Eevee (Tiến Hóa)", image: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Thuộc tính: Thường 🌟\nHP: 55 | ATK: 55 | DEF: 50\nTiềm năng tiến hóa vô hạn.", cost: 200, reqMode: "buy" },
-      { id: "reward_snorlax", type: "pokemon", name: "Munchlax (Khổng Lồ Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/munchlax.gif", desc: "Thuộc tính: Thường 🌟\nHP: 135 | ATK: 85 | DEF: 40\nHáu ăn và cực kỳ đáng yêu, tiềm năng sức mạnh khổng lồ.", cost: 500, reqMode: "buy" },
-      { id: "reward_gengar", type: "pokemon", name: "Gastly (Bóng Ma Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/gastly.gif", desc: "Thuộc tính: Ma / Độc 👻\nHP: 30 | ATK: 35 | DEF: 30\nKẻ tinh nghịch trong bóng tối, tiềm năng ma thuật vô hạn.", cost: 600, reqMode: "buy" },
-      { id: "reward_lucario", type: "pokemon", name: "Riolu (Chiến Binh Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/riolu.gif", desc: "Thuộc tính: Giác Đấu ⚔️\nHP: 40 | ATK: 70 | DEF: 40\nCảm nhận hào quang, dũng cảm và trung thành tuyệt đối.", cost: 800, reqMode: "buy" },
-      { id: "reward_charizard", type: "pokemon", name: "Charmander (Thống Lĩnh)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nPhiên bản đặc biệt khi đánh bại Vua Thống Lĩnh IC3.", cost: 9999, reqMode: "boss" },
-      { id: "reward_dragonite", type: "pokemon", name: "Dratini (Rồng Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/dratini.gif", desc: "Thuộc tính: Rồng 🐉\nHP: 41 | ATK: 64 | DEF: 45\nSinh vật thần thoại. Thưởng từ Boss Rồng Hỏa Ngục.", cost: 9999, reqMode: "boss" },
-      { id: "reward_mewtwo", type: "pokemon", name: "Mewtwo (Tối Thượng)", image: "https://play.pokemonshowdown.com/sprites/xyani/mewtwo.gif", desc: "Thuộc tính: Tâm Linh 🔮\nHP: 106 | ATK: 110 | DEF: 90\nChúa tể trí tuệ. Yêu cầu: Hạ gục Phù Thủy Thuật Toán.", cost: 9999, reqMode: "boss" },
-      
-      // Items (Category: item)
-      { id: "reward_banana", type: "item", name: "Chuối Vàng Thần Kỳ 🍌", image: "🍌", desc: "Chuối Vàng chứa năng lượng vũ trụ siêu đặc biệt! Cho Pokémon của bạn ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp.", cost: 50, reqMode: "buy" },
-      { id: "reward_potion", type: "item", name: "Thuốc Hồi Phục 🧪", image: "🧪", desc: "Phục hồi 50 HP ngay lập tức trong trận đấu Boss (Sắp ra mắt).", cost: 30, reqMode: "buy" },
-      
-      // Avatars (Category: avatar)
-      { id: "reward_av_1", type: "avatar", name: "Phi hành gia 🧑‍🚀", image: "🧑‍🚀", desc: "Khám phá vũ trụ tri thức IC3.", cost: 100, reqMode: "buy" },
-      { id: "reward_av_2", type: "avatar", name: "Rồng lửa 🐲", image: "🐲", desc: "Sức mạnh từ ngọn lửa vĩnh cửu.", cost: 150, reqMode: "buy" },
-      { id: "reward_av_3", type: "avatar", name: "Kỹ sư nhí 👷", image: "👷", desc: "Làm chủ công nghệ tương lai.", cost: 120, reqMode: "buy" },
-      { id: "reward_av_4", type: "avatar", name: "Siêu nhân IC3 🦸", image: "🦸", desc: "Người bảo vệ hòa bình thế giới số.", cost: 200, reqMode: "buy" },
+  // Always use standard, corrected, up-to-date rewards templates
+  const rewards = [
+    // Pokémon (Category: pokemon)
+    { id: "reward_bulbasaur", type: "pokemon", name: "Bulbasaur (Hạt Giống)", image: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Thuộc tính: Cỏ / Độc 🍃\nHP: 45 | ATK: 49 | DEF: 49\nNgười bạn đồng hành tuyệt vời cho người mới bắt đầu.", cost: 100, reqMode: "buy" },
+    { id: "reward_charmander", type: "pokemon", name: "Charmander (Thằn Lằn Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nNhanh nhẹn và mạnh mẽ trong chiến đấu.", cost: 100, reqMode: "buy" },
+    { id: "reward_squirtle", type: "pokemon", name: "Squirtle (Rùa Nước)", image: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Thuộc tính: Nước 💧\nHP: 44 | ATK: 48 | DEF: 65\nPhòng thủ cực tốt với lớp mai cứng.", cost: 100, reqMode: "buy" },
+    { id: "reward_pikachu", type: "pokemon", name: "Pichu Sơ Sinh", image: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Thuộc tính: Điện ⚡\nHP: 20 | ATK: 40 | DEF: 15\nNhanh như chớp, biểu tượng của sự nhanh nhẹn.", cost: 150, reqMode: "buy" },
+    { id: "reward_eevee", type: "pokemon", name: "Eevee (Tiến Hóa)", image: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Thuộc tính: Thường 🌟\nHP: 55 | ATK: 55 | DEF: 50\nTiềm năng tiến hóa vô hạn.", cost: 200, reqMode: "buy" },
+    { id: "reward_snorlax", type: "pokemon", name: "Munchlax (Khổng Lồ Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/munchlax.gif", desc: "Thuộc tính: Thường 🌟\nHP: 135 | ATK: 85 | DEF: 40\nHáu ăn và cực kỳ đáng yêu, tiềm năng sức mạnh khổng lồ.", cost: 500, reqMode: "buy" },
+    { id: "reward_gengar", type: "pokemon", name: "Gastly (Bóng Ma Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/gastly.gif", desc: "Thuộc tính: Ma / Độc 👻\nHP: 30 | ATK: 35 | DEF: 30\nKẻ tinh nghịch trong bóng tối, tiềm năng ma thuật vô hạn.", cost: 600, reqMode: "buy" },
+    { id: "reward_lucario", type: "pokemon", name: "Riolu (Chiến Binh Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/riolu.gif", desc: "Thuộc tính: Giác Đấu ⚔️\nHP: 40 | ATK: 70 | DEF: 40\nCảm nhận hào quang, dũng cảm và trung thành tuyệt đối.", cost: 800, reqMode: "buy" },
+    { id: "reward_charizard", type: "pokemon", name: "Charizard (Thống Lĩnh)", image: "https://play.pokemonshowdown.com/sprites/xyani/charizard.gif", desc: "Thuộc tính: Lửa / Bay 🔥🍃\nHP: 78 | ATK: 84 | DEF: 78\nThần thú rồng lửa kiêu hãnh thăng hoa từ ngọn lửa vĩnh cửu. Nhận từ Boss Vua Thống Lĩnh IC3.", cost: 9999, reqMode: "boss" },
+    { id: "reward_dragonite", type: "pokemon", name: "Dratini (Rồng Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/dratini.gif", desc: "Thuộc tính: Rồng 🐉\nHP: 41 | ATK: 64 | DEF: 45\nSinh vật thần thoại. Thưởng từ Boss Rồng Hỏa Ngục.", cost: 9999, reqMode: "boss" },
+    { id: "reward_mewtwo", type: "pokemon", name: "Mewtwo (Tối Thượng)", image: "https://play.pokemonshowdown.com/sprites/xyani/mewtwo.gif", desc: "Thuộc tính: Tâm Linh 🔮\nHP: 106 | ATK: 110 | DEF: 90\nChúa tể trí tuệ. Yêu cầu: Hạ gục Phù Thủy Thuật Toán.", cost: 9999, reqMode: "boss" },
+    
+    // Items (Category: item)
+    { id: "reward_banana", type: "item", name: "Chuối Vàng Thần Kỳ 🍌", image: "🍌", desc: "Chuối Vàng chứa năng lượng vũ trụ siêu đặc biệt! Cho Pokémon của bạn ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp.", cost: 50, reqMode: "buy" },
+    { id: "reward_potion", type: "item", name: "Thuốc Hồi Phục 🧪", image: "🧪", desc: "Phục hồi 50 HP ngay lập tức trong trận đấu Boss (Sắp ra mắt).", cost: 30, reqMode: "buy" },
+    
+    // Avatars (Category: avatar)
+    { id: "reward_av_1", type: "avatar", name: "Phi hành gia 🧑‍🚀", image: "🧑‍🚀", desc: "Khám phá vũ trụ tri thức IC3.", cost: 100, reqMode: "buy" },
+    { id: "reward_av_2", type: "avatar", name: "Rồng lửa 🐲", image: "🐲", desc: "Sức mạnh từ ngọn lửa vĩnh cửu.", cost: 150, reqMode: "buy" },
+    { id: "reward_av_3", type: "avatar", name: "Kỹ sư nhí 👷", image: "👷", desc: "Làm chủ công nghệ tương lai.", cost: 120, reqMode: "buy" },
+    { id: "reward_av_4", type: "avatar", name: "Siêu nhân IC3 🦸", image: "🦸", desc: "Người bảo vệ hòa bình thế giới số.", cost: 200, reqMode: "buy" },
 
-      // Frames (Category: frame)
-      { id: "reward_fr_1", type: "frame", name: "Khung Vàng Hoàng Kim", image: "border-yellow-400", desc: "Khung ảnh viền vàng lấp lánh sang trọng.", cost: 300, reqMode: "buy" },
-      { id: "reward_fr_2", type: "frame", name: "Khung Lửa Rực Cháy", image: "border-red-500", desc: "Khung ảnh với hiệu ứng lửa bùng nổ.", cost: 250, reqMode: "buy" },
-      { id: "reward_fr_3", type: "frame", name: "Khung Băng Lạnh Giá", image: "border-cyan-400", desc: "Khung ảnh phong cách pha lê băng tuyết.", cost: 250, reqMode: "buy" },
+    // Frames (Category: frame)
+    { id: "reward_fr_1", type: "frame", name: "Khung Vàng Hoàng Kim", image: "border-yellow-400", desc: "Khung ảnh viền vàng lấp lánh sang trọng.", cost: 300, reqMode: "buy" },
+    { id: "reward_fr_2", type: "frame", name: "Khung Lửa Rực Cháy", image: "border-red-500", desc: "Khung ảnh với hiệu ứng lửa bùng nổ.", cost: 250, reqMode: "buy" },
+    { id: "reward_fr_3", type: "frame", name: "Khung Băng Lạnh Giá", image: "border-cyan-400", desc: "Khung ảnh phong cách pha lê băng tuyết.", cost: 250, reqMode: "buy" },
 
-      // Nicknames (Category: nickname)
-      { id: "reward_nn_1", type: "nickname", name: "Dũng Sĩ Diệt Boss", image: "⚔️", desc: "Biệt danh dành cho kẻ săn boss thực thụ.", cost: 200, reqMode: "buy" },
-      { id: "reward_nn_2", type: "nickname", name: "Thiên Tài Lập Trình", image: "💻", desc: "Làm chủ mọi dòng code IC3.", cost: 250, reqMode: "buy" },
-      { id: "reward_nn_3", type: "nickname", name: "Bậc Thầy Thú Cưng", image: "🐾", desc: "Người bạn của mọi loài Pokémon.", cost: 180, reqMode: "buy" }
-    ];
-    window.saveData(window.IC3_KEYS.REWARDS, rewards);
-  }
+    // Nicknames (Category: nickname)
+    { id: "reward_nn_1", type: "nickname", name: "Dũng Sĩ Diệt Boss", image: "⚔️", desc: "Biệt danh dành cho kẻ săn boss thực thụ.", cost: 200, reqMode: "buy" },
+    { id: "reward_nn_2", type: "nickname", name: "Thiên Tài Lập Trình", image: "💻", desc: "Làm chủ mọi dòng code IC3.", cost: 250, reqMode: "buy" },
+    { id: "reward_nn_3", type: "nickname", name: "Bậc Thầy Thú Cưng", image: "🐾", desc: "Người bạn của mọi loài Pokémon.", cost: 180, reqMode: "buy" }
+  ];
+  
+  // Save/Cache standard listings
+  window.saveData(window.IC3_KEYS.REWARDS, rewards);
 
   // Ensure student has the new unlock arrays
   if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
@@ -5159,7 +5434,16 @@ function renderRewardsStore() {
   if (!currentStudent.unlockedNicknames) currentStudent.unlockedNicknames = ["Thám hiểm viên"];
 
   // Filter rewards based on current tab
-  const filteredRewards = rewards.filter(r => r.type === currentStoreTab);
+  let filteredRewards = rewards.filter(r => r.type === currentStoreTab);
+
+  // Apply Pokémon sub-filters
+  if (currentStoreTab === "pokemon") {
+    if (window.currentPokeFilter === "buy") {
+      filteredRewards = filteredRewards.filter(r => r.reqMode === "buy" || r.cost <= 9000);
+    } else if (window.currentPokeFilter === "boss") {
+      filteredRewards = filteredRewards.filter(r => r.reqMode === "boss" || r.cost > 9000);
+    }
+  }
 
   filteredRewards.forEach(r => {
     let imgRender = `<div class="text-3xl">${r.image}</div>`;
@@ -5173,8 +5457,8 @@ function renderRewardsStore() {
     }
 
     // Determine purchase button status
-    let btnText = `💰 ${r.cost}`;
-    let btnClass = "bg-amber-500 hover:bg-amber-600 text-slate-950 hover:scale-[1.02]";
+    let btnText = `<i class="fa-solid fa-coins"></i> ${r.cost}`;
+    let btnClass = "bg-amber-500 hover:bg-amber-600 text-slate-950 hover:scale-[1.02] cursor-pointer";
     let isOwned = false;
     let isBossOnly = r.reqMode === "boss" || r.cost > 9000;
     let isLockedByAdmin = r.isLocked === true;
@@ -5189,7 +5473,11 @@ function renderRewardsStore() {
 
     if (r.type === "pokemon") {
       const pokeId = r.id.replace("reward_", "");
-      if (currentStudent.unlockedPokemons.includes(pokeId)) isOwned = true;
+      const baseKey = window.getBasePokemonKey(pokeId);
+      // Check if student owns the exact poke or any other stage from the same family
+      if (currentStudent.unlockedPokemons.some(owned => window.getBasePokemonKey(owned) === baseKey)) {
+        isOwned = true;
+      }
     } else if (r.type === "avatar") {
       if (currentStudent.unlockedAvatars.includes(r.image)) isOwned = true;
     } else if (r.type === "frame") {
@@ -5235,11 +5523,11 @@ function renderRewardsStore() {
 
 function buyStoreItem(id, cost, type) {
   if (currentStudent.coins < cost) {
-    window.showToast("Bạn không đủ Coin vàng 💰 để thực hiện giao dịch này. Hãy thám hiểm làm thêm nhiều bài thi để kiếm thêm Coin nhé!", 'error');
+    window.showToast("Bạn không đủ Xu vàng để thực hiện giao dịch này. Hãy thám hiểm làm thêm nhiều bài thi để kiếm thêm xu nhé!", 'error');
     return;
   }
 
-  if (confirm(`Bạn đồng ý tiêu hao 💰 ${cost} Coin để đổi phần quà này chứ?`)) {
+  if (confirm(`Bạn đồng ý tiêu hao ${cost} Xu để đổi phần quà này chứ?`)) {
     currentStudent.coins -= cost;
     const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
     const reward = rewards.find(r => r.id === id);
@@ -5334,7 +5622,7 @@ function renderScoresHistory() {
       </td>
       <td class="px-5 py-3.5 text-center font-mono text-slate-400"><i class="fa-regular fa-clock mr-1 text-indigo-400"></i>${sc.timeSpent}</td>
       <td class="px-5 py-3.5 text-slate-400">${sc.date}</td>
-      <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained} EXP | +${sc.coinsGained} 💰${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
+      <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained} EXP | +${sc.coinsGained} <i class="fa-solid fa-coins"></i>${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
       <td class="px-5 py-3.5 text-center">${statusText}</td>
     `;
     body.appendChild(tr);
@@ -5380,12 +5668,17 @@ function renderProfileCustomizationContent() {
 
     allPokemons.forEach(p => {
       const isUnlocked = (currentStudent.unlockedPokemons || []).includes(p.id);
-      const isCurrent = currentStudent.pokemon === p.id;
+      const isCurrent = window.getBasePokemonKey(currentStudent.pokemon || "") === p.id;
       
       const btn = document.createElement("button");
-      btn.className = `p-4 rounded-2xl border flex flex-col items-center justify-center transition-all ${isUnlocked ? 'bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400' : 'bg-slate-950/20 border-white/5 opacity-50 cursor-not-allowed'} ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
+      btn.className = `p-4 rounded-2xl border flex flex-col items-center justify-center transition-all relative group ${isUnlocked ? 'bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400' : 'bg-slate-950/20 border-white/5 opacity-50 cursor-not-allowed'} ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
       
-      if (isUnlocked) btn.onclick = () => selectCustomItem("pokemon", p.id);
+      if (isUnlocked) {
+          btn.onclick = (e) => {
+              if (e.target.closest('.mini-avatar-btn')) return;
+              selectCustomItem("pokemon", p.id);
+          };
+      }
 
       const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
       const currentLvlName = currentStudent.level || "Beginner";
@@ -5394,15 +5687,54 @@ function renderProfileCustomizationContent() {
       const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || p.id;
 
       btn.innerHTML = `
-        <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif" class="w-12 h-12 object-contain ${isUnlocked ? '' : 'grayscale'}">
+        <img src="${window.getPokemonSpriteUrl(targetForm)}" class="w-12 h-12 object-contain ${isUnlocked ? '' : 'grayscale'}">
         <span class="text-[10px] font-black mt-2">${window.pokemonNames[targetForm] || p.name}</span>
+        
+        ${isUnlocked ? `
+          <div class="mini-avatar-btn absolute top-1 right-1 w-5 h-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md border border-white/10 z-10" title="Đặt làm ảnh đại diện">
+            <i class="fa-solid fa-user-tag text-[8px]"></i>
+          </div>
+        ` : ''}
       `;
+      
+      const miniBtn = btn.querySelector('.mini-avatar-btn');
+      if (miniBtn) {
+          miniBtn.onclick = (e) => {
+              e.stopPropagation();
+              const imgUrl = window.getPokemonSpriteUrl(targetForm);
+              currentStudent.currentAvatar = imgUrl;
+              if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
+              if (!currentStudent.unlockedAvatars.includes(imgUrl)) {
+                  currentStudent.unlockedAvatars.push(imgUrl);
+              }
+              
+              // Save
+              const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+              const idx = students.findIndex(s => s.email === currentStudent.email);
+              if (idx !== -1) {
+                  students[idx] = currentStudent;
+                  window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+              }
+              
+              window.showToast("Đã cập nhật Ảnh đại diện!", "success");
+              loadStudentProfile();
+              renderProfileCustomizationContent();
+          };
+      }
+
       grid.appendChild(btn);
     });
   } else if (currentCustomTab === "avatar") {
-    const avatars = currentStudent.unlockedAvatars || ["⚡", "🔥", "🍃", "💧"];
+    const defaultAvatars = [
+      "⚡", "🔥", "🍃", "💧", "🦊", "👑", "💎", "🌟", "🚀", "🐲", 
+      "🐯", "🤖", "👻", "🦄", "🌈", "🥋", "🎭", "🎨", "🎮", "🎸", 
+      "⚽", "🍀", "🍕", "🍔", "🍦", "🍭", "🍩", "🍓", "🍎", "🍉",
+      "🌞", "🌙", "⭐", "🌍", "🌋", "⚓", "🛸", "📡", "💻", "🧠",
+      "🥷", "🧙", "🧛", "🧟", "🦁", "🐼", "🐨", "🦋", "🍄", "🥑"
+    ];
+    const avatars = Array.from(new Set([...defaultAvatars, ...(currentStudent.unlockedAvatars || [])]));
     avatars.forEach(av => {
-      const isCurrent = currentStudent.currentAvatar === av;
+      const isCurrent = currentStudent.currentAvatar === av || (!currentStudent.currentAvatar && av === "⚡");
       const btn = document.createElement("button");
       btn.className = `p-4 rounded-2xl border bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400 flex items-center justify-center transition-all ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
       btn.onclick = () => selectCustomItem("avatar", av);
@@ -5426,9 +5758,19 @@ function renderProfileCustomizationContent() {
       grid.appendChild(btn);
     });
   } else if (currentCustomTab === "nickname") {
-    const nicknames = currentStudent.unlockedNicknames || ["Thám hiểm viên"];
+    const defaultNicknames = [
+      "Thám hiểm viên", "Siêu Cấp Thần Thú", "Huyền Thoại IC3", "Thợ Săn Coin", 
+      "Chúa Tể Pokemon", "Bậc Thầy Tiến Hóa", "Đại Hiệp Rừng Xanh", "Thần Sét Pikachu", 
+      "Rồng Thần Lửa", "Nhà Thông Thái", "Chiến Binh Ánh Sáng", "Kẻ Hủy Diệt", 
+      "Đại Sứ Hòa Bình", "Kỵ Sĩ Rồng", "Pháp Sư Tối Thượng", "Vua Hải Tặc",
+      "Anh Hùng Bàn Phím", "Lập Trình Viên Đại Tài", "Thiên Tài Giải Đố", "Thợ Săn Boss",
+      "Mầm Non Giải Thuật", "Bậc Thầy Logic", "Kiện Tướng Công Nghệ", "Đặc Vụ Số Hóa",
+      "Người Gác Đền Tri Thức", "Kẻ Du Hành Không Gian", "Chiến Binh Tương Lai"
+    ];
+    const nicknames = Array.from(new Set([...defaultNicknames, ...(currentStudent.unlockedNicknames || [])]));
     nicknames.forEach(nn => {
-      const isCurrent = (currentStudent.currentNickname || currentStudent.name) === nn;
+      const currentNN = currentStudent.currentNickname || "Thám hiểm viên";
+      const isCurrent = currentNN === nn;
       const btn = document.createElement("button");
       btn.className = `p-3 rounded-xl border bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400 flex items-center justify-center transition-all text-center ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
       btn.onclick = () => selectCustomItem("nickname", nn);
@@ -5450,12 +5792,14 @@ async function selectCustomItem(type, value) {
     const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || value;
     
     currentStudent.pokemon = targetForm;
-    currentStudent.avatar = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(targetForm)}.gif`;
+    // currentStudent.avatar = window.getPokemonSpriteUrl(targetForm); // REMOVED: User wants separate control
     
-    // Reset avatar if it was a pokemon gif to match new pokemon
+    // REMOVED: logic that resets avatar when pokemon changes
+    /*
     if (currentStudent.currentAvatar && !currentStudent.unlockedAvatars.includes(currentStudent.currentAvatar)) {
         currentStudent.currentAvatar = null; 
     }
+    */
 
     // Sync all duplicate accounts with same name to have the same pokemon & avatar
     const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -5482,6 +5826,28 @@ async function selectCustomItem(type, value) {
 
   } else if (type === "avatar") {
     currentStudent.currentAvatar = value;
+    // Add to unlocked if not there
+    if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
+    if (!currentStudent.unlockedAvatars.includes(value)) {
+        currentStudent.unlockedAvatars.push(value);
+    }
+    
+    // Sync all duplicate accounts
+    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+    const myName = (currentStudent.fullName || currentStudent.name || "").toString().trim().toLowerCase();
+    if (myName) {
+      for (const s of students) {
+        const sName = (s.fullName || s.name || "").toString().trim().toLowerCase();
+        if (sName === myName && s.email !== currentStudent.email) {
+          s.currentAvatar = currentStudent.currentAvatar;
+          s.unlockedAvatars = currentStudent.unlockedAvatars;
+          try {
+            const docRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, s.email || s.id);
+            window.fStore.setDoc(docRef, { currentAvatar: s.currentAvatar, unlockedAvatars: s.unlockedAvatars }, { merge: true });
+          } catch (e) { console.error(e); }
+        }
+      }
+    }
   } else if (type === "frame") {
     currentStudent.currentFrame = value;
   } else if (type === "nickname") {
@@ -5498,6 +5864,7 @@ async function selectCustomItem(type, value) {
 
   loadStudentProfile();
   renderProfileCustomizationContent();
+  if (typeof renderInventory === "function") renderInventory();
 }
 
 // Keeping the original function for compatibility but redirecting it
@@ -5563,11 +5930,18 @@ function renderLeaderboard() {
       <td class="px-5 py-4 text-center font-bold text-sm">${rankBadge}</td>
       <td class="px-5 py-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-slate-950/80 border border-white/10 flex items-center justify-center shadow-sm shrink-0 overflow-hidden relative">
-            <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(window.validateAndGetCorrectPokemonForm(finalStudent))}.gif" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(finalStudent)}.gif'">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 pro-frame-vjp">
+            <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-slate-900/60">
+              ${finalStudent.currentAvatar && finalStudent.currentAvatar.includes("://") ? 
+                `<img src="${finalStudent.currentAvatar}" class="w-full h-full object-contain">` :
+                (finalStudent.currentAvatar ? 
+                  `<span class="text-sm">${finalStudent.currentAvatar}</span>` :
+                  `<img src="${window.getPokemonSpriteUrl(window.validateAndGetCorrectPokemonForm(finalStudent))}" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(finalStudent)}.gif'">`)
+              }
+            </div>
           </div>
           <div>
-            <span class="text-white font-black block">${finalStudent.fullName || finalStudent.name || "Học viên vô danh"} ${isMe ? ' <span class="text-[9px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold uppercase">Bạn</span>' : ''}</span>
+            <span class="text-white font-black block">${window.stylizeNickname(finalStudent.currentNickname || finalStudent.fullName || finalStudent.name || "Học viên vô danh")} ${isMe ? ' <span class="text-[9px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold uppercase">Bạn</span>' : ''}</span>
           </div>
         </div>
       </td>
@@ -5581,7 +5955,7 @@ function renderLeaderboard() {
         }">${finalStudent.level || "Beginner"}</span>
       </td>
       <td class="px-5 py-4 text-right font-mono text-yellow-400 font-black">${finalStudent.exp || 0} EXP</td>
-      <td class="px-5 py-4 text-right font-mono text-amber-500 font-bold">💰 ${finalStudent.coins || 0}</td>
+      <td class="px-5 py-4 text-right font-mono text-amber-500 font-bold"><i class="fa-solid fa-coins"></i> ${finalStudent.coins || 0}</td>
     `;
     tableBody.appendChild(tr);
   });
@@ -5919,7 +6293,7 @@ window.renderStudentDashboard = function() {
   if (dashAvatar) {
     const activePoke = currentStudent.pokemon || "pikachu";
 
-    dashAvatar.src = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(activePoke)}.gif`;
+    dashAvatar.src = window.getPokemonSpriteUrl(activePoke);
     dashAvatar.onerror = function() {
       this.src = `https://projectpokemon.org/images/normal-sprite/${activePoke}.gif`;
       this.onerror = function() {
@@ -6086,7 +6460,7 @@ window.renderStudentDashboard = function() {
                         
         const studentInfo = isMeObj ? currentStudent : foundStudent;
         const correctedPoke = window.validateAndGetCorrectPokemonForm(studentInfo);
-        const avatarUrl = `https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(correctedPoke)}.gif`;
+        const avatarUrl = window.getPokemonSpriteUrl(correctedPoke);
         
         const rank = leaderboard.findIndex(s => s.studentEmail === scoreEntry.studentEmail) + 1;
         const theme = rankThemes[rank] || rankThemes[3];
@@ -6276,7 +6650,7 @@ window.renderStudentDashboard = function() {
         <td class="px-4 py-4">
            <div class="flex items-center gap-3">
              <div class="relative">
-               <img src="https://play.pokemonshowdown.com/sprites/xyani/${window.getShowdownFormName(window.validateAndGetCorrectPokemonForm(studentInfo))}.gif" class="w-8 h-8 rounded-full bg-[#050811] border-2 ${isMe ? 'border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : index===0 ? 'border-yellow-400' : index===1 ? 'border-slate-300' : index===2 ? 'border-amber-600' : 'border-white/10'} shrink-0 object-contain p-0.5 scale-[1.3]" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(studentInfo)}.gif'">
+               <img src="${window.getPokemonSpriteUrl(window.validateAndGetCorrectPokemonForm(studentInfo))}" class="w-8 h-8 rounded-full bg-[#050811] border-2 ${isMe ? 'border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : index===0 ? 'border-yellow-400' : index===1 ? 'border-slate-300' : index===2 ? 'border-amber-600' : 'border-white/10'} shrink-0 object-contain p-0.5 scale-[1.3]" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(studentInfo)}.gif'">
                ${isMe ? '<span class="absolute -top-1 -right-1 flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>' : ''}
              </div>
              <div>
@@ -6302,6 +6676,34 @@ window.renderStudentDashboard = function() {
     });
   }
 }
+
+window.stylizeNickname = function(name) {
+  if (!name) return "";
+  const colors = ["#fbbf24", "#34d399", "#60a5fa", "#a78bfa", "#f472b6", "#fb7185", "#38bdf8", "#818cf8"];
+  const fonts = ["'Be Vietnam Pro', sans-serif", "'Poppins', sans-serif", "'JetBrains Mono', monospace", "'Space Grotesk', sans-serif", "'Outfit', sans-serif"];
+  
+  return name.split('').map((char, index) => {
+    if (char === " ") return " ";
+    const color = colors[index % colors.length];
+    const font = fonts[index % fonts.length];
+    
+    // Random effect for some characters if the name is long enough or just random
+    let effectClass = "";
+    const rand = Math.random();
+    if (rand < 0.15) effectClass = "nick-fire";
+    else if (rand > 0.85) effectClass = "nick-ice";
+
+    return `<span class="nick-char ${effectClass}" style="color: ${color}; font-family: ${font}">${char}</span>`;
+  }).join('');
+};
+
+window.inventoryPage = 0;
+window.inventoryItemsPerPage = 10;
+
+window.changeInventoryPage = function(delta) {
+    window.inventoryPage += delta;
+    renderInventory();
+};
 
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {

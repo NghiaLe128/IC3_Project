@@ -249,7 +249,7 @@ function renderOverviewProgressTable(classStudents) {
       <td class="px-4 py-3.5">
         <div class="flex items-center gap-2">
           <span class="font-mono text-xs font-bold text-indigo-50">${std.exp} EXP</span>
-          <span class="text-[10px] text-yellow-600">🪙 ${std.coins}</span>
+          <span class="text-[10px] text-yellow-600"><i class="fa-solid fa-coins"></i> ${std.coins}</span>
         </div>
       </td>
       <td class="px-4 py-3.5"><span class="font-bold text-indigo-50">${std.rank}</span></td>
@@ -2172,7 +2172,7 @@ function renderClassRanking() {
       </div>
       <div class="text-right">
         <span class="font-mono text-xs font-bold text-emerald-600 block">${std.exp} EXP</span>
-        <span class="text-[10px] text-yellow-600 font-semibold block">🪙 ${std.coins} Coins</span>
+        <span class="text-[10px] text-yellow-600 font-semibold block"><i class="fa-solid fa-coins"></i> ${std.coins} Coins</span>
       </div>
     `;
     leaderboardEl.appendChild(div);
@@ -2546,7 +2546,7 @@ async function renderTeacherRewards() {
           ${imgRender}
         </div>
         <h4 class="font-bold text-xs text-indigo-50 mb-1">${r.name}</h4>
-        <p class="text-[10px] text-indigo-300 mb-2">Giá: 🪙 ${r.cost}</p>
+        <p class="text-[10px] text-indigo-300 mb-2">Giá: <i class="fa-solid fa-coins"></i> ${r.cost}</p>
       </div>
       <button onclick="toggleRewardLock('${r.id}')" class="w-full py-2 rounded-lg text-[10px] font-bold text-white transition-all ${lockBtnClass}">
         ${lockBtnText}

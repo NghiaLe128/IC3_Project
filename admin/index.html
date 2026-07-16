@@ -76,6 +76,9 @@
           <button onclick="switchTab('bosses')" id="nav-bosses" class="nav-btn">
             <i class="fa-solid fa-dragon w-5 text-red-500"></i> Quản lý Boss
           </button>
+          <button onclick="switchTab('pokemon-evo')" id="nav-pokemon-evo" class="nav-btn">
+            <i class="fa-solid fa-paw w-5 text-yellow-400"></i> Tiến Hóa Pokemon
+          </button>
           <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn">
             <i class="fa-solid fa-gear w-5"></i> Cài đặt
           </button>
@@ -434,6 +437,27 @@
         </section>
 
 
+        <!-- ==================== TAB: POKEMON EVO ==================== -->
+        <section id="tab-pokemon-evo" class="tab-content space-y-6 hidden">
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-white text-base">Cấu hình dạng tiến hóa Pokemon (3D Models)</h3>
+            <button onclick="window.savePokemonEvolutions()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-yellow-500/10">
+              <i class="fa-solid fa-save"></i> Lưu cấu hình
+            </button>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div id="pokemon-evo-list" class="space-y-4">
+              <!-- Dynamically populated -->
+              <p class="text-slate-400">Đang tải dữ liệu...</p>
+            </div>
+            <button onclick="window.addPokemonEvoRow()" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg transition-colors border border-slate-700">
+              <i class="fa-solid fa-plus mr-1"></i> Thêm Pokemon
+            </button>
+          </div>
+        </section>
+
+
         <!-- ==================== TAB: SETTINGS ==================== -->
         <section id="tab-settings" class="tab-content space-y-6 hidden">
           <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
@@ -741,7 +765,7 @@
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Giá trị đổi (🪙 Coins)</label>
+              <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Giá trị đổi (<i class="fa-solid fa-coins text-yellow-400"></i> Coins)</label>
               <input type="number" id="rewardCostInput" required class="modal-input" placeholder="100" min="10">
             </div>
           </div>

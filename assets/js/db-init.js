@@ -441,3 +441,31 @@ window.showToast = function(message, type = 'success') {
 // Start
 initData();
 
+
+window.loadPokemonEvolutions = async function() {
+    try {
+        const snapshot = await getDocs(collection(db, "pokemonEvolutions"));
+        const newEvoMap = {};
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.forms && data.basePokemon) {
+                newEvoMap[data.basePokemon] = data.forms;
+            }
+        });
+        if (Object.keys(newEvoMap).length > 0) {
+            window.evoMap = { ...(window.evoMap || {}), ...newEvoMap };
+            // trigger re-renders if methods exist
+            if (typeof renderInventory === "function") renderInventory();
+            if (typeof renderProfileCustomizationContent === "function") renderProfileCustomizationContent();
+        }
+    } catch (e) {
+        console.error("Failed to load pokemon evolutions", e);
+    }
+};
+
+// Start loading when ready
+if (window.IC3_DB_INITIALIZED) {
+    window.loadPokemonEvolutions();
+} else {
+    window.addEventListener('ic3-db-ready', window.loadPokemonEvolutions);
+}

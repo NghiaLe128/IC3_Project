@@ -158,7 +158,7 @@ function renderDashboardTopStudents(students) {
       </div>
       <div class="text-right">
         <span class="font-mono text-xs font-bold text-yellow-400">${std.exp} EXP</span>
-        <p class="text-[9px] text-slate-500">🪙 ${std.coins}</p>
+        <p class="text-[9px] text-slate-500"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins}</p>
       </div>
     `;
     listEl.appendChild(div);
@@ -198,7 +198,7 @@ function renderDashboardRecentScores(scores, students, tests) {
       <td class="px-4 py-3.5 font-mono text-xs text-slate-400"><i class="fa-regular fa-clock mr-1 text-blue-500"></i>${sc.timeSpent}</td>
       <td class="px-4 py-3.5 text-xs text-slate-400">${sc.date}</td>
       <td class="px-4 py-3.5 text-xs text-yellow-500 font-bold">
-        +${sc.expGained} EXP | +${sc.coinsGained} 🪙
+        +${sc.expGained} EXP | +${sc.coinsGained} <i class="fa-solid fa-coins text-yellow-400"></i>
       </td>
     `;
     listEl.appendChild(tr);
@@ -273,7 +273,7 @@ function renderStudentsTable() {
       <td class="px-5 py-4">
         <div class="flex flex-col font-mono text-xs">
           <span class="text-yellow-400 font-bold">${std.exp} EXP</span>
-          <span class="text-indigo-300 font-medium">🪙 ${std.coins} Coins</span>
+          <span class="text-indigo-300 font-medium"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins} Coins</span>
           <span class="text-rose-400 font-semibold mt-1">👹 Săn Boss: ${huntRecord}/${limit}</span>
         </div>
       </td>
@@ -957,7 +957,7 @@ function renderRankingList() {
       <!-- Experience & Level Progress -->
       <div class="text-right shrink-0">
         <span class="font-mono text-xs font-bold text-yellow-400 block">${std.exp} EXP</span>
-        <span class="text-[10px] text-indigo-300 font-semibold block">🪙 ${std.coins} Coins</span>
+        <span class="text-[10px] text-indigo-300 font-semibold block"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins} Coins</span>
         <span class="text-[9px] text-slate-500">Cấp độ: <span class="font-bold text-slate-300">${std.level}</span></span>
       </div>
     `;
@@ -993,7 +993,7 @@ function renderRewardsGrid() {
         </div>
         <div class="flex justify-between items-start gap-2 mb-1.5">
           <h4 class="font-poppins font-bold text-xs text-white truncate" title="${r.name}">${r.name}</h4>
-          <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded bg-yellow-500/10 text-yellow-400">🪙 ${r.cost}</span>
+          <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded bg-yellow-500/10 text-yellow-400"><i class="fa-solid fa-coins text-yellow-400"></i> ${r.cost}</span>
         </div>
         <p class="text-[10px] text-slate-400 leading-relaxed mb-4 min-h-[30px] line-clamp-2">${r.desc}</p>
       </div>
@@ -1375,3 +1375,143 @@ window.downloadSheetTemplate = downloadSheetTemplate;
 Object.assign(window, {
   adjustQuestionAnswers, checkAdminAuth, closeBossModal, closeQuestionModal, closeRewardModal, closeStudentModal, closeTeacherModal, closeTestModal, deleteBoss, deleteQuestion, deleteReward, deleteStudent, deleteTeacher, deleteTest, downloadSheetTemplate, editStudent, filterQuestionsForTestSelection, getBossHuntDayKey, handleBossSubmit, handleQuestionSubmit, handleRewardSubmit, handleStudentSubmit, handleTeacherSubmit, handleTestSubmit, initClock, initDashboard, logoutAdmin, openBossModal, openQuestionModal, openRewardModal, openStudentModal, openTeacherModal, openTestModal, renderAdminSettings, renderBossesGrid, renderDashboardRecentScores, renderDashboardTopStudents, renderQuestionsTable, renderRankingList, renderRewardsGrid, renderStudentsTable, renderTeachersGrid, renderTestsGrid, resetDatabaseToDefault, saveAdminSettings, startAdminApp, switchTab, updateLevelsQuestionCount
 });
+
+// ==========================================
+// POKEMON EVOLUTIONS MANAGEMENT
+// ==========================================
+
+let currentAdminEvoMap = {};
+
+function initPokemonEvoAdmin() {
+  if (window.evoMap) {
+    currentAdminEvoMap = JSON.parse(JSON.stringify(window.evoMap));
+  }
+  renderPokemonEvoList();
+}
+
+function renderPokemonEvoList() {
+  const container = document.getElementById("pokemon-evo-list");
+  if (!container) return;
+  container.innerHTML = "";
+  
+  const bases = Object.keys(currentAdminEvoMap);
+  if (bases.length === 0) {
+    container.innerHTML = '<p class="text-slate-400 text-sm">Chưa có dữ liệu tiến hóa. Hãy thêm mới.</p>';
+    return;
+  }
+  
+  bases.forEach(base => {
+    const forms = currentAdminEvoMap[base].join(", ");
+    const row = document.createElement("div");
+    row.className = "flex flex-col gap-2 p-4 bg-slate-950 border border-slate-800 rounded-xl relative";
+    row.innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="w-16 shrink-0 text-center">
+            <img src="https://projectpokemon.org/images/normal-sprite/${base}.gif" class="w-12 h-12 object-contain mx-auto" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default'">
+            <p class="text-[10px] font-bold text-slate-400 mt-1 uppercase">${base}</p>
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Base Pokemon (ID)</label>
+          <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white mb-2" value="${base}" onchange="updateEvoBase('${base}', this.value)" />
+          
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Dạng tiến hóa (cách nhau bởi dấu phẩy)</label>
+          <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white" value="${forms}" onchange="updateEvoForms('${base}', this.value)" />
+        </div>
+        <button onclick="removePokemonEvoRow('${base}')" class="w-8 h-8 rounded bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+      <div class="flex gap-2 mt-2 pl-20 overflow-x-auto pb-2">
+        ${currentAdminEvoMap[base].map(f => `<div class="shrink-0 text-center"><img src="https://projectpokemon.org/images/normal-sprite/${f}.gif" class="h-10 object-contain mx-auto" title="${f}" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default'"><span class="text-[9px] text-slate-500 mt-1 block">${f}</span></div>`).join('')}
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+window.updateEvoBase = function(oldBase, newBase) {
+  if (!newBase || oldBase === newBase) return;
+  currentAdminEvoMap[newBase] = currentAdminEvoMap[oldBase];
+  delete currentAdminEvoMap[oldBase];
+  renderPokemonEvoList();
+};
+
+window.updateEvoForms = function(base, formsStr) {
+  currentAdminEvoMap[base] = formsStr.split(',').map(s => s.trim()).filter(s => s);
+  renderPokemonEvoList();
+};
+
+window.addPokemonEvoRow = function() {
+  const newBase = "new_pokemon_" + Date.now().toString().slice(-4);
+  currentAdminEvoMap[newBase] = [newBase];
+  renderPokemonEvoList();
+};
+
+window.removePokemonEvoRow = function(base) {
+  if (confirm(`Bạn có chắc muốn xóa dữ liệu tiến hóa của ${base}?`)) {
+    delete currentAdminEvoMap[base];
+    renderPokemonEvoList();
+  }
+};
+
+window.savePokemonEvolutions = async function() {
+  try {
+    const colRef = window.fStore.collection(window.db, "pokemonEvolutions");
+    const snapshot = await window.fStore.getDocs(colRef);
+    
+    // First, delete forms that were removed
+    for (const docSnap of snapshot.docs) {
+      if (!currentAdminEvoMap[docSnap.id]) {
+        await window.fStore.deleteDoc(docSnap.ref);
+      }
+    }
+    
+    // Upsert all current maps
+    for (const [base, forms] of Object.entries(currentAdminEvoMap)) {
+      const docRef = window.fStore.doc(window.db, "pokemonEvolutions", base);
+      const images = forms.map(f => `https://projectpokemon.org/images/normal-sprite/${f}.gif`);
+      await window.fStore.setDoc(docRef, {
+        id: base,
+        basePokemon: base,
+        forms: forms,
+        images: images
+      });
+    }
+    
+    window.evoMap = JSON.parse(JSON.stringify(currentAdminEvoMap));
+    alert("Lưu dữ liệu tiến hóa thành công!");
+  } catch (e) {
+    console.error(e);
+    alert("Có lỗi khi lưu tiến hóa: " + e.message);
+  }
+};
+
+// Hook into tab switching
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabId) {
+  if (typeof originalSwitchTab === 'function') {
+    originalSwitchTab(tabId);
+  } else {
+    // Fallback if needed, though admin script already has it
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active', 'bg-slate-800', 'text-white'));
+    document.querySelectorAll('.nav-btn i').forEach(el => el.classList.remove('text-blue-400'));
+    
+    const targetTab = document.getElementById('tab-' + tabId);
+    if (targetTab) targetTab.classList.remove('hidden');
+    
+    const targetBtn = document.getElementById('nav-' + tabId);
+    if (targetBtn) {
+      targetBtn.classList.add('active', 'bg-slate-800', 'text-white');
+      const icon = targetBtn.querySelector('i');
+      if (icon && !icon.classList.contains('text-red-500') && !icon.classList.contains('text-yellow-400')) {
+          icon.classList.add('text-blue-400');
+      }
+    }
+  }
+  
+  if (tabId === 'pokemon-evo') {
+    initPokemonEvoAdmin();
+  }
+};
+
