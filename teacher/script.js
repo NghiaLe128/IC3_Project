@@ -412,12 +412,13 @@ function importStudentsExcel(e) {
             role: "student",
             name: name
           });
+          importedEmails.push(email);
           count++;
         }
       });
+      window.saveData(window.IC3_KEYS.STUDENTS, students, importedEmails);
       
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
-      window.saveData(window.IC3_KEYS.USERS, users);
+      window.saveData(window.IC3_KEYS.USERS, users, importedEmails);
       
       window.showToast(`Đã nhập thành công ${count} học sinh từ file Excel! Mật khẩu đăng nhập mặc định của các em là: 123456`);
       renderClassStudentsTable();
@@ -526,7 +527,7 @@ window.resetBossHunts = function(studentEmail) {
       if (stdIdx !== -1) {
         const today = getBossHuntDayKey();
         students[stdIdx].bossHunts = { date: today, count: 0 };
-        window.saveData(window.IC3_KEYS.STUDENTS, students);
+        window.saveData(window.IC3_KEYS.STUDENTS, students, studentEmail);
         window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
         renderClassStudentsTable();
       } else {

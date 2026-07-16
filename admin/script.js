@@ -1173,7 +1173,7 @@ function renderBossesGrid() {
       { id: "boss_3", name: "Rồng Hỏa Ngục An Ninh 👾", hp: 1200, maxHp: 1200, avatar: "👾", desc: "Ngự trị vùng đất bảo mật thông tin và an toàn không gian mạng." },
       { id: "boss_4", name: "Phù Thủy Thuật Toán 🔮", hp: 1500, maxHp: 1500, avatar: "🔮", desc: "Sở hữu ma thuật giải thuật toán tin học đỉnh cao." }
     ];
-    window.saveData(window.IC3_KEYS.BOSSES, defaultBosses);
+    window.saveData(window.IC3_KEYS.BOSSES, defaultBosses, defaultBosses.map(b => b.id));
     window.IC3_CACHE[window.IC3_KEYS.BOSSES] = defaultBosses;
     bosses = defaultBosses;
   }

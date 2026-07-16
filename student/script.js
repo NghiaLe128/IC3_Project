@@ -139,6 +139,28 @@ window.pokemonNames = {
 
 window.currentEvolutionIndex = 0;
 
+window.pokemonRarity = {
+    // Normal (Starter forms)
+    pichu: "Normal", pikachu: "Normal", charmander: "Normal", bulbasaur: "Normal", squirtle: "Normal",
+    eevee: "Normal", munchlax: "Normal", gastly: "Normal", riolu: "Normal", dratini: "Normal",
+    
+    // Rare (Evolved forms and strong ones)
+    raichu: "Rare", "raichu-alola": "Rare", "pikachu-gmax": "Rare",
+    charmeleon: "Rare", charizard: "Rare", "charizard-megax": "Rare", "charizard-megay": "Rare",
+    ivysaur: "Rare", venusaur: "Rare", "venusaur-gmax": "Rare", "venusaur-mega": "Rare",
+    wartortle: "Rare", blastoise: "Rare", "blastoise-gmax": "Rare", "blastoise-mega": "Rare",
+    vaporeon: "Rare", jolteon: "Rare", flareon: "Rare", espeon: "Rare", umbreon: "Rare", sylveon: "Rare",
+    snorlax: "Rare", "snorlax-gmax": "Rare",
+    haunter: "Rare", gengar: "Rare", "gengar-mega": "Rare", "gengar-gmax": "Rare",
+    lucario: "Rare", "lucario-mega": "Rare",
+    dragonair: "Rare", dragonite: "Rare",
+    
+    // Mythical (Legendaries and Bosses)
+    mewtwo: "Mythical", "mewtwo-megax": "Mythical", "mewtwo-megay": "Mythical",
+    rayquaza: "Mythical", "rayquaza-mega": "Mythical",
+    arceus: "Mythical"
+};
+
 window.getBasePokemonKey = function(pokemon) {
     if (!pokemon) return "pikachu";
     const key = pokemon.replace("reward_", "");
@@ -926,7 +948,7 @@ function loadStudentProfile() {
     const idx = students.findIndex(s => s.email === currentStudent.email);
     if (idx !== -1) {
       students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students);
+      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
     }
   }
 
@@ -1179,6 +1201,7 @@ function switchStudentTab(tabId) {
   else if (tabId === "leaderboard") renderLeaderboard();
   else if (tabId === "badges") renderBadges();
   else if (tabId === "inventory") renderInventory();
+  else if (tabId === "luck") renderLuckTab();
   else if (tabId === "rewards") renderRewardsStore();
   else if (tabId === "bosshunt") renderBossHuntTab();
 }
@@ -1204,16 +1227,30 @@ function renderBossHuntTab() {
   }
 
   bosses.forEach(boss => {
+    const isDefeated = boss.isDefeated || (boss.hp === 0);
     const bossCard = document.createElement("div");
-    bossCard.className = "bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/50 transition-all cursor-pointer";
+    bossCard.className = `bg-slate-800 border ${isDefeated ? 'border-emerald-500/30 grayscale-[0.5]' : 'border-slate-700'} rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/50 transition-all cursor-pointer relative overflow-hidden`;
+    
+    let statusHtml = `<span class="text-xs bg-red-900 text-red-200 px-3 py-1.5 rounded-full font-bold">HP: ${boss.hp}/${boss.maxHp}</span>`;
+    let btnHtml = `<button onclick="startBossHunt('${boss.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-md mt-2 transition-all shadow-lg hover:shadow-red-900/50">Săn Boss</button>`;
+    
+    if (isDefeated) {
+      statusHtml = `<span class="text-xs bg-emerald-900 text-emerald-200 px-3 py-1.5 rounded-full font-bold">ĐÃ BỊ TIÊU DIỆT</span>`;
+      btnHtml = `<div class="text-center mt-2 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
+                  <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Kẻ chinh phục</p>
+                  <p class="text-sm text-white font-black">${boss.killerName || "Ẩn danh"}</p>
+                </div>`;
+    }
+
     bossCard.innerHTML = `
+      ${isDefeated ? '<div class="absolute top-2 right-2 rotate-12 bg-emerald-500 text-black font-black text-[8px] px-2 py-0.5 rounded shadow-lg uppercase">Captured</div>' : ''}
       <div class="flex flex-col items-center gap-3">
         <img src="${boss.avatar}" alt="${boss.name}" class="w-64 h-64 rounded-2xl object-contain shadow-lg" referrerPolicy="no-referrer" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">
         <h4 class="font-bold text-white text-lg">${boss.name}</h4>
-        <span class="text-xs bg-red-900 text-red-200 px-3 py-1.5 rounded-full font-bold">HP: ${boss.hp}/${boss.maxHp}</span>
+        ${statusHtml}
       </div>
       <p class="text-sm text-slate-400 text-center flex-grow">${boss.desc}</p>
-      <button onclick="startBossHunt('${boss.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-md mt-2 transition-all shadow-lg hover:shadow-red-900/50">Săn Boss</button>
+      ${btnHtml}
     `;
     container.appendChild(bossCard);
   });
@@ -1223,6 +1260,11 @@ async function startBossHunt(bossId) {
   const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
   const boss = bosses.find(b => b.id === bossId);
   if (!boss) return;
+
+  if (boss.isDefeated || boss.hp === 0) {
+    window.showToast("Boss này đã bị tiêu diệt bởi người chơi khác!", 'info');
+    return;
+  }
 
   // Retrieve boss hunt limit from settings
   const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
@@ -2138,17 +2180,40 @@ function finishBossHunt() {
   const bossRewardCoins = config && config.bossRewardCoins !== undefined ? config.bossRewardCoins : 100;
 
   // Question rewards
-  let coins = bossCorrectAnswersCount * baseCoins;
-  let exp = bossCorrectAnswersCount * baseExp;
+  let coins = (bossCorrectAnswersCount * baseCoins) + 20;
+  let exp = (bossCorrectAnswersCount * baseExp) + 10;
 
   // Boss defeat victory lump sum
   let message = "";
   if (bhBossCurrentHP === 0) {
     coins += bossRewardCoins;
     exp += bossRewardExp;
-    message = `BẠN ĐÃ TIÊU DIỆT BOSS! Nhận thêm thưởng hạ gục: +${bossRewardCoins} Coins và +${bossRewardExp} EXP. Tổng cộng: ${coins} Coins và ${exp} EXP!`;
+    message = `BẠN ĐÃ TIÊU DIỆT BOSS! Nhận thêm thưởng hạ gục: +${bossRewardCoins} Coins và +${bossRewardExp} EXP.`;
+    
+    // CAPTURE BOSS: Final blow deliverer gets the boss as a pokemon
+    if (bossActivePlayingTest && bossActivePlayingTest.bossId) {
+      const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+      const boss = bosses.find(b => b.id === bossActivePlayingTest.bossId);
+      if (boss) {
+        if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = [];
+        const bossPokeId = `boss_${boss.id}`;
+        if (!currentStudent.unlockedPokemons.includes(bossPokeId)) {
+          currentStudent.unlockedPokemons.push(bossPokeId);
+          message += `\nĐẶC BIỆT: Bạn đã thu phục được ${boss.name}! Kiểm tra trong Túi đồ.`;
+        }
+        
+        // Save killer info to the boss in DB
+        boss.killerEmail = currentStudent.email;
+        boss.killerName = currentStudent.name || currentStudent.displayName || "Thám hiểm giả";
+        boss.defeatedAt = new Date().toISOString();
+        boss.isDefeated = true;
+        // The save logic below will handle the bosses update
+      }
+    }
+    
+    message += `\nTổng cộng: ${coins} Coins và ${exp} EXP!`;
   } else {
-    message = `Trận chiến kết thúc! Nhận được ${coins} Coins và ${exp} EXP từ số câu đúng.`;
+    message = `Trận chiến kết thúc! Nhận được ${coins} Coins và ${exp} EXP (bao gồm thưởng tham gia).`;
   }
   
   currentStudent.coins += coins;
@@ -2852,6 +2917,23 @@ function renderInventory() {
       const isUnlocked = currentStudent.unlockedPokemons.includes(comp.id);
       if (isUnlocked) allItems.push({ type: 'pokemon', data: comp });
     });
+
+    // Add captured Bosses
+    const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+    bosses.forEach(boss => {
+      const bossPokeId = `boss_${boss.id}`;
+      if (currentStudent.unlockedPokemons.includes(bossPokeId)) {
+        allItems.push({ 
+          type: 'pokemon', 
+          data: { 
+            id: bossPokeId, 
+            name: boss.name, 
+            img: boss.avatar, 
+            desc: `Boss huyền thoại đã bị thu phục: ${boss.desc}` 
+          } 
+        });
+      }
+    });
   } else if (window.currentInventoryTab === "item") {
     const storeItemsDef = {
       reward_banana: { name: "Chuối Vàng", img: "🍌", desc: "Thức ăn giúp Pokémon tiến hóa." },
@@ -2947,8 +3029,12 @@ function renderInventory() {
           selectInventoryCompanion(comp.id);
       };
       
+      const rarity = window.pokemonRarity[comp.id] || "Normal";
+      const rarityColor = rarity === "Rare" ? "bg-yellow-500" : (rarity === "Mythical" ? "bg-purple-500" : "bg-slate-500");
+
       slot.innerHTML = `
         ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
+        <div class="absolute top-1 left-1 ${rarityColor} text-[7px] font-black px-1 rounded text-white uppercase tracking-tighter z-10">${rarity}</div>
         <img src="${window.getPokemonSpriteUrl(targetForm)}" class="w-12 h-12 object-contain filter drop-shadow-md">
         <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${window.pokemonNames[targetForm] || comp.name}</span>
         <button class="mini-avatar-btn absolute -top-1 -right-1 w-6 h-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-white/20 z-20" title="Đặt làm ảnh đại diện">
@@ -5340,6 +5426,12 @@ function finishTest() {
   scores.push(scoreEntry);
   window.saveData(window.IC3_KEYS.SCORES, scores, scoreEntry.id);
 
+  // Store catch eligibility
+  window.lastTestEligibility = {
+    wrongCount: wrongCount,
+    isEligible: wrongCount <= 2
+  };
+
   // Render Victory Overlay Screen
   showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained, correctAnswersCount, totalQ);
 }
@@ -5396,6 +5488,13 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
     bananasEl.innerText = `+${bananasGained} 🍌`;
   }
 
+  const catchBtn = document.getElementById("victory-catch-btn");
+  if (catchBtn && window.lastTestEligibility && window.lastTestEligibility.isEligible) {
+    catchBtn.classList.remove("hidden");
+  } else if (catchBtn) {
+    catchBtn.classList.add("hidden");
+  }
+
   const lvlBadge = document.getElementById("victory-lvl-up-badge");
   if (levelUp) {
     lvlBadge.classList.remove("hidden");
@@ -5409,10 +5508,15 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
 
 function closeVictoryScreen() {
   document.getElementById("game-victory-screen").classList.add("hidden");
-  // Update state and load fresh tab
+  window.lastTestEligibility = null; // Clear if they skip
   loadStudentProfile();
   renderBattleArena();
 }
+
+window.startCatchPokemonSequenceFromVictory = function() {
+  document.getElementById("game-victory-screen").classList.add("hidden");
+  startCatchPokemonSequence();
+};
 
 
 // ==================== STORE & SHOPPING ENGINE ====================
@@ -5457,7 +5561,7 @@ function renderRewardsStore() {
   ];
   
   // Save/Cache standard listings
-  window.saveData(window.IC3_KEYS.REWARDS, rewards);
+  window.saveData(window.IC3_KEYS.REWARDS, rewards, rewards.map(r => r.id));
 
   // Ensure student has the new unlock arrays
   if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
@@ -6763,7 +6867,440 @@ window.changeInventoryPage = function(delta) {
     renderInventory();
 };
 
+// ==================== LUCK / DAILY REWARDS LOGIC ====================
+function getLuckDayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function renderLuckTab() {
+  if (!currentStudent) return;
+  
+  const today = getLuckDayKey();
+  if (!currentStudent.dailyLuck || currentStudent.dailyLuck.date !== today) {
+    currentStudent.dailyLuck = { date: today, count: 0, history: [] };
+  }
+  
+  const countEl = document.getElementById("daily-luck-count");
+  if (countEl) countEl.innerText = `${currentStudent.dailyLuck.count}/3`;
+  
+  const historyContainer = document.getElementById("luck-history-container");
+  if (historyContainer) {
+    if (!currentStudent.dailyLuck.history || currentStudent.dailyLuck.history.length === 0) {
+      historyContainer.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs italic">Chưa có hoạt động nào trong hôm nay...</div>`;
+    } else {
+      historyContainer.innerHTML = currentStudent.dailyLuck.history.map(item => `
+        <div class="flex justify-between items-center bg-white/5 border border-white/5 p-3 rounded-xl">
+           <div class="flex items-center gap-3">
+             <span class="text-xl">${item.type === 'tree' ? '🌳' : '🍌'}</span>
+             <div>
+               <p class="text-xs font-bold text-white uppercase tracking-wider">${item.type === 'tree' ? 'Rung Cây Thần Tài' : 'Hái Chuối May Mắn'}</p>
+               <p class="text-[10px] text-slate-400">${item.time}</p>
+             </div>
+           </div>
+           <span class="text-xs font-black text-emerald-400">${item.reward}</span>
+        </div>
+      `).reverse().join('');
+    }
+  }
+
+  // Update buttons state
+  const btnShake = document.getElementById("btn-shake-tree");
+  const btnPick = document.getElementById("btn-pick-banana");
+  if (currentStudent.dailyLuck.count >= 3) {
+    if (btnShake) {
+      btnShake.disabled = true;
+      btnShake.classList.add("opacity-50", "grayscale", "pointer-events-none");
+      btnShake.innerText = "HẾT LƯỢT HÔM NAY";
+    }
+    if (btnPick) {
+      btnPick.disabled = true;
+      btnPick.classList.add("opacity-50", "grayscale", "pointer-events-none");
+      btnPick.innerText = "HẾT LƯỢT HÔM NAY";
+    }
+  }
+}
+
+async function handleShakeTree() {
+  if (!currentStudent) return;
+  const today = getLuckDayKey();
+  if (!currentStudent.dailyLuck || currentStudent.dailyLuck.date !== today) {
+    currentStudent.dailyLuck = { date: today, count: 0, history: [] };
+  }
+  
+  if (currentStudent.dailyLuck.count >= 3) {
+    window.showToast("Bạn đã hết lượt quay may mắn hôm nay!", "warning");
+    return;
+  }
+
+  // Animation
+  const treeEmoji = document.getElementById("lucky-tree-emoji");
+  if (treeEmoji) {
+    treeEmoji.classList.add("animate-bounce");
+    setTimeout(() => treeEmoji.classList.remove("animate-bounce"), 1000);
+  }
+
+  // Calculate Reward
+  let rewardMsg = "";
+  let isUnlucky = false;
+  const rand = Math.random();
+  
+  if (rand < 0.4) {
+    // 40% chance for very low reward (1-2 EXP)
+    const exp = Math.floor(Math.random() * 2) + 1; 
+    currentStudent.exp = (currentStudent.exp || 0) + exp;
+    rewardMsg = `+${exp} EXP Thám Hiểm ⭐ (Hơi xui...)`;
+    isUnlucky = true;
+  } else if (rand < 0.8) {
+    // 40% chance for normal coins
+    const coins = Math.floor(Math.random() * 41) + 10; // 10-50
+    currentStudent.coins = (currentStudent.coins || 0) + coins;
+    rewardMsg = `+${coins} Coins Vàng 🪙`;
+  } else if (rand < 0.95) {
+    // 15% chance for big coins
+    const coins = Math.floor(Math.random() * 151) + 50; // 50-200
+    currentStudent.coins = (currentStudent.coins || 0) + coins;
+    rewardMsg = `+${coins} Coins Vàng 🪙 (Đại lộc!)`;
+  } else {
+    // 5% chance for decent EXP
+    const exp = Math.floor(Math.random() * 41) + 10; // 10-50
+    currentStudent.exp = (currentStudent.exp || 0) + exp;
+    rewardMsg = `+${exp} EXP Thám Hiểm ⭐`;
+  }
+
+  // Update state
+  currentStudent.dailyLuck.count++;
+  const now = new Date();
+  currentStudent.dailyLuck.history.push({
+    type: 'tree',
+    reward: rewardMsg,
+    time: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
+  });
+
+  // Save and Refresh
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const idx = students.findIndex(s => s.email === currentStudent.email);
+  if (idx !== -1) {
+    students[idx] = currentStudent;
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+  }
+  
+  Swal.fire({
+    title: isUnlucky ? 'HƠI THIẾU MAY MẮN!' : 'CÂY THẦN TÀI RUNG LẮC!',
+    text: isUnlucky ? `Bạn chỉ nhận được: ${rewardMsg}` : `Chúc mừng! Bạn đã nhận được: ${rewardMsg}`,
+    icon: isUnlucky ? 'info' : 'success',
+    background: '#0f172a',
+    color: '#fff',
+    confirmButtonColor: isUnlucky ? '#64748b' : '#10b981'
+  });
+
+  renderLuckTab();
+  loadStudentProfile();
+}
+
+async function handlePickBanana() {
+  if (!currentStudent) return;
+  const today = getLuckDayKey();
+  if (!currentStudent.dailyLuck || currentStudent.dailyLuck.date !== today) {
+    currentStudent.dailyLuck = { date: today, count: 0, history: [] };
+  }
+  
+  if (currentStudent.dailyLuck.count >= 3) {
+    window.showToast("Bạn đã hết lượt quay may mắn hôm nay!", "warning");
+    return;
+  }
+
+  // Animation
+  const bananaEmoji = document.getElementById("banana-tree-emoji");
+  if (bananaEmoji) {
+    bananaEmoji.classList.add("animate-pulse", "scale-125");
+    setTimeout(() => bananaEmoji.classList.remove("animate-pulse", "scale-125"), 1000);
+  }
+
+  // Calculate Reward
+  let rewardMsg = "";
+  let isUnlucky = false;
+  const rand = Math.random();
+  let bananas = 0;
+  
+  if (rand < 0.5) {
+    // 50% chance for 0 bananas
+    bananas = 0;
+    rewardMsg = `Hụt rồi! Không có chuối nào 🍃`;
+    isUnlucky = true;
+  } else if (rand < 0.85) {
+    // 35% chance for 1 banana
+    bananas = 1;
+    rewardMsg = `+1 Chuối Vàng 🍌`;
+  } else if (rand < 0.95) {
+    // 10% chance for 2 bananas
+    bananas = 2;
+    rewardMsg = `+2 Chuối Vàng 🍌 (Trúng lớn!)`;
+  } else {
+    // 5% chance for 5 bananas
+    bananas = 5;
+    rewardMsg = `+5 Chuối Vàng 🍌 (Siêu cấp may mắn!)`;
+  }
+
+  currentStudent.bananas = (currentStudent.bananas || 0) + bananas;
+
+  // Update state
+  currentStudent.dailyLuck.count++;
+  const now = new Date();
+  currentStudent.dailyLuck.history.push({
+    type: 'banana',
+    reward: rewardMsg,
+    time: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
+  });
+
+  // Save and Refresh
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const idx = students.findIndex(s => s.email === currentStudent.email);
+  if (idx !== -1) {
+    students[idx] = currentStudent;
+    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+  }
+  
+  Swal.fire({
+    title: isUnlucky ? 'TIẾC QUÁ!' : 'HÁI CHUỐI THÀNH CÔNG!',
+    text: isUnlucky ? rewardMsg : `Chúc mừng! Bạn đã nhận được: ${rewardMsg}`,
+    icon: isUnlucky ? 'error' : 'success',
+    background: '#0f172a',
+    color: '#fff',
+    confirmButtonColor: isUnlucky ? '#94a3b8' : '#eab308'
+  });
+
+  renderLuckTab();
+  loadStudentProfile();
+}
+
+// ==================== POKEMON CATCHING ENGINE ====================
+let catchState = {
+  ballsRemaining: 0,
+  targetPokemon: null,
+  isFinished: false
+};
+
+function startCatchPokemonSequence() {
+  const eligibility = window.lastTestEligibility;
+  if (!eligibility || !eligibility.isEligible) return;
+
+  // Determine balls
+  let balls = 0;
+  if (eligibility.wrongCount === 0) balls = 4;
+  else if (eligibility.wrongCount === 1) balls = 3;
+  else if (eligibility.wrongCount === 2) balls = 2;
+
+  // Fetch pokemons from database/cache
+  const pokemonsData = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+  
+  if (pokemonsData.length === 0) {
+     console.error("Pokemon data not loaded.");
+     return;
+  }
+
+  // Select target Pokemon
+  const pool = pokemonsData.filter(p => p.rarity !== "Thần Thoại");
+  const rand = Math.random();
+  // Spawn rate: 30% hiếm (Rare), 70% thường (Normal)
+  let selectedRarity = rand < 0.3 ? "Hiếm" : "Thường";
+  
+  let candidates = pool.filter(p => p.rarity === selectedRarity);
+  if (candidates.length === 0) candidates = pool; // Fallback
+
+  const targetPoke = candidates[Math.floor(Math.random() * candidates.length)];
+  
+  const baseChance = targetPoke.rarity === "Hiếm" ? 0.30 : 0.60;
+
+  catchState = {
+    ballsRemaining: balls,
+    targetPokemon: targetPoke,
+    baseChance: baseChance,
+    isFinished: false
+  };
+
+  // UI Updates
+  const overlay = document.getElementById("catch-pokemon-overlay");
+  const img = document.getElementById("wild-pokemon-img");
+  const nameEl = document.getElementById("catch-poke-name");
+  const rarityBadge = document.getElementById("catch-rarity-badge");
+  const elementEl = document.getElementById("catch-element");
+  const spawnRateEl = document.getElementById("catch-spawn-rate");
+  const successRateEl = document.getElementById("catch-success-rate");
+  const container = document.getElementById("pokeballs-container");
+  
+  if (!overlay) return;
+
+
+  img.classList.remove("scale-0", "opacity-0", "animate-ping", "animate-shake");
+  
+  const rarityColors = targetPoke.rarity === "Hiếm" ? "bg-yellow-500 text-yellow-950" : (targetPoke.rarity === "Thần Thoại" ? "bg-purple-500 text-purple-950" : "bg-slate-600 text-slate-200");
+  const glowColor = targetPoke.rarity === "Hiếm" ? "bg-yellow-600/30" : (targetPoke.rarity === "Thần Thoại" ? "bg-purple-600/30" : "bg-cyan-600/20");
+  
+  const bgGlow = document.getElementById("catch-bg-glow");
+  if (bgGlow) bgGlow.className = `absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none transition-colors duration-700 ${glowColor}`;
+
+  img.src = targetPoke.image;
+  nameEl.innerText = targetPoke.name;
+  
+  const nameElMobile = document.getElementById("catch-poke-name-mobile");
+  if (nameElMobile) nameElMobile.innerText = targetPoke.name;
+  
+  // Rarity Colors
+  rarityBadge.innerText = targetPoke.rarity;
+  rarityBadge.className = `inline-block mt-1 px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-widest shadow-inner border border-slate-600/50 ${rarityColors}`;
+  
+  const rarityBadgeMobile = document.getElementById("catch-rarity-badge-mobile");
+  if (rarityBadgeMobile) {
+      rarityBadgeMobile.innerText = targetPoke.rarity;
+      rarityBadgeMobile.className = `px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest text-white ml-2 ${rarityColors}`;
+  }
+
+  if (targetPoke.rarity === "Hiếm") {
+    spawnRateEl.innerText = "30%";
+  } else if (targetPoke.rarity === "Thần Thoại") {
+    spawnRateEl.innerText = "5%";
+  } else {
+    spawnRateEl.innerText = "70%";
+  }
+
+  elementEl.innerText = targetPoke.element || "Không rõ";
+  successRateEl.innerText = (baseChance * 100).toFixed(0) + "%";
+  
+  const successRateMobile = document.getElementById("catch-success-rate-mobile");
+  if (successRateMobile) successRateMobile.innerText = (baseChance * 100).toFixed(0) + "%";
+
+  container.innerHTML = "";
+  const mobileContainer = document.getElementById("pokeballs-container-mobile");
+  if (mobileContainer) mobileContainer.innerHTML = "";
+  
+  for (let i = 0; i < balls; i++) {
+    container.innerHTML += `<img id="pokeball-${i}" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-5 h-5 transition-all duration-300">`;
+    if (mobileContainer) {
+        mobileContainer.innerHTML += `<img id="pokeball-mobile-${i}" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-4 h-4 transition-all duration-300">`;
+    }
+  }
+
+  const results = document.getElementById("catch-results");
+  if (results) results.classList.add("hidden");
+  
+  const msg = document.getElementById("catch-message");
+  if (msg) msg.innerHTML = "";
+  
+  const thrownBall = document.getElementById("thrown-pokeball");
+  if (thrownBall) {
+      thrownBall.classList.add("hidden");
+      thrownBall.style.bottom = "80px";
+      thrownBall.style.transform = "translateX(-50%) rotate(0deg) scale(1)";
+  }
+  
+  const actions = document.getElementById("catch-actions");
+  if (actions) actions.classList.remove("opacity-50", "pointer-events-none");
+
+  overlay.classList.remove("hidden");
+}
+
+
+function handleThrowPokeballAnimated() {
+  if (catchState.isFinished || catchState.ballsRemaining <= 0) return;
+  
+  const index = catchState.ballsRemaining - 1;
+  const ballUI = document.getElementById(`pokeball-${index}`);
+  if (!ballUI || ballUI.classList.contains("opacity-0")) return;
+  
+  ballUI.classList.add("opacity-0", "pointer-events-none");
+  catchState.ballsRemaining--;
+  
+  const msg = document.getElementById("catch-message");
+  if (msg) msg.innerHTML = `<div class="inline-block bg-slate-900/80 px-6 py-3 rounded-full border border-indigo-500/50 shadow-xl"><p class="text-lg font-black text-white animate-pulse tracking-widest uppercase">ĐANG BẮT... 💫</p></div>`;
+  
+  // Animation logic
+  const pokeImg = document.getElementById("wild-pokemon-img");
+  const thrownBall = document.getElementById("thrown-pokeball");
+  const actions = document.getElementById("catch-actions");
+  
+  actions.classList.add("opacity-50", "pointer-events-none");
+  
+  if (thrownBall && pokeImg) {
+    thrownBall.classList.remove("hidden");
+    // Start at button position (bottom)
+    thrownBall.style.bottom = "80px";
+    thrownBall.style.left = "50%";
+    thrownBall.style.transform = "translateX(-50%) rotate(0deg) scale(1)";
+    
+    // Animate throw to center (where Pokemon is)
+    setTimeout(() => {
+      thrownBall.style.bottom = "50%"; // Adjust based on visual
+      thrownBall.style.transform = "translate(-50%, 50%) rotate(1080deg) scale(2)";
+      setTimeout(() => pokeImg.classList.add("animate-ping"), 300);
+    }, 50);
+
+    const isCaught = Math.random() < catchState.baseChance;
+    
+    setTimeout(() => {
+      pokeImg.classList.remove("animate-ping");
+      thrownBall.classList.add("hidden");
+      actions.classList.remove("opacity-50", "pointer-events-none");
+      
+      if (isCaught) {
+        pokeImg.classList.add("scale-0", "opacity-0"); // Disappear into ball
+        finishCatchSequence(true);
+      } else {
+        if (catchState.ballsRemaining === 0) {
+          finishCatchSequence(false);
+        } else {
+          if (msg) msg.innerHTML = `<div class="inline-block bg-red-900/80 px-6 py-3 rounded-full border border-red-500/50 shadow-xl"><p class="text-lg font-black text-red-400 uppercase tracking-widest">Hụt rồi! Thử lại xem... 💔</p></div>`;
+          // Shake Pokemon to taunt
+          pokeImg.classList.add("animate-shake");
+          setTimeout(() => pokeImg.classList.remove("animate-shake"), 500);
+        }
+      }
+    }, 1200);
+  }
+}
+
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerEvolvePokemon, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo
+  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerEvolvePokemon, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo, renderLuckTab, handleShakeTree, handlePickBanana, closeCatchScreen, startCatchPokemonSequence, handleThrowPokeballAnimated
 });
+
+function finishCatchSequence(success) {
+  catchState.isFinished = true;
+  const results = document.getElementById("catch-results");
+  const icon = document.getElementById("result-icon");
+  const title = document.getElementById("result-title");
+  const desc = document.getElementById("result-desc");
+  
+  if (results) results.classList.remove("hidden");
+  
+  if (success) {
+    icon.innerText = "🎉";
+    title.innerText = "CHÚC MỪNG!";
+    title.className = "text-4xl font-black text-emerald-400 mb-4 tracking-tighter drop-shadow-md";
+    desc.innerHTML = `Bạn đã thu phục thành công <span class="font-black text-emerald-300 uppercase">${catchState.targetPokemon.name}</span>!`;
+    
+    if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = [];
+    if (!currentStudent.unlockedPokemons.includes(catchState.targetPokemon.id)) {
+      currentStudent.unlockedPokemons.push(catchState.targetPokemon.id);
+      
+      const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+      const idx = students.findIndex(s => s.email === currentStudent.email);
+      if (idx !== -1) {
+        students[idx] = currentStudent;
+        window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+      }
+    }
+  } else {
+    icon.innerText = "💨";
+    title.innerText = "TIẾC QUÁ!";
+    title.className = "text-4xl font-black text-slate-400 mb-4 tracking-tighter drop-shadow-md";
+    desc.innerHTML = `<span class="font-black text-white uppercase">${catchState.targetPokemon.name}</span> đã chạy thoát mất rồi...`;
+  }
+}
+
+function closeCatchScreen() {
+  document.getElementById("catch-pokemon-overlay").classList.add("hidden");
+  window.lastTestEligibility = null;
+  loadStudentProfile();
+  renderBattleArena();
+}

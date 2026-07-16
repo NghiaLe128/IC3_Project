@@ -86,6 +86,7 @@
             <button onclick="switchStudentTab('leaderboard')" id="btn-tab-leaderboard" class="student-tab-btn"><i class="fa-solid fa-trophy"></i> Xếp hạng</button>
             <button onclick="switchStudentTab('badges')" id="btn-tab-badges" class="student-tab-btn"><i class="fa-solid fa-award"></i> Huy hiệu</button>
             <button onclick="switchStudentTab('inventory')" id="btn-tab-inventory" class="student-tab-btn"><i class="fa-solid fa-briefcase"></i> Túi đồ</button>
+            <button onclick="switchStudentTab('luck')" id="btn-tab-luck" class="student-tab-btn"><i class="fa-solid fa-clover text-emerald-400"></i> Vận May</button>
             <button onclick="switchStudentTab('rewards')" id="btn-tab-rewards" class="student-tab-btn"><i class="fa-solid fa-store"></i> Cửa hàng</button>
           </div>
 
@@ -635,6 +636,73 @@
 
       </section>
 
+      <!-- ==================== VIEW: 7. LUCK / DAILY REWARDS (VẬN MAY) ==================== -->
+      <section id="student-tab-luck" class="student-view-content space-y-6 hidden">
+        <div class="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h3 class="font-poppins font-black text-xl text-white uppercase tracking-tighter italic"><i class="fa-solid fa-clover text-emerald-400 mr-2"></i>Khu Vườn Vận May</h3>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Thử thách nhân phẩm - Nhận quà mỗi ngày</p>
+          </div>
+          <div class="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl">
+            <span class="text-xs text-slate-300">Lượt quay hôm nay:</span>
+            <span id="daily-luck-count" class="font-poppins font-black text-sm text-emerald-400">0/3</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
+          <!-- Lucky Tree Card -->
+          <div class="bg-gradient-to-b from-emerald-950/40 to-slate-900 border border-emerald-500/20 rounded-[40px] p-8 flex flex-col items-center justify-between min-h-[450px] relative overflow-hidden group shadow-2xl">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-emerald-500/5 opacity-50"></div>
+            
+            <div class="z-10 text-center">
+              <h4 class="text-emerald-400 font-black text-lg uppercase tracking-widest mb-1">Cây Thần Tài</h4>
+              <p class="text-[10px] text-emerald-200/60 uppercase font-bold">Rung cây để nhận Coins & EXP</p>
+            </div>
+
+            <div id="lucky-tree-container" class="relative z-10 my-8 transition-transform duration-300">
+               <div id="lucky-tree-emoji" class="text-9xl filter drop-shadow-[0_0_30px_rgba(16,185,129,0.4)] cursor-pointer hover:scale-110 active:scale-95 transition-all select-none" onclick="handleShakeTree()">🌳</div>
+               <!-- Interactive elements -->
+               <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-black/40 blur-xl rounded-full"></div>
+            </div>
+
+            <button onclick="handleShakeTree()" id="btn-shake-tree" class="z-10 bg-emerald-600 hover:bg-emerald-500 text-white font-black px-10 py-4 rounded-2xl shadow-[0_10px_20px_-10px_rgba(16,185,129,0.5)] transition-all active:scale-95 flex items-center gap-3 group">
+              <i class="fa-solid fa-hand-sparkles group-hover:animate-bounce"></i> RUNG CÂY NGAY
+            </button>
+          </div>
+
+          <!-- Banana Tree Card -->
+          <div class="bg-gradient-to-b from-yellow-950/40 to-slate-900 border border-yellow-500/20 rounded-[40px] p-8 flex flex-col items-center justify-between min-h-[450px] relative overflow-hidden group shadow-2xl">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-yellow-500/5 opacity-50"></div>
+            
+            <div class="z-10 text-center">
+              <h4 class="text-yellow-400 font-black text-lg uppercase tracking-widest mb-1">Vườn Chuối Thần Kỳ</h4>
+              <p class="text-[10px] text-yellow-200/60 uppercase font-bold">Hái chuối cho Pokémon tiến hóa</p>
+            </div>
+
+            <div id="banana-tree-container" class="relative z-10 my-8 transition-transform duration-300">
+               <div id="banana-tree-emoji" class="text-9xl filter drop-shadow-[0_0_30px_rgba(234,179,8,0.4)] cursor-pointer hover:scale-110 active:scale-95 transition-all select-none" onclick="handlePickBanana()">🍌</div>
+               <!-- Interactive elements -->
+               <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-black/40 blur-xl rounded-full"></div>
+            </div>
+
+            <button onclick="handlePickBanana()" id="btn-pick-banana" class="z-10 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-black px-10 py-4 rounded-2xl shadow-[0_10px_20px_-10px_rgba(234,179,8,0.5)] transition-all active:scale-95 flex items-center gap-3 group">
+              <i class="fa-solid fa-basket-shopping group-hover:animate-bounce"></i> HÁI CHUỐI NGAY
+            </button>
+          </div>
+        </div>
+
+        <!-- History/Log of Luck -->
+        <div class="bg-game-card border border-white/5 rounded-3xl p-6 mt-8">
+           <div class="flex items-center gap-3 mb-4">
+             <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+             <h5 class="text-xs font-bold text-slate-300 uppercase tracking-widest">Lịch sử may mắn hôm nay</h5>
+           </div>
+           <div id="luck-history-container" class="space-y-2">
+              <div class="text-center py-8 text-slate-500 text-xs italic">Chưa có hoạt động nào trong hôm nay...</div>
+           </div>
+        </div>
+      </section>
+
       <!-- ==================== VIEW: 7. REWARDS / STORE TAB ==================== -->
       <section id="student-tab-rewards" class="student-view-content space-y-6 hidden">
         <div class="flex flex-col gap-4">
@@ -1148,6 +1216,9 @@
 
         <!-- Action Buttons -->
         <div class="flex flex-col gap-3">
+          <button id="victory-catch-btn" onclick="startCatchPokemonSequenceFromVictory()" class="hidden w-full py-3 px-4 bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-rose-500/20 transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 animate-pulse border border-rose-400">
+            Phát hiện Pokémon hoang dã! Bắt ngay <i class="fa-solid fa-star"></i>
+          </button>
           <button id="victory-review-btn" onclick="reviewExamAnswers()" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
             Xem lại đáp án giải thích <i class="fa-solid fa-eye text-xs"></i>
           </button>
@@ -1317,19 +1388,143 @@
     </div>
 
 
-    <!-- Footer copyright info -->
-    <footer class="w-full text-center py-5 text-[10px] text-slate-500 border-t border-indigo-950/30 mt-8 z-10">
-      <p>© 2026 IC3 Sparks LMS. Nền tảng học tập luyện thi thông minh với thiết kế RPG Game đầu tiên tại Việt Nam.</p>
-    </footer>
+    <!-- ==================== CATCH POKEMON OVERLAY ==================== -->
+    <div id="catch-pokemon-overlay" class="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden hidden font-poppins">
+      
+      <!-- Immersive Background with CSS Parallax & Gradients -->
+      <div class="absolute inset-0 bg-slate-950">
+        <!-- Radial glow based on rarity (we can update color in JS, but let's use a nice neutral/cyan for now) -->
+        <div id="catch-bg-glow" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-600/20 rounded-full blur-[120px] pointer-events-none transition-colors duration-700"></div>
+        <!-- Grid Floor -->
+        <div class="absolute bottom-0 left-0 w-full h-1/2 bg-[linear-gradient(transparent_0%,rgba(15,23,42,0.8)_100%),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)]" style="background-size: 100% 100%, 40px 40px, 40px 40px; transform: perspective(500px) rotateX(60deg); transform-origin: top;"></div>
+        <!-- Particles/Stars -->
+        <div class="absolute inset-0 opacity-40 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIxIiBmaWxsPSIjZmZmIi8+Cjwvc3ZnPg==')] pointer-events-none"></div>
+      </div>
 
+      <!-- Top HUD / Title -->
+      <div class="absolute top-8 left-0 w-full flex flex-col items-center z-20 pointer-events-none">
+        <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-rose-500/20 border border-rose-500/50 text-rose-400 font-black text-xs md:text-sm tracking-[0.2em] uppercase animate-pulse shadow-[0_0_20px_rgba(244,63,94,0.3)] backdrop-blur-md">
+          <i class="fa-solid fa-triangle-exclamation"></i> CẢNH BÁO CHẠM TRÁN <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h2 class="mt-4 font-black text-3xl md:text-5xl text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 uppercase tracking-tighter text-center drop-shadow-2xl">
+          SINH VẬT HOANG DÃ XUẤT HIỆN
+        </h2>
+      </div>
+
+      <!-- Center Stage: Pokemon & Scanner HUD -->
+      <div class="relative w-full max-w-5xl mx-auto flex flex-col items-center justify-center min-h-screen z-10 p-4">
+        
+        <!-- Scanner Ring -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 md:w-96 md:h-96 border-2 border-cyan-500/30 rounded-full border-dashed animate-[spin_20s_linear_infinite] pointer-events-none"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 md:w-[420px] md:h-[420px] border border-indigo-500/20 rounded-full animate-[spin_30s_linear_infinite_reverse] pointer-events-none"></div>
+
+        <!-- The Pokemon -->
+        <div class="relative z-20 flex flex-col items-center justify-center transform hover:scale-105 transition-transform duration-500">
+          <!-- Shadow/Platform -->
+          <div class="absolute bottom-4 w-48 h-8 bg-black/60 rounded-full blur-md"></div>
+          <img id="wild-pokemon-img" src="" class="relative z-10 w-56 h-56 md:w-72 md:h-72 object-contain animate-[bounce_3s_infinite_ease-in-out]" style="filter: drop-shadow(0 25px 25px rgba(0,0,0,0.7));" alt="Wild Pokemon">
+        </div>
+
+        <!-- Thrown Pokeball -->
+        <img id="thrown-pokeball" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="absolute bottom-20 z-30 w-16 h-16 hidden transition-all duration-[800ms] ease-in-out drop-shadow-2xl filter brightness-110" alt="Pokeball">
+
+        <!-- Left HUD: Details Panel -->
+        <div class="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 w-64 md:w-72 hidden md:block">
+          <div class="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 left-0 w-1 h-full bg-cyan-500 shadow-[0_0_15px_#06b6d4]"></div>
+            <h3 class="text-xs font-black text-cyan-400 tracking-[0.15em] uppercase mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-microchip"></i> DỮ LIỆU SINH VẬT
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">ĐỊNH DANH (NAME)</p>
+                <p id="catch-poke-name" class="text-xl font-black text-white uppercase tracking-tight truncate">Unknown</p>
+              </div>
+              <div>
+                <p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">ĐỘ HIẾM (RARITY)</p>
+                <span id="catch-rarity-badge" class="inline-block mt-1 px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-slate-700 text-white shadow-inner border border-slate-600/50">NORMAL</span>
+              </div>
+              <div>
+                <p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">HỆ (ELEMENT)</p>
+                <p id="catch-element" class="text-sm font-bold text-emerald-400">Không rõ</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right HUD: Stats Panel -->
+        <div class="absolute right-4 md:right-12 top-1/2 -translate-y-1/2 w-64 md:w-72 hidden md:block">
+          <div class="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 p-5 rounded-2xl shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-1 h-full bg-rose-500 shadow-[0_0_15px_#f43f5e]"></div>
+            <h3 class="text-xs font-black text-rose-400 tracking-[0.15em] uppercase mb-4 flex items-center gap-2 justify-end">
+              PHÂN TÍCH (ANALYSIS) <i class="fa-solid fa-crosshairs"></i>
+            </h3>
+            <div class="space-y-4 text-right">
+              <div>
+                <p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">TỈ LỆ XUẤT HIỆN</p>
+                <p id="catch-spawn-rate" class="text-lg font-black text-white">0%</p>
+              </div>
+              <div>
+                <p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">XÁC SUẤT BẮT (CATCH RATE)</p>
+                <p id="catch-success-rate" class="text-lg font-black text-yellow-400">0%</p>
+              </div>
+              <div>
+                <p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">SỐ BÓNG CÒN LẠI</p>
+                <div id="pokeballs-container" class="flex gap-1.5 justify-end mt-1">
+                  <!-- Pokeballs rendered here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile HUD (Visible only on small screens) -->
+        <div class="md:hidden absolute top-32 w-[90%] max-w-sm bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-xl z-20">
+          <div class="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-2">
+            <p id="catch-poke-name-mobile" class="text-lg font-black text-white uppercase tracking-tight truncate flex-1">Unknown</p>
+            <span id="catch-rarity-badge-mobile" class="px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest bg-slate-700 text-white ml-2">NORMAL</span>
+          </div>
+          <div class="flex justify-between text-xs">
+             <span class="text-slate-400 font-bold uppercase">Xác suất: <span id="catch-success-rate-mobile" class="text-yellow-400">0%</span></span>
+             <div id="pokeballs-container-mobile" class="flex gap-1"></div>
+          </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div id="catch-actions" class="absolute bottom-8 md:bottom-12 z-30 flex flex-col md:flex-row gap-4 md:gap-6 w-full justify-center px-4">
+          <button onclick="handleThrowPokeballAnimated()" class="group relative py-4 md:py-5 px-10 md:px-14 bg-rose-600 hover:bg-rose-500 rounded-2xl shadow-[0_0_30px_rgba(225,29,72,0.4)] hover:shadow-[0_0_40px_rgba(225,29,72,0.6)] transition-all transform active:scale-95 overflow-hidden border border-rose-400/50">
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+            <span class="relative flex items-center justify-center gap-3 text-white font-black text-base md:text-lg uppercase tracking-[0.2em]">
+              NÉM BÓNG 
+              <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-6 h-6 md:w-8 md:h-8 group-hover:animate-spin-slow drop-shadow-md">
+            </span>
+          </button>
+          
+          <button onclick="closeCatchScreen()" class="py-4 md:py-5 px-8 bg-slate-800/80 hover:bg-slate-700 border border-slate-600/50 text-slate-400 hover:text-white rounded-2xl transition-all shadow-lg active:scale-95 uppercase tracking-widest text-xs md:text-sm font-bold backdrop-blur-md">
+            BỎ CHẠY <i class="fa-solid fa-person-running ml-1"></i>
+          </button>
+        </div>
+
+        <!-- Catch Message Popup -->
+        <div id="catch-message" class="absolute top-1/4 w-full flex justify-center z-40 pointer-events-none"></div>
+
+      </div>
+
+      <!-- Result Overlay (hidden by default) -->
+      <div id="catch-results" class="absolute inset-0 bg-slate-950/90 backdrop-blur-xl z-[110] flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 p-8 md:p-12 rounded-3xl shadow-2xl max-w-lg w-full text-center transform scale-95 animate-fade-in flex flex-col items-center">
+          <div id="result-icon" class="text-7xl mb-6 animate-bounce">✨</div>
+          <h2 id="result-title" class="text-4xl font-black text-white uppercase tracking-tighter mb-4">Kết Quả</h2>
+          <p id="result-desc" class="text-slate-300 text-lg font-medium mb-10 leading-relaxed"></p>
+          <button onclick="closeCatchScreen()" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/25 transition-all active:scale-95 text-sm uppercase tracking-widest border border-indigo-400/50">
+            Tiếp Tục Hành Trình
+          </button>
+        </div>
+      </div>
+    </div>
     <!-- Database Script Initializer -->
-    <script type="module" src="/assets/js/db-init.js?v=2026071401"></script>
-    <script type="module" src="script.js?v=2026071401"></script>
-    <style>
-      .boss-hunt-mode #game-navigation-panel { display: none !important; }
-      .boss-hunt-mode #game-container { max-width: 600px !important; }
-      .exam-mode #game-navigation-panel { display: flex !important; }
-      .exam-mode #game-container { max-width: 1024px !important; }
-    </style>
+    <script type="module" src="/assets/js/db-init.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
+</html>
 </html>
