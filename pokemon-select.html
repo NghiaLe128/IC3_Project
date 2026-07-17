@@ -6,6 +6,8 @@
     <title>IC3 Sparks LMS - Chọn Pokémon</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Load Firebase & IC3 Core -->
     <script type="module" src="/assets/js/db-init.js"></script>
     <style>
@@ -243,7 +245,17 @@
       
       window.confirmPokemonSelection = async () => {
         const pokemon = document.getElementById('selectedPokemon').value;
-        if (!pokemon) { alert('Vui lòng chọn 1 Pokémon làm bạn đồng hành!'); return; }
+        if (!pokemon) { 
+          window.Swal.fire({
+            title: 'CHƯA CHỌN POKÉMON',
+            text: 'Vui lòng chọn 1 Pokémon làm bạn đồng hành!',
+            icon: 'warning',
+            confirmButtonColor: '#6366f1',
+            background: '#020617',
+            color: '#fff'
+          });
+          return; 
+        }
         
         const confirmBtn = document.getElementById('confirmBtn');
         confirmBtn.disabled = true;
@@ -313,7 +325,14 @@
           
           showChallengeScreen(pokemon);
         } catch(e) {
-          alert("Lỗi: " + e.message);
+          window.Swal.fire({
+            title: 'LỖI',
+            text: e.message,
+            icon: 'error',
+            confirmButtonColor: '#ef4444',
+            background: '#020617',
+            color: '#fff'
+          });
           confirmBtn.disabled = false;
           confirmBtn.innerHTML = '<span>BẮT ĐẦU HÀNH TRÌNH</span> <i class="fas fa-arrow-right"></i>';
         }

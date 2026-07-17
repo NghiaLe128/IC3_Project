@@ -284,9 +284,18 @@ async function startSessionMonitor() {
         // Clear local storage
         localStorage.removeItem(IC3_KEYS.CURRENT_USER);
         
-        // Show alert and redirect
-        alert("Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!");
-        window.location.href = "/index.html";
+        // Show SweetAlert2 and redirect
+        window.Swal.fire({
+          title: 'THÔNG BÁO ĐĂNG XUẤT',
+          text: 'Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!',
+          icon: 'warning',
+          confirmButtonText: 'Đồng ý',
+          confirmButtonColor: '#3b82f6',
+          background: '#0f172a',
+          color: '#fff'
+        }).then(() => {
+          window.location.href = "/index.html";
+        });
       }
     } else {
       // Only redirect if we are NOT in the middle of a pending setup and NOT on pokemon-select page

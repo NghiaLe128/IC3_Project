@@ -27,10 +27,32 @@ const newCode = `window.savePokemonEvolutions = async function() {
     }
     
     window.evoMap = JSON.parse(JSON.stringify(currentAdminEvoMap));
-    alert("Lưu dữ liệu tiến hóa thành công!");
+    if (window.Swal) {
+      window.Swal.fire({
+        title: 'THÀNH CÔNG',
+        text: 'Lưu dữ liệu tiến hóa thành công!',
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        background: '#0f172a',
+        color: '#fff'
+      });
+    } else {
+      alert("Lưu dữ liệu tiến hóa thành công!");
+    }
   } catch (e) {
     console.error(e);
-    alert("Có lỗi khi lưu tiến hóa: " + e.message);
+    if (window.Swal) {
+      window.Swal.fire({
+        title: 'LỖI',
+        text: "Có lỗi khi lưu tiến hóa: " + e.message,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        background: '#0f172a',
+        color: '#fff'
+      });
+    } else {
+      alert("Có lỗi khi lưu tiến hóa: " + e.message);
+    }
   }
 };
 `;

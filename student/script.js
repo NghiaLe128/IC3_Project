@@ -5805,49 +5805,62 @@ function buyStoreItem(id, cost, type) {
     return;
   }
 
-  if (confirm(`Bạn đồng ý tiêu hao ${cost} Xu để đổi phần quà này chứ?`)) {
-    currentStudent.coins -= cost;
-    const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
-    const reward = rewards.find(r => r.id === id);
+  Swal.fire({
+    title: 'XÁC NHẬN ĐỔI QUÀ',
+    text: `Bạn đồng ý tiêu hao ${cost} Xu để đổi phần quà này chứ?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#3b82f6',
+    cancelButtonColor: '#64748b',
+    background: '#0f172a',
+    color: '#fff'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      currentStudent.coins -= cost;
+      const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+      const reward = rewards.find(r => r.id === id);
 
-    if (id === "reward_banana") {
-      currentStudent.bananas = (currentStudent.bananas || 0) + 1;
-      window.showToast("🎉 BẠN ĐÃ ĐỔI THÀNH CÔNG: 1 quả Chuối Vàng Thần Kỳ 🍌! Hãy mang cho Pokémon của bạn ăn ở mục Tiến Hóa nhé!");
-    } else if (type === "pokemon") {
-      const pokeId = id.replace("reward_", "");
-      if (!currentStudent.unlockedPokemons) {
-        currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
+      if (id === "reward_banana") {
+        currentStudent.bananas = (currentStudent.bananas || 0) + 1;
+        window.showToast("🎉 BẠN ĐÃ ĐỔI THÀNH CÔNG: 1 quả Chuối Vàng Thần Kỳ 🍌! Hãy mang cho Pokémon của bạn ăn ở mục Tiến Hóa nhé!");
+      } else if (type === "pokemon") {
+        const pokeId = id.replace("reward_", "");
+        if (!currentStudent.unlockedPokemons) {
+          currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
+        }
+        currentStudent.unlockedPokemons.push(pokeId);
+        window.showToast(`🎉 CHÚC MỪNG: Bạn đã mở khóa thành công Pokémon ${pokeId.toUpperCase()}! Bạn có thể đổi avatar của mình ngay bây giờ.`);
+      } else if (type === "avatar") {
+        if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = ["⚡", "🔥", "🍃", "💧"];
+        currentStudent.unlockedAvatars.push(reward.image);
+        window.showToast(`🎉 CHÚC MỪNG: Bạn đã sở hữu Avatar mới ${reward.image}!`);
+      } else if (type === "frame") {
+        if (!currentStudent.unlockedFrames) currentStudent.unlockedFrames = ["border-indigo-500/50"];
+        currentStudent.unlockedFrames.push(reward.image);
+        window.showToast(`🎉 CHÚC MỪNG: Bạn đã sở hữu Khung ảnh mới!`);
+      } else if (type === "nickname") {
+        if (!currentStudent.unlockedNicknames) currentStudent.unlockedNicknames = ["Thám hiểm viên"];
+        currentStudent.unlockedNicknames.push(reward.name);
+        window.showToast(`🎉 CHÚC MỪNG: Bạn đã nhận Biệt hiệu mới: ${reward.name}!`);
+      } else {
+        window.showToast("🎉 ĐỔI QUÀ THÀNH CÔNG! Hãy liên hệ với Giáo viên hoặc Admin để nhận Voucher vật phẩm của bạn nhé.");
       }
-      currentStudent.unlockedPokemons.push(pokeId);
-      window.showToast(`🎉 CHÚC MỪNG: Bạn đã mở khóa thành công Pokémon ${pokeId.toUpperCase()}! Bạn có thể đổi avatar của mình ngay bây giờ.`);
-    } else if (type === "avatar") {
-      if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = ["⚡", "🔥", "🍃", "💧"];
-      currentStudent.unlockedAvatars.push(reward.image);
-      window.showToast(`🎉 CHÚC MỪNG: Bạn đã sở hữu Avatar mới ${reward.image}!`);
-    } else if (type === "frame") {
-      if (!currentStudent.unlockedFrames) currentStudent.unlockedFrames = ["border-indigo-500/50"];
-      currentStudent.unlockedFrames.push(reward.image);
-      window.showToast(`🎉 CHÚC MỪNG: Bạn đã sở hữu Khung ảnh mới!`);
-    } else if (type === "nickname") {
-      if (!currentStudent.unlockedNicknames) currentStudent.unlockedNicknames = ["Thám hiểm viên"];
-      currentStudent.unlockedNicknames.push(reward.name);
-      window.showToast(`🎉 CHÚC MỪNG: Bạn đã nhận Biệt hiệu mới: ${reward.name}!`);
-    } else {
-      window.showToast("🎉 ĐỔI QUÀ THÀNH CÔNG! Hãy liên hệ với Giáo viên hoặc Admin để nhận Voucher vật phẩm của bạn nhé.");
-    }
 
-    // Save updated student stats
-    const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
-    const idx = students.findIndex(s => s.email === currentStudent.email);
-    if (idx !== -1) {
-      students[idx] = currentStudent;
-      window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
-      localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
-    }
+      // Save updated student stats
+      const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+      const idx = students.findIndex(s => s.email === currentStudent.email);
+      if (idx !== -1) {
+        students[idx] = currentStudent;
+        window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+        localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
+      }
 
-    loadStudentProfile();
-    renderRewardsStore();
-  }
+      loadStudentProfile();
+      renderRewardsStore();
+    }
+  });
 }
 
 

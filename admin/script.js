@@ -512,20 +512,30 @@ function getBossHuntDayKey() {
 }
 
 window.resetBossHunts = function(studentEmail) {
-  if (!confirm(`Bạn có chắc muốn đặt lại (reset) số lượt săn Boss hôm nay của học sinh ${studentEmail} về 0?`)) {
-    return;
-  }
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
-  const stdIdx = students.findIndex(s => s.email === studentEmail);
-  if (stdIdx !== -1) {
-    const today = getBossHuntDayKey();
-    students[stdIdx].bossHunts = { date: today, count: 0 };
-    window.saveData(window.IC3_KEYS.STUDENTS, students, studentEmail);
-    window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
-    renderStudentsTable();
-  } else {
-    window.showToast("Không tìm thấy thông tin tài khoản học sinh!", 'error');
-  }
+  Swal.fire({
+    title: 'XÁC NHẬN RESET',
+    text: `Bạn có chắc muốn đặt lại (reset) số lượt săn Boss hôm nay của học sinh ${studentEmail} về 0?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+      const stdIdx = students.findIndex(s => s.email === studentEmail);
+      if (stdIdx !== -1) {
+        const today = getBossHuntDayKey();
+        students[stdIdx].bossHunts = { date: today, count: 0 };
+        window.saveData(window.IC3_KEYS.STUDENTS, students, studentEmail);
+        window.showToast(`Đã reset lượt săn Boss hôm nay cho học sinh ${students[stdIdx].name || studentEmail}!`, 'success');
+        renderStudentsTable();
+      } else {
+        window.showToast("Không tìm thấy thông tin tài khoản học sinh!", 'error');
+      }
+    }
+  });
 }
 
 
@@ -1990,14 +2000,24 @@ window.handlePokemonSubmit = async function(e) {
     });
     
     if (!id || !name || !image) {
-        alert("Vui lòng điền đầy đủ ID, Tên và Ảnh.");
+        Swal.fire({
+            title: 'THIẾU THÔNG TIN',
+            text: 'Vui lòng điền đầy đủ ID, Tên và Ảnh.',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
         return;
     }
     
     let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
     
     if (mode === "add" && pokemons.some(p => p.id === id)) {
-        alert("ID Pokemon này đã tồn tại!");
+        Swal.fire({
+            title: 'LỖI',
+            text: 'ID Pokemon này đã tồn tại!',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
         return;
     }
     
@@ -2044,21 +2064,33 @@ window.handlePokemonSubmit = async function(e) {
 };
 
 window.deletePokemon = async function(id) {
-    if (!confirm("Bạn có chắc chắn muốn xóa Pokemon này?")) return;
-    
-    let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
-    pokemons = pokemons.filter(p => p.id !== id);
-    window.IC3_CACHE[window.IC3_KEYS.POKEMONS] = pokemons;
-    
-    try {
-        await window.saveData(window.IC3_KEYS.POKEMONS, pokemons, [id]);
-    } catch(e) {}
-    
-    delete window.currentAdminEvoMap[id];
-    delete window.currentAdminEvoImagesMap[id];
-    await window.savePokemonEvolutions();
-    
-    renderPokemonEvoList();
+    Swal.fire({
+        title: 'XÁC NHẬN XÓA',
+        text: "Bạn có chắc chắn muốn xóa Pokemon này?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Xóa ngay',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+            pokemons = pokemons.filter(p => p.id !== id);
+            window.IC3_CACHE[window.IC3_KEYS.POKEMONS] = pokemons;
+            
+            try {
+                await window.saveData(window.IC3_KEYS.POKEMONS, pokemons, [id]);
+            } catch(e) {}
+            
+            delete window.currentAdminEvoMap[id];
+            delete window.currentAdminEvoImagesMap[id];
+            await window.savePokemonEvolutions();
+            
+            renderPokemonEvoList();
+            window.showToast("Đã xóa Pokemon thành công!", "success");
+        }
+    });
 };
 
 window.savePokemonEvolutions = async function() {

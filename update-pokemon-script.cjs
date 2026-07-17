@@ -126,14 +126,28 @@ window.handlePokemonSubmit = async function(e) {
     const evosStr = document.getElementById("pokeEvoForms").value.trim();
     
     if (!id || !name || !image) {
-        alert("Vui lòng điền đầy đủ ID, Tên và Ảnh.");
+        Swal.fire({
+            title: 'THIẾU THÔNG TIN',
+            text: 'Vui lòng điền đầy đủ ID, Tên và Ảnh.',
+            icon: 'warning',
+            confirmButtonColor: '#3b82f6',
+            background: '#0f172a',
+            color: '#fff'
+        });
         return;
     }
     
     let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
     
     if (mode === "add" && pokemons.some(p => p.id === id)) {
-        alert("ID Pokemon này đã tồn tại!");
+        Swal.fire({
+            title: 'LỖI',
+            text: 'ID Pokemon này đã tồn tại!',
+            icon: 'error',
+            confirmButtonColor: '#ef4444',
+            background: '#0f172a',
+            color: '#fff'
+        });
         return;
     }
     
@@ -172,26 +186,46 @@ window.handlePokemonSubmit = async function(e) {
     
     closePokemonModal();
     renderPokemonEvoList();
-    alert("Đã lưu Pokemon thành công!");
+    Swal.fire({
+        title: 'THÀNH CÔNG',
+        text: 'Đã lưu Pokemon thành công!',
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        background: '#0f172a',
+        color: '#fff'
+    });
 };
 
 window.deletePokemon = function(id) {
-    if (!confirm(\`Bạn có chắc muốn xóa Pokemon \${id}?\`)) return;
-    
-    let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
-    pokemons = pokemons.filter(p => p.id !== id);
-    window.IC3_CACHE[window.IC3_KEYS.POKEMONS] = pokemons;
-    
-    // Cloud sync: we should delete from firestore, but window.saveData doesn't delete. 
-    // We'll write direct delete logic for pokemons collection if possible, else just let the list update.
-    try {
-       window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.POKEMONS, id));
-    } catch(e) {}
-    
-    delete window.currentAdminEvoMap[id];
-    window.savePokemonEvolutions();
-    
-    renderPokemonEvoList();
+    Swal.fire({
+        title: 'XÁC NHẬN XÓA',
+        text: \`Bạn có chắc muốn xóa Pokemon \${id}?\`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Xóa ngay',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        background: '#0f172a',
+        color: '#fff'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+            pokemons = pokemons.filter(p => p.id !== id);
+            window.IC3_CACHE[window.IC3_KEYS.POKEMONS] = pokemons;
+            
+            // Cloud sync
+            try {
+               window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.POKEMONS, id));
+            } catch(e) {}
+            
+            delete window.currentAdminEvoMap[id];
+            window.savePokemonEvolutions();
+            
+            renderPokemonEvoList();
+            window.showToast("Đã xóa Pokemon!", "success");
+        }
+    });
 };
 
 window.savePokemonEvolutions = async function() {

@@ -53,6 +53,8 @@
         50% { transform: translateY(-10px); }
       }
     </style>
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   </head>
   <body class="text-gray-100 min-h-screen flex flex-col justify-between">
     
@@ -468,7 +470,14 @@
         successBox.classList.add('hidden');
 
         if (!window.loginUser) {
-          alert("Hệ thống chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
+          window.Swal.fire({
+            title: 'Hệ thống chưa sẵn sàng',
+            text: 'Vui lòng thử lại sau giây lát.',
+            icon: 'info',
+            confirmButtonColor: '#3b82f6',
+            background: '#1e293b',
+            color: '#fff'
+          });
           return;
         }
 
@@ -654,7 +663,14 @@
             document.getElementById('loginSlider').style.transform = 'translateX(-50%)';
 
           } catch (err) {
-            alert(err.message);
+            window.Swal.fire({
+              title: 'LỖI',
+              text: err.message,
+              icon: 'error',
+              confirmButtonColor: '#ef4444',
+              background: '#1e293b',
+              color: '#fff'
+            });
           } finally {
             googleStudentBtn.disabled = false;
             googleStudentBtn.innerHTML = originalBtnContent;
