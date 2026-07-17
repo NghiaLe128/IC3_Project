@@ -323,7 +323,12 @@
               return;
             } catch (e) {
               console.error("Error checking student pokemon:", e);
-              redirectUser(user.role);
+              // If it's a network error, we might still want to try to let the user in if they have cached data
+              if (e.message && (e.message.includes("offline") || e.message.includes("network") || e.message.includes("backend"))) {
+                 window.location.href = './student/index.html'; 
+              } else {
+                 redirectUser(user.role);
+              }
             }
           } else {
             redirectUser(user.role);

@@ -1096,7 +1096,7 @@ function loadStudentProfile() {
   // Render top status indicators
   const playerNameEl = document.getElementById("playerName");
   if (playerNameEl) {
-      playerNameEl.innerHTML = window.stylizeNickname(currentStudent.currentNickname || currentStudent.name);
+      window.renderCombinedName(playerNameEl, currentStudent);
   }
   document.getElementById("playerRankBadge").innerText = rankBadges[currentStudent.rank] || "🥉 Bronze";
   document.getElementById("playerLevelTitle").innerText = currentStudent.level;
@@ -1138,7 +1138,7 @@ function loadStudentProfile() {
 
   // Dashboard specific profile
   const dashName = document.getElementById("dashboard-name");
-  if (dashName) dashName.innerHTML = window.stylizeNickname(currentStudent.currentNickname || currentStudent.name);
+  if (dashName) window.renderCombinedName(dashName, currentStudent);
   
   const dashAvatarContainer = document.getElementById("dashboard-avatar-container");
   if (dashAvatarContainer) {
@@ -1332,9 +1332,9 @@ function renderBossHuntTab() {
   const config = settings.find(s => s.id === "game_config");
   const limit = config && config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
 
-  const today = getBossHuntDayKey();
-  if (!currentStudent.bossHunts || currentStudent.bossHunts.date !== today) {
-    currentStudent.bossHunts = { date: today, count: 0 };
+  const todayKey = getBossHuntDayKey();
+  if (!currentStudent.bossHunts || currentStudent.bossHunts.date !== todayKey) {
+    currentStudent.bossHunts = { date: todayKey, count: 0 };
   }
   const huntRecord = currentStudent.bossHunts.count;
   const countEl = document.getElementById("player-boss-hunt-count");
@@ -1342,15 +1342,60 @@ function renderBossHuntTab() {
     countEl.innerText = `${huntRecord}/${limit}`;
   }
 
-  bosses.forEach(boss => {
+  const dayMap = { 0: "Chủ Nhật", 1: "Thứ 2", 2: "Thứ 3", 3: "Thứ 4", 4: "Thứ 5", 5: "Thứ 6", 6: "Thứ 7" };
+  const currentDayStr = dayMap[new Date().getDay()];
+
+  const activeBosses = bosses.filter(b => b.activeDays && b.activeDays.includes(currentDayStr));
+  const inactiveBosses = bosses.filter(b => !b.activeDays || !b.activeDays.includes(currentDayStr));
+
+  // Initialize active tab if not set
+  if (!window.activeBossSubTab) window.activeBossSubTab = "active";
+
+  // Create Tabs Navigation
+  const tabsNav = document.createElement("div");
+  tabsNav.className = "col-span-full flex gap-2 mb-4 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800";
+  
+  const createTabBtn = (id, label, count, isActive) => {
+    const btn = document.createElement("button");
+    btn.onclick = () => { window.activeBossSubTab = id; renderBossHuntTab(); };
+    btn.className = `flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+      isActive 
+        ? "bg-red-600 text-white shadow-lg shadow-red-900/20" 
+        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+    }`;
+    btn.innerHTML = `
+      <span>${label}</span>
+      <span class="px-2 py-0.5 rounded-lg text-[10px] ${isActive ? "bg-white/20" : "bg-slate-800"}">${count}</span>
+    `;
+    return btn;
+  };
+
+  tabsNav.appendChild(createTabBtn("active", "Đang xuất hiện", activeBosses.length, window.activeBossSubTab === "active"));
+  tabsNav.appendChild(createTabBtn("upcoming", "Sắp xuất hiện", inactiveBosses.length, window.activeBossSubTab === "upcoming"));
+  container.appendChild(tabsNav);
+
+  function createBossCard(boss, isActive) {
     const isDefeated = boss.isDefeated || (boss.hp === 0);
     const bossCard = document.createElement("div");
-    bossCard.className = `bg-slate-800 border ${isDefeated ? 'border-emerald-500/30 grayscale-[0.5]' : 'border-slate-700'} rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/50 transition-all cursor-pointer relative overflow-hidden`;
+    
+    let cardClass = `bg-slate-800 border rounded-2xl p-5 flex flex-col gap-3 transition-all relative overflow-hidden`;
+    if (!isActive) {
+      cardClass += ` border-slate-800 opacity-60 grayscale-[0.8] cursor-not-allowed`;
+    } else if (isDefeated) {
+      cardClass += ` border-emerald-500/30 grayscale-[0.5] cursor-pointer hover:border-red-500/50`;
+    } else {
+      cardClass += ` border-slate-700 cursor-pointer hover:border-red-500/50`;
+    }
+    bossCard.className = cardClass;
     
     let statusHtml = `<span class="text-xs bg-red-900 text-red-200 px-3 py-1.5 rounded-full font-bold">HP: ${boss.hp}/${boss.maxHp}</span>`;
     let btnHtml = `<button onclick="startBossHunt('${boss.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-md mt-2 transition-all shadow-lg hover:shadow-red-900/50">Săn Boss</button>`;
     
-    if (isDefeated) {
+    if (!isActive) {
+      const daysStr = boss.activeDays ? boss.activeDays.join(", ") : "Chưa có lịch";
+      statusHtml = `<span class="text-[10px] bg-slate-900 text-slate-400 px-3 py-1.5 rounded-full font-bold uppercase">Lịch: ${daysStr}</span>`;
+      btnHtml = `<button disabled class="bg-slate-700 text-slate-500 font-bold py-3 rounded-xl text-md mt-2 cursor-not-allowed">Chưa đến ngày</button>`;
+    } else if (isDefeated) {
       statusHtml = `<span class="text-xs bg-emerald-900 text-emerald-200 px-3 py-1.5 rounded-full font-bold">ĐÃ BỊ TIÊU DIỆT</span>`;
       btnHtml = `<div class="text-center mt-2 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
                   <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Kẻ chinh phục</p>
@@ -1368,11 +1413,101 @@ function renderBossHuntTab() {
       <p class="text-sm text-slate-400 text-center flex-grow">${boss.desc}</p>
       ${btnHtml}
     `;
-    container.appendChild(bossCard);
-  });
+    return bossCard;
+  }
+
+  // Render content based on active tab
+  if (window.activeBossSubTab === "active") {
+    if (activeBosses.length === 0) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.className = "col-span-full py-16 text-center bg-slate-900/30 rounded-3xl border border-dashed border-slate-800 flex flex-col items-center gap-4";
+      emptyMsg.innerHTML = `
+        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-600 text-2xl">
+          <i class="fa-solid fa-moon"></i>
+        </div>
+        <div>
+          <p class="text-slate-200 font-bold text-lg">Đang trong thời gian nghỉ ngơi</p>
+          <p class="text-slate-500 text-sm mt-1">Hôm nay không có Boss nào xuất hiện. Hãy xem tab "Sắp xuất hiện" nhé!</p>
+        </div>
+      `;
+      container.appendChild(emptyMsg);
+    } else {
+      activeBosses.forEach(boss => container.appendChild(createBossCard(boss, true)));
+    }
+  } else {
+    if (inactiveBosses.length === 0) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.className = "col-span-full py-16 text-center bg-slate-900/30 rounded-3xl border border-dashed border-slate-800 flex flex-col items-center gap-4";
+      emptyMsg.innerHTML = `
+        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-600 text-2xl">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        <div>
+          <p class="text-slate-200 font-bold text-lg">Tất cả đều sẵn sàng</p>
+          <p class="text-slate-500 text-sm mt-1">Hiện tại không có Boss nào đang trong lịch chờ sắp tới.</p>
+        </div>
+      `;
+      container.appendChild(emptyMsg);
+    } else {
+      inactiveBosses.forEach(boss => container.appendChild(createBossCard(boss, false)));
+    }
+  }
 }
 
-async function startBossHunt(bossId) {
+async function updateBossHPUI() {
+  const hpValEl = document.getElementById("boss-battle-scene-boss-hp-val");
+  const hpBarEl = document.getElementById("boss-battle-scene-boss-hp-bar");
+  const hpBgEl = document.getElementById("boss-battle-scene-boss-hp-bg");
+  const multiplierEl = document.getElementById("boss-battle-scene-boss-hp-multiplier");
+
+  if (!hpValEl || !hpBarEl) return;
+
+  hpValEl.innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
+
+  const layersCount = 10;
+  const layerSize = bhBossMaxHP / layersCount;
+  
+  const currentLayer = Math.ceil(bhBossCurrentHP / layerSize);
+  const remainingInLayer = bhBossCurrentHP % layerSize;
+  const barPercent = currentLayer === 0 ? 0 : (remainingInLayer === 0 && bhBossCurrentHP > 0 ? 100 : (remainingInLayer / layerSize) * 100);
+
+  // Gradient Colors for layers (rotating through 5 main themes)
+  const layerColors = [
+    "from-red-700 via-orange-600 to-red-500",      // Theme 0
+    "from-orange-700 via-yellow-600 to-orange-500", // Theme 1
+    "from-yellow-700 via-green-600 to-yellow-500", // Theme 2
+    "from-green-700 via-emerald-600 to-green-500", // Theme 3
+    "from-blue-700 via-cyan-600 to-blue-500",     // Theme 4
+    "from-purple-700 via-pink-600 to-purple-500",  // Theme 5
+  ];
+
+  const colorIndex = (currentLayer - 1) % layerColors.length;
+  const bgColorIndex = (currentLayer - 2 + layerColors.length) % layerColors.length;
+
+  hpBarEl.className = `relative h-full bg-gradient-to-l ${layerColors[colorIndex]} rounded-full transition-all duration-500 shadow-[0_0_20px_rgba(255,255,255,0.3)] border-t border-white/30 overflow-hidden`;
+  hpBarEl.style.width = `${barPercent}%`;
+  hpBarEl.innerHTML = '<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>';
+
+  if (hpBgEl) {
+    if (currentLayer > 1) {
+      hpBgEl.className = `absolute inset-0.5 rounded-full opacity-30 transition-all duration-500 bg-gradient-to-l ${layerColors[bgColorIndex]}`;
+      hpBgEl.style.display = "block";
+    } else {
+      hpBgEl.style.display = "none";
+    }
+  }
+
+  if (multiplierEl) {
+    if (currentLayer > 1) {
+      multiplierEl.innerText = `x${currentLayer}`;
+      multiplierEl.classList.remove("hidden");
+    } else {
+      multiplierEl.classList.add("hidden");
+    }
+  }
+}
+
+function startBossHunt(bossId) {
   const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
   const boss = bosses.find(b => b.id === bossId);
   if (!boss) return;
@@ -1457,8 +1592,7 @@ async function startBossHunt(bossId) {
   }
   
   document.getElementById("boss-battle-scene-boss-name").innerText = boss.name;
-  document.getElementById("boss-battle-scene-boss-hp-val").innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
-  document.getElementById("boss-battle-scene-boss-hp-bar").style.width = `${Math.round((bhBossCurrentHP/bhBossMaxHP)*100)}%`;
+  updateBossHPUI();
   
   // Set player info
   const activePoke = currentStudent.pokemon || "pikachu";
@@ -2207,8 +2341,7 @@ function nextBossQuestion() {
       const playerStatus = [comboName || "CHÍNH XÁC! 🎯", "TẤN CÔNG! ⚡", "SỨC MẠNH! 🔥", "THÀNH CÔNG! ✅"];
       const bossStatus = ["HỰ! 🗯️", "AARGH! 💢", "Ư... 😱", "TRÚNG ĐÒN! 💥"];
 
-      document.getElementById("boss-battle-scene-boss-hp-val").innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
-      document.getElementById("boss-battle-scene-boss-hp-bar").style.width = `${Math.round((bhBossCurrentHP/bhBossMaxHP)*100)}%`;
+      updateBossHPUI();
       document.getElementById("boss-battle-scene-player-status").innerText = playerStatus[Math.floor(Math.random() * playerStatus.length)];
       document.getElementById("boss-battle-scene-boss-status").innerText = bossStatus[Math.floor(Math.random() * bossStatus.length)];
       document.getElementById("boss-battle-scene-log").innerText = (comboName ? comboName + " " : "") + attackMsgs[Math.floor(Math.random() * attackMsgs.length)];
@@ -2239,8 +2372,7 @@ function nextBossQuestion() {
 
       document.getElementById("boss-battle-scene-player-hp-val").innerText = `${bossPlayerCurrentHP}/${bossPlayerMaxHP}`;
       document.getElementById("boss-battle-scene-player-hp-bar").style.width = `${Math.round((bossPlayerCurrentHP/bossPlayerMaxHP)*100)}%`;
-      document.getElementById("boss-battle-scene-boss-hp-val").innerText = `${bhBossCurrentHP}/${bhBossMaxHP}`;
-      document.getElementById("boss-battle-scene-boss-hp-bar").style.width = `${Math.round((bhBossCurrentHP/bhBossMaxHP)*100)}%`;
+      updateBossHPUI();
       document.getElementById("boss-battle-scene-player-status").innerText = pStatus[Math.floor(Math.random() * pStatus.length)];
       document.getElementById("boss-battle-scene-boss-status").innerText = bStatus[Math.floor(Math.random() * bStatus.length)];
       document.getElementById("boss-battle-scene-log").innerText = bossAttackMsgs[Math.floor(Math.random() * bossAttackMsgs.length)];
@@ -6242,7 +6374,7 @@ function renderLeaderboard() {
             </div>
           </div>
           <div>
-            <span class="text-white font-black block">${window.stylizeNickname(finalStudent.currentNickname || finalStudent.fullName || finalStudent.name || "Học viên vô danh")} ${isMe ? ' <span class="text-[9px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold uppercase">Bạn</span>' : ''}</span>
+            <span class="text-white font-black block">${finalStudent.fullName || finalStudent.name || "Học viên vô danh"} ${isMe ? ' <span class="text-[9px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold uppercase">Bạn</span>' : ''}</span>
           </div>
         </div>
       </td>
@@ -6602,7 +6734,7 @@ window.renderStudentDashboard = function() {
       };
     };
   }
-  if (dashName) dashName.textContent = currentStudent.fullName || currentStudent.name || "Học viên vô danh";
+  if (dashName) window.renderCombinedName(dashName, currentStudent);
   
   const currentExp = currentStudent.exp || 0;
   const currentLevel = Math.floor(currentExp / 1000) + 1;
@@ -6859,7 +6991,7 @@ window.renderStudentDashboard = function() {
                 
                 <!-- Player Name -->
                 <div class="text-center font-poppins font-black text-xs md:text-sm tracking-wide truncate ${theme.nameText}">
-                  ${window.stylizeNickname(studentInfo.currentNickname || studentInfo.fullName || studentInfo.name || "HỌC VIÊN VÔ DANH").toUpperCase()}
+                  ${(studentInfo.fullName || studentInfo.name || "HỌC VIÊN VÔ DANH").toUpperCase()}
                 </div>
                 
                 <!-- Separator line -->
@@ -6973,7 +7105,7 @@ window.renderStudentDashboard = function() {
                ${isMe ? '<span class="absolute -top-1 -right-1 flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>' : ''}
              </div>
              <div>
-               <span class="font-poppins font-black text-white block leading-tight">${window.stylizeNickname(studentInfo.currentNickname || studentInfo.fullName || studentInfo.name || "Học viên vô danh")} ${isMe ? ' <span class="text-[8px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-black uppercase ml-1 border border-yellow-500/30">Cá nhân</span>' : ''}</span>
+               <span class="font-poppins font-black text-white block leading-tight">${studentInfo.fullName || studentInfo.name || "Học viên vô danh"} ${isMe ? ' <span class="text-[8px] text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded font-black uppercase ml-1 border border-yellow-500/30">Cá nhân</span>' : ''}</span>
              </div>
            </div>
         </td>
@@ -6995,6 +7127,23 @@ window.renderStudentDashboard = function() {
     });
   }
 }
+
+window.renderCombinedName = function(el, student) {
+  if (!el || !student) return;
+  const realName = student.fullName || student.name || "Học viên IC3";
+  const nickName = student.currentNickname || "";
+  
+  if (nickName && nickName !== realName) {
+    el.innerHTML = `
+      <div class="flex flex-col items-start leading-tight">
+        <span class="text-white font-black text-sm sm:text-base drop-shadow-sm">${window.stylizeNickname(nickName)}</span>
+        <span class="text-slate-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider opacity-80">${realName}</span>
+      </div>
+    `;
+  } else {
+    el.innerHTML = window.stylizeNickname(realName);
+  }
+};
 
 window.stylizeNickname = function(name) {
   if (!name) return "";

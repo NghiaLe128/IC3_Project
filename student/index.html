@@ -33,6 +33,15 @@
                 accent: '#3b82f6',
                 card: 'rgba(255, 255, 255, 0.03)',
               }
+            },
+            animation: {
+              'shimmer': 'shimmer 2s linear infinite',
+            },
+            keyframes: {
+              shimmer: {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' },
+              }
             }
           }
         }
@@ -1143,10 +1152,16 @@
                 <span id="boss-battle-scene-boss-avatar" class="h-10 w-10 rounded-xl bg-red-600/20 flex items-center justify-center text-2xl shadow-lg border border-red-500/20">👹</span>
                 <span id="boss-battle-scene-boss-name" class="font-black text-white text-base truncate uppercase tracking-widest">Trùm Cuối</span>
               </div>
-              <span id="boss-battle-scene-boss-hp-val" class="font-mono text-xs font-black text-red-400">5000/5000</span>
+              <div class="flex flex-col items-start gap-1">
+                <span id="boss-battle-scene-boss-hp-val" class="font-mono text-xs font-black text-red-400">5000/5000</span>
+              </div>
             </div>
-            <div class="h-4 w-full bg-slate-950 rounded-full border border-red-500/20 overflow-hidden shadow-inner p-0.5">
-              <div id="boss-battle-scene-boss-hp-bar" class="h-full bg-gradient-to-l from-red-700 via-orange-600 to-red-500 rounded-full transition-all duration-500 shadow-[0_0_15px_rgba(220,38,38,0.5)]" style="width: 100%"></div>
+            <div class="flex items-center gap-2">
+              <div class="h-4 flex-grow bg-slate-950 rounded-full border border-red-500/20 overflow-hidden shadow-inner p-0.5 relative">
+                <div id="boss-battle-scene-boss-hp-bg" class="absolute inset-0.5 rounded-full opacity-30 transition-all duration-500"></div>
+                <div id="boss-battle-scene-boss-hp-bar" class="relative h-full bg-gradient-to-l from-red-700 via-orange-600 to-red-500 rounded-full transition-all duration-500 shadow-[0_0_15px_rgba(220,38,38,0.5)]" style="width: 100%"></div>
+              </div>
+              <span id="boss-battle-scene-boss-hp-multiplier" class="flex-shrink-0 text-sm font-black text-white bg-red-600 px-2 py-0.5 rounded shadow-lg shadow-red-900/40 border border-red-400/50 italic tracking-tighter hidden">x10</span>
             </div>
             <div id="boss-battle-scene-boss-status" class="text-xs font-black text-red-500 uppercase tracking-[0.2em] text-center animate-pulse">ĐANG PHẪN NỘ</div>
           </div>

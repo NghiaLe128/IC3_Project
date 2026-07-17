@@ -4,7 +4,7 @@
  */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+import { getFirestore, enableIndexedDbPersistence, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 import "./google-sheets.js";
 
@@ -30,6 +30,18 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Enable Offline Persistence
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn("Firestore Persistence failed: Multiple tabs open. Persistence can only be enabled in one tab at a time.");
+  } else if (err.code === 'unimplemented-browser') {
+    console.warn("Firestore Persistence failed: The current browser does not support all of the features required to enable persistence.");
+  } else {
+    console.warn("Firestore Persistence error:", err.message);
+  }
+});
+
 const auth = getAuth(app);
 
 // Expose Firebase services and methods to window for global access
@@ -110,6 +122,12 @@ async function initData() {
 
   // Selective fetching based on portal to save quota
   let collectionsToFetch = [IC3_KEYS.SETTINGS]; // Settings always needed
+  
+  // Check if offline
+  if (!navigator.onLine) {
+    console.warn("🌐 Application is offline. Attempting to load from local cache...");
+    if (window.showToast) window.showToast("Đang hoạt động ở chế độ ngoại tuyến. Dữ liệu có thể chưa được cập nhật mới nhất.", "warning");
+  }
   
   if (portal === "admin") {
     collectionsToFetch = Object.values(IC3_KEYS).filter(k => k !== IC3_KEYS.CURRENT_USER);
@@ -262,6 +280,11 @@ async function startSessionMonitor() {
   if (!userStr) return;
   
   try {
+    if (!navigator.onLine) {
+      console.log("🌐 Network is offline, skipping session monitor check.");
+      return;
+    }
+
     const localUser = JSON.parse(userStr);
     if (!localUser || !localUser.email || !localUser.currentSessionToken) return;
     
