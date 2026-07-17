@@ -94,6 +94,7 @@ const findColumnIndex = (headers, namesToMatch) => {
 
 /**
  * Fetch Google Sheet Data (Student List)
+ * Supports comma-separated sheet names to merge multiple school/class sheets in parallel
  */
 window.fetchGoogleSheetData = async (spreadsheetId, sheetName = "Tổng quát") => {
   const cleanId = extractSpreadsheetId(spreadsheetId);
@@ -125,66 +126,130 @@ window.fetchGoogleSheetData = async (spreadsheetId, sheetName = "Tổng quát") 
     return rows;
   };
 
-  try {
-    let rows = null;
+  // Split sheetNames by commas (e.g., "Trường Sparks, Trường Horizon, Trường Nguyễn Huệ")
+  const sheetNames = sheetName.split(",")
+    .map(name => name.trim())
+    .filter(name => name.length > 0);
 
-    // Attempt 1: Try API/Proxy
+  if (sheetNames.length === 0) {
+    sheetNames.push("Tổng quát");
+  }
+
+  const allParsedStudents = [];
+
+  const fetchSingleSheet = async (singleSheetName) => {
     try {
-      const data = await fetchSheetsValues(cleanId, sheetName + '!A1:Z1000', token);
-      if (data && data.values && data.values.length >= 2) {
-        rows = data.values;
-        console.log("✅ Student data loaded via Google Sheets API.");
-      } else if (data && data.error) {
-        console.warn("⚠️ Sheets API failed, falling back to CSV. Error:", data.error.message || data.error);
+      let rows = null;
+      // Wrap sheet name in single quotes to handle spaces correctly for Sheets API
+      const quotedSheetName = `'${singleSheetName.replace(/'/g, "''")}'`;
+
+      // Attempt 1: Try API/Proxy
+      try {
+        const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z2000', token);
+        if (data && data.values && data.values.length >= 2) {
+          rows = data.values;
+          console.log(`✅ Student data loaded via Google Sheets API for sheet [${singleSheetName}].`);
+        } else if (data && data.error) {
+          console.warn(`⚠️ Sheets API failed for [${singleSheetName}], falling back to CSV. Error:`, data.error.message || data.error);
+        }
+      } catch (e) {
+        console.warn(`⚠️ Proxy fetch failed for [${singleSheetName}], trying CSV fallback...`);
       }
-    } catch (e) {
-      console.warn("⚠️ Proxy fetch failed, trying CSV fallback...");
-    }
 
-    // Attempt 2: Fallback to Public CSV (Requires "Anyone with the link")
-    if (!rows) {
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-      const res = await fetch(csvUrl);
-      if (res.ok) {
-        const csvText = await res.text();
-        rows = parseCSV(csvText);
-        console.log("✅ Student data loaded via CSV fallback.");
+      // Attempt 2: Fallback to Public CSV (Requires "Anyone with the link")
+      if (!rows) {
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(singleSheetName)}`;
+        const res = await fetch(csvUrl);
+        if (res.ok) {
+          const csvText = await res.text();
+          rows = parseCSV(csvText);
+          console.log(`✅ Student data loaded via CSV fallback for [${singleSheetName}].`);
+        }
       }
-    }
 
-    if (!rows || rows.length < 2) {
-      throw new Error("Không thể tải dữ liệu học sinh. Hãy kiểm tra tên Sheet hoặc quyền truy cập của file Google Sheet.");
-    }
-
-    const headers = rows[0].map(h => h ? String(h).trim() : "");
-    const colTruong = findColumnIndex(headers, ["trường", "school"]);
-    const colLop = findColumnIndex(headers, ["lớp", "class"]);
-    const colHo = findColumnIndex(headers, ["họ", "last name"]);
-    const colTen = findColumnIndex(headers, ["tên", "first name", "name", "họ tên"]);
-    const colMatKhau = findColumnIndex(headers, ["mật khẩu", "password", "mk"]);
-
-    if (colLop === -1 || colTen === -1 || colMatKhau === -1) {
-      throw new Error("Bảng tính cần có các cột: Lớp, Họ Tên, Mật khẩu!");
-    }
-
-    const parsedStudents = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.length === 0) continue;
-      
-      const school = colTruong !== -1 && row[colTruong] ? String(row[colTruong]).trim() : "Mặc định";
-      const className = row[colLop] ? String(row[colLop]).trim() : "";
-      const firstName = row[colTen] ? String(row[colTen]).trim() : "";
-      const lastName = (colHo !== -1 && row[colHo]) ? String(row[colHo]).trim() : "";
-      const fullName = (lastName ? `${lastName} ${firstName}` : firstName).trim();
-      const password = row[colMatKhau] ? String(row[colMatKhau]).trim() : "";
-
-      if (className && firstName && password) {
-        parsedStudents.push({ rowIndex: i + 1, school, className, name: fullName, password });
+      if (!rows || rows.length < 2) {
+        console.warn(`⚠️ Tab [${singleSheetName}] không có dữ liệu hoặc không truy cập được.`);
+        return [];
       }
+
+      const headers = rows[0].map(h => h ? String(h).trim() : "");
+      const colTruong = findColumnIndex(headers, ["trường", "school"]);
+      const colLop = findColumnIndex(headers, ["lớp", "class"]);
+      const colHo = findColumnIndex(headers, ["họ", "last name"]);
+      const colTen = findColumnIndex(headers, ["tên", "first name", "name", "họ tên"]);
+      const colMatKhau = findColumnIndex(headers, ["mật khẩu", "password", "mk"]);
+      const colDiscovery = findColumnIndex(headers, ["tab danh sách", "sheet name", "tab name", "danh sách tab", "trường", "school"]);
+
+      // If this is a discovery sheet (like TỔNG QUÁT), and we found a discovery column
+      if (colDiscovery !== -1 && singleSheetName.toUpperCase().includes("TỔNG QUÁT")) {
+         const extraSheetNames = [];
+         for (let i = 1; i < rows.length; i++) {
+            const val = rows[i][colDiscovery];
+            if (val && String(val).trim() && !sheetNames.includes(String(val).trim())) {
+               extraSheetNames.push(String(val).trim());
+            }
+         }
+         if (extraSheetNames.length > 0) {
+            console.log(`🔍 Discovery: Found ${extraSheetNames.length} additional sheets to fetch from [${singleSheetName}]:`, extraSheetNames);
+            const discoveredResults = await Promise.all(extraSheetNames.map(name => fetchSingleSheet(name)));
+            const combined = [];
+            for (const list of discoveredResults) combined.push(...list);
+            // Also include current sheet data if it has students
+            if (colLop !== -1 && colTen !== -1 && colMatKhau !== -1) {
+               // Proceed to parse current rows too
+            } else {
+               return combined;
+            }
+         }
+      }
+
+      if (colLop === -1 || colTen === -1 || colMatKhau === -1) {
+        console.warn(`⚠️ Tab [${singleSheetName}] thiếu các cột bắt buộc (Lớp, Tên, Mật khẩu) hoặc không phải Tab dữ liệu học sinh.`);
+        return [];
+      }
+
+      const parsedStudents = [];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        
+        const school = colTruong !== -1 && row[colTruong] ? String(row[colTruong]).trim() : "Mặc định";
+        const className = row[colLop] ? String(row[colLop]).trim() : "";
+        const firstName = row[colTen] ? String(row[colTen]).trim() : "";
+        const lastName = (colHo !== -1 && row[colHo]) ? String(row[colHo]).trim() : "";
+        const fullName = (lastName ? `${lastName} ${firstName}` : firstName).trim();
+        const password = row[colMatKhau] ? String(row[colMatKhau]).trim() : "";
+
+        if (className && firstName && password) {
+          parsedStudents.push({ 
+            rowIndex: i + 1, 
+            school, 
+            className, 
+            name: fullName, 
+            password,
+            sheetName: singleSheetName // Store specific sheet name tab to write back scores correctly
+          });
+        }
+      }
+      return parsedStudents;
+    } catch (err) {
+      console.error(`❌ Error fetching sheet [${singleSheetName}]:`, err);
+      return [];
+    }
+  };
+
+  try {
+    // Fetch all configured sheet tabs concurrently
+    const results = await Promise.all(sheetNames.map(name => fetchSingleSheet(name)));
+    for (const list of results) {
+      allParsedStudents.push(...list);
     }
 
-    return parsedStudents;
+    if (allParsedStudents.length === 0) {
+      throw new Error("Không thể tải dữ liệu học sinh từ bất kỳ Tab nào được chỉ định. Hãy kiểm tra lại tên Sheet hoặc quyền truy cập.");
+    }
+
+    return allParsedStudents;
   } catch (error) {
     console.error("❌ Critical error in fetchGoogleSheetData:", error);
     throw error;
@@ -198,7 +263,8 @@ const updateSheetCell = async (spreadsheetId, sheetName, token, rowIndex, colInd
   const cleanId = extractSpreadsheetId(spreadsheetId);
   // Convert colIndex to letter (0 -> A, 1 -> B, ...)
   const colLetter = String.fromCharCode(65 + colIndex);
-  const range = `${sheetName}!${colLetter}${rowIndex}`;
+  const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
+  const range = `${quotedSheetName}!${colLetter}${rowIndex}`;
   
   if (token) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
@@ -253,8 +319,11 @@ const fetchSheetsValues = async (spreadsheetId, range, token) => {
  */
 window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, inputPassword, googleUser, sheetStudentsList) => {
   try {
+    // Find precise student matching school, class AND row index to handle overlapping indices across sheets
     const found = sheetStudentsList.find(s => 
-      s.rowIndex === parseInt(studentRowIndex)
+      s.rowIndex === parseInt(studentRowIndex) &&
+      s.className.toLowerCase() === className.toLowerCase() &&
+      s.school.toLowerCase() === school.toLowerCase()
     );
 
     if (!found) return { success: false, message: "Không tìm thấy học sinh này trong bảng tính!" };
@@ -294,9 +363,10 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
     const config = await window.getGoogleSheetsConfig();
     if (config) {
       const cleanId = extractSpreadsheetId(config.spreadsheetId);
-      const sheetName = config.studentSheetName || "Học sinh";
+      const sheetName = found.sheetName || config.studentSheetName || "Học sinh";
+      const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
       // Fetch headers to find "Điểm danh"
-      const data = await fetchSheetsValues(cleanId, sheetName + '!A1:Z1', token);
+      const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z1', token);
       if (data && data.values) {
         const headers = data.values[0] || [];
         
@@ -428,6 +498,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
     sessionStorage.setItem("sheet_student_school", school);
     sessionStorage.setItem("sheet_student_class", className);
     sessionStorage.setItem("sheet_student_row_index", found.rowIndex);
+    sessionStorage.setItem("sheet_student_tab_name", found.sheetName || "");
 
     return { success: true, user: userData };
   } catch (error) {
@@ -446,13 +517,14 @@ window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
     if (!config || !config.spreadsheetId) return { success: false, message: "No sheet configured" };
 
     const cleanId = extractSpreadsheetId(config.spreadsheetId);
-    const sheetName = config.studentSheetName || "Học sinh";
+    const sheetName = sessionStorage.getItem("sheet_student_tab_name") || config.studentSheetName || "Học sinh";
+    const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
     const rowIndex = sessionStorage.getItem("sheet_student_row_index");
 
     if (!rowIndex) return { success: false, message: "Không tìm thấy vị trí học sinh trên sheet" };
 
     // Fetch headers
-    const data = await fetchSheetsValues(cleanId, sheetName + '!A1:Z1', token);
+    const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z1', token);
     const headers = data.values && data.values[0] ? data.values[0] : [];
     
     // Find column for the test
@@ -537,13 +609,14 @@ window.syncCheatToGoogleSheet = async (cheatReason) => {
     if (!config || !config.spreadsheetId) return { success: false, message: "No sheet configured" };
 
     const cleanId = extractSpreadsheetId(config.spreadsheetId);
-    const sheetName = config.studentSheetName || "Học sinh";
+    const sheetName = sessionStorage.getItem("sheet_student_tab_name") || config.studentSheetName || "Học sinh";
+    const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
     const rowIndex = sessionStorage.getItem("sheet_student_row_index");
 
     if (!rowIndex) return { success: false, message: "Không tìm thấy vị trí học sinh trên sheet" };
 
     // Fetch headers
-    const data = await fetchSheetsValues(cleanId, sheetName + '!A1:Z1', token);
+    const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z1', token);
     const headers = data.values && data.values[0] ? data.values[0] : [];
     
     const noteCol = findColumnIndex(headers, ["ghi chú"]);
