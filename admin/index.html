@@ -33,6 +33,13 @@
       }
     </script>
     <link rel="stylesheet" href="style.css">
+    <style>
+      /* Ensure select dropdown options have consistent dark background and light text */
+      select, select option {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+      }
+    </style>
   </head>
   <body class="bg-admin-dark text-slate-100 min-h-screen flex overflow-hidden">
     
@@ -352,9 +359,20 @@
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h3 class="font-bold text-white text-base"><i class="fa-solid fa-database text-blue-500 mr-2"></i>Chi tiết kho câu hỏi thi IC3</h3>
-              <button onclick="openQuestionModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-all">
-                <i class="fa-solid fa-plus"></i> Tạo câu hỏi mới
-              </button>
+              <div class="flex flex-wrap items-center gap-3">
+                <select id="filterQuestionBlock" onchange="window.adminPagination.questions=1; renderQuestionsTable()" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option value="all">Lọc theo Khối (Tất cả)</option>
+                  <option value="block_3">Khối 3</option>
+                  <option value="block_4">Khối 4</option>
+                  <option value="block_5">Khối 5</option>
+                  <option value="block_6">Khối 6</option>
+                  <option value="block_7">Khối 7</option>
+                  <option value="block_8">Khối 8</option>
+                </select>
+                <button onclick="openQuestionModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-all">
+                  <i class="fa-solid fa-plus"></i> Tạo câu hỏi mới
+                </button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm text-slate-300">
@@ -380,11 +398,22 @@
 
         <!-- ==================== TAB: TESTS ==================== -->
         <section id="tab-tests" class="tab-content space-y-6 hidden">
-          <div class="flex justify-between items-center">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h3 class="font-bold text-white text-base">Bộ đề luyện thi IC3 hiện tại</h3>
-            <button onclick="openTestModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all">
-              <i class="fa-solid fa-file-circle-plus"></i> Tạo đề kiểm tra mới
-            </button>
+            <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <select id="filterTestBlock" onchange="window.adminPagination.tests=1; renderTestsGrid()" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                <option value="all">Lọc theo Khối (Tất cả)</option>
+                <option value="block_3">Khối 3</option>
+                <option value="block_4">Khối 4</option>
+                <option value="block_5">Khối 5</option>
+                <option value="block_6">Khối 6</option>
+                <option value="block_7">Khối 7</option>
+                <option value="block_8">Khối 8</option>
+              </select>
+              <button onclick="openTestModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all">
+                <i class="fa-solid fa-file-circle-plus"></i> Tạo đề kiểm tra mới
+              </button>
+            </div>
           </div>
 
           <div id="tests-list-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -397,9 +426,14 @@
         <!-- ==================== TAB: RANKING ==================== -->
         <section id="tab-ranking" class="tab-content space-y-6 hidden">
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <div class="flex justify-between items-center mb-6">
-              <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-ranking-star text-yellow-500 mr-2"></i>Bảng xếp hạng tổng lực học sinh (Rankings)</h3>
-              <span class="text-xs text-slate-400">Xếp hạng dựa trên tổng điểm kinh nghiệm (EXP) tích lũy</span>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h3 class="font-bold text-white text-lg flex items-center gap-2"><i class="fa-solid fa-ranking-star text-yellow-500"></i>Bảng xếp hạng tổng lực học sinh (Rankings)</h3>
+                <p class="text-xs text-slate-400">Xếp hạng dựa trên tổng điểm kinh nghiệm (EXP) tích lũy</p>
+              </div>
+              <div>
+                <input type="text" id="searchRanking" placeholder="Tìm kiếm học sinh..." oninput="window.adminPagination.ranking=1; renderRankingList()" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-4 py-2 w-64 focus:outline-none focus:border-blue-500">
+              </div>
             </div>
 
             <div class="space-y-4 max-w-4xl mx-auto" id="ranking-list-full">
@@ -417,6 +451,16 @@
             <button onclick="openRewardModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all">
               <i class="fa-solid fa-gift"></i> Tạo phần thưởng mới
             </button>
+          </div>
+
+          <!-- Admin Reward Tabs -->
+          <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3" id="admin-reward-tabs-container">
+            <button onclick="window.switchAdminRewardTab('all')" id="tab-reward-btn-all" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-blue-600 text-white">Tất cả</button>
+            <button onclick="window.switchAdminRewardTab('pokemon')" id="tab-reward-btn-pokemon" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700">Pokémon</button>
+            <button onclick="window.switchAdminRewardTab('item')" id="tab-reward-btn-item" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700">Vật phẩm</button>
+            <button onclick="window.switchAdminRewardTab('avatar')" id="tab-reward-btn-avatar" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700">Avatar</button>
+            <button onclick="window.switchAdminRewardTab('frame')" id="tab-reward-btn-frame" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700">Khung</button>
+            <button onclick="window.switchAdminRewardTab('nickname')" id="tab-reward-btn-nickname" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700">Biệt hiệu</button>
           </div>
 
           <!-- Rewards Grid -->
@@ -745,6 +789,18 @@
             </div>
           </div>
           <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Phân chia theo Khối lớp (Grade Block)</label>
+            <select id="questionBlockInput" class="modal-input bg-slate-950">
+              <option value="all">Tất cả các khối</option>
+              <option value="block_3">Khối 3</option>
+              <option value="block_4">Khối 4</option>
+              <option value="block_5">Khối 5</option>
+              <option value="block_6">Khối 6</option>
+              <option value="block_7">Khối 7</option>
+              <option value="block_8">Khối 8</option>
+            </select>
+          </div>
+          <div>
             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nội dung câu hỏi</label>
             <textarea id="questionTextInput" required class="modal-input h-20" placeholder="Nhập nội dung câu hỏi luyện thi..."></textarea>
           </div>
@@ -801,6 +857,18 @@
             </div>
           </div>
           <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Phân chia theo Khối lớp (Grade Block)</label>
+            <select id="testBlockInput" class="modal-input bg-slate-950">
+              <option value="all">Tất cả các khối</option>
+              <option value="block_3">Khối 3</option>
+              <option value="block_4">Khối 4</option>
+              <option value="block_5">Khối 5</option>
+              <option value="block_6">Khối 6</option>
+              <option value="block_7">Khối 7</option>
+              <option value="block_8">Khối 8</option>
+            </select>
+          </div>
+          <div>
             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Chọn câu hỏi cho đề thi này (Giữ Ctrl để chọn nhiều)</label>
             <select id="testQuestionsInput" multiple required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white h-32 focus:outline-none focus:border-blue-500">
               <!-- Dynamically populated based on chosen level -->
@@ -820,8 +888,9 @@
     <div id="rewardModal" class="modal-overlay hidden">
       <div class="bg-slate-900 border border-slate-800 w-full max-w-md p-6 rounded-2xl shadow-2xl relative">
         <button onclick="closeRewardModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-        <h3 class="font-poppins font-bold text-lg text-white mb-6">Thêm phần thưởng săn Coins</h3>
+        <h3 id="rewardModalTitle" class="font-poppins font-bold text-lg text-white mb-6">Thêm phần thưởng săn Coins</h3>
         <form id="rewardForm" class="space-y-4">
+          <input type="hidden" id="rewardIdInput" value="">
           <div>
             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tên phần thưởng</label>
             <input type="text" id="rewardNameInput" required class="modal-input" placeholder="Voucher Trà Sữa GongCha">
@@ -829,17 +898,36 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Loại phần thưởng</label>
-              <select id="rewardTypeInput" class="modal-input bg-slate-950">
+              <select id="rewardTypeInput" onchange="window.toggleRewardPokeKeySelect()" class="modal-input bg-slate-950">
                 <option value="physical">Voucher vật lý / Quà tặng</option>
                 <option value="pokemon">Thần thú Pokémon Avatar</option>
-                <option value="frame">Khung avatar trang trí</option>
-                <option value="item">Vật phẩm tăng EXP / Buff</option>
+                <option value="avatar">Avatar hình ảnh / Emoji</option>
+                <option value="frame">Khung trang trí avatar</option>
+                <option value="nickname">Biệt hiệu / Danh hiệu học sinh</option>
+                <option value="item">Chuối Vàng Thần Kỳ 🍌 (Tiến hóa Pokemon)</option>
               </select>
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Giá trị đổi (<i class="fa-solid fa-coins text-yellow-400"></i> Coins)</label>
               <input type="number" id="rewardCostInput" required class="modal-input" placeholder="100" min="10">
             </div>
+          </div>
+          <div id="rewardPokeKeyContainer" class="hidden">
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Thần thú được mở khóa</label>
+            <select id="rewardPokeKeyInput" onchange="window.updateRewardFieldsFromPokeKey()" class="modal-input bg-slate-950">
+              <option value="pikachu">Pikachu</option>
+              <option value="charmander">Charmander</option>
+              <option value="bulbasaur">Bulbasaur</option>
+              <option value="squirtle">Squirtle</option>
+              <option value="eevee">Eevee</option>
+              <option value="snorlax">Snorlax</option>
+              <option value="gengar">Gengar</option>
+              <option value="lucario">Lucario</option>
+              <option value="dragonite">Dragonite</option>
+              <option value="mewtwo">Mewtwo</option>
+              <option value="rayquaza">Rayquaza</option>
+              <option value="arceus">Arceus</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Hình ảnh biểu thị (Link ảnh hoặc Emoji)</label>
@@ -882,6 +970,35 @@
           <div>
             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ảnh đại diện / Avatar (Link ảnh GIF/PNG hoặc Emoji)</label>
             <input type="text" id="bossAvatarInput" required class="modal-input" placeholder="https://play.pokemonshowdown.com/sprites/xyani/charizard.gif">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Xuất hiện vào các thứ (Lịch xuất hiện)</label>
+            <div class="grid grid-cols-4 gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Thứ 2" class="rounded text-red-600 bg-slate-900 border-slate-700"> T2
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Thứ 3" class="rounded text-red-600 bg-slate-900 border-slate-700"> T3
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Thứ 4" class="rounded text-red-600 bg-slate-900 border-slate-700"> T4
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Thứ 5" class="rounded text-red-600 bg-slate-900 border-slate-700"> T5
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Thứ 6" class="rounded text-red-600 bg-slate-900 border-slate-700"> T6
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Thứ 7" class="rounded text-red-600 bg-slate-900 border-slate-700"> T7
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" name="bossActiveDays" value="Chủ Nhật" class="rounded text-red-600 bg-slate-900 border-slate-700"> CN
+              </label>
+              <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="bossActiveAll" onchange="toggleAllBossDays(this.checked)" class="rounded text-red-600 bg-slate-900 border-slate-700"> All
+              </label>
+            </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Mô tả Boss</label>

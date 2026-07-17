@@ -336,7 +336,7 @@ function renderStudentsTable() {
       <td class="px-5 py-4 text-center font-bold text-xs text-emerald-400">${passedCount} bài đạt</td>
       <td class="px-5 py-4 text-right space-x-1.5 space-y-1.5 sm:space-y-0">
         <button onclick="editStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
-        <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-arrows-rotate"></i> Reset Boss</button>
+        <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-arrows-rotate"></i> Reset Lượt</button>
         <button onclick="deleteStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-trash-can"></i> Xóa</button>
       </td>
     `;
@@ -692,21 +692,39 @@ function renderQuestionsTable() {
     drag_drop: "Kéo thả ghép cặp"
   };
 
-  if (questions.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500 text-xs">Kho câu hỏi đang trống.</td></tr>`;
+  const blockLabels = {
+    block_3: "Khối 3",
+    block_4: "Khối 4",
+    block_5: "Khối 5",
+    block_6: "Khối 6",
+    block_7: "Khối 7",
+    block_8: "Khối 8"
+  };
+
+  const filterBlock = document.getElementById("filterQuestionBlock") ? document.getElementById("filterQuestionBlock").value : "all";
+  let questionsToRender = questions;
+  if (filterBlock !== "all") {
+    questionsToRender = questions.filter(q => q.blockId === filterBlock);
+  }
+
+  if (questionsToRender.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500 text-xs">Kho câu hỏi đang trống hoặc không khớp bộ lọc.</td></tr>`;
     return;
   }
 
   const currentPage = window.adminPagination.questions || 1;
-  const filtered = questions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  renderPagination(questions.length, currentPage, 'questions-pagination', 'questions');
+  const filtered = questionsToRender.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(questionsToRender.length, currentPage, 'questions-pagination', 'questions');
 
   filtered.forEach(q => {
     const tr = document.createElement("tr");
     tr.className = "hover:bg-slate-800/30 transition-all text-xs";
+    const blockText = q.blockId && blockLabels[q.blockId] ? blockLabels[q.blockId] : "Tất cả";
+    const blockBadge = `<span class="ml-1 text-[10px] text-slate-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700/50">${blockText}</span>`;
+
     tr.innerHTML = `
       <td class="px-4 py-3 font-mono font-bold text-slate-400">${q.id}</td>
-      <td class="px-4 py-3">${levelLabels[q.level] || q.level}</td>
+      <td class="px-4 py-3 flex items-center gap-1">${levelLabels[q.level] || q.level} ${blockBadge}</td>
       <td class="px-4 py-3 text-slate-300 font-semibold">${typeLabels[q.type] || q.type}</td>
       <td class="px-4 py-3 text-white font-medium max-w-sm truncate" title="${q.question}">${q.question}</td>
       <td class="px-4 py-3 text-amber-400 font-bold max-w-[120px] truncate" title="${q.answer}">${q.answer}</td>
@@ -762,6 +780,7 @@ function handleQuestionSubmit(e) {
   const question = document.getElementById("questionTextInput").value.trim();
   const answer = document.getElementById("questionAnswerInput").value.trim();
   const explanation = document.getElementById("questionExplanationInput").value.trim();
+  const blockId = document.getElementById("questionBlockInput") ? document.getElementById("questionBlockInput").value : "all";
 
   const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   
@@ -774,6 +793,7 @@ function handleQuestionSubmit(e) {
     type,
     question,
     answer,
+    blockId,
     explanation: explanation || "Tham khảo kiến thức chuẩn IC3 để giải câu hỏi này."
   };
 
@@ -854,32 +874,52 @@ function renderTestsGrid() {
     level_3: "from-purple-600 to-pink-600 bg-purple-500/10 text-purple-400 border-purple-500/20"
   };
 
-  if (tests.length === 0) {
-    gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Chưa có đề thi nào trong danh sách.</div>`;
+  const blockLabels = {
+    block_3: "Khối 3",
+    block_4: "Khối 4",
+    block_5: "Khối 5",
+    block_6: "Khối 6",
+    block_7: "Khối 7",
+    block_8: "Khối 8"
+  };
+
+  const filterBlock = document.getElementById("filterTestBlock") ? document.getElementById("filterTestBlock").value : "all";
+  let testsToRender = tests;
+  if (filterBlock !== "all") {
+    testsToRender = tests.filter(t => t.blockId === filterBlock);
+  }
+
+  if (testsToRender.length === 0) {
+    gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Chưa có đề thi nào khớp bộ lọc.</div>`;
     return;
   }
 
   const currentPage = window.adminPagination.tests || 1;
-  const filtered = tests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  renderPagination(tests.length, currentPage, 'tests-pagination', 'tests');
+  const filtered = testsToRender.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(testsToRender.length, currentPage, 'tests-pagination', 'tests');
 
   filtered.forEach(test => {
     const styleClass = levelStyles[test.level] || "from-slate-600 to-slate-800 bg-slate-800/50 border-slate-700/50";
-    
+    const blockText = test.blockId && blockLabels[test.blockId] ? blockLabels[test.blockId] : "Tất cả";
+    const blockBadge = `<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-slate-800 text-slate-300 border border-slate-700/60">${blockText}</span>`;
+
     const div = document.createElement("div");
     div.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all flex flex-col justify-between";
     div.innerHTML = `
       <div>
-        <div class="flex justify-between items-start gap-2 mb-3">
+        <div class="flex justify-between items-center gap-2 mb-3">
           <span class="px-2.5 py-1 text-[10px] font-bold rounded-full ${styleClass.split(' ').slice(2).join(' ')}">
             ${test.level === 'level_1' ? 'Level 1 Zone' : test.level === 'level_2' ? 'Level 2 Zone' : 'Level 3 Zone'}
           </span>
-          <span class="font-mono text-xs text-slate-400"><i class="fa-regular fa-clock text-blue-400 mr-1"></i>${test.duration} Phút</span>
+          ${blockBadge}
         </div>
-        <h4 class="font-poppins font-bold text-sm text-white mb-3" title="${test.title}">${test.title}</h4>
+        <div class="flex justify-between items-center mb-3">
+          <h4 class="font-poppins font-bold text-sm text-white truncate" title="${test.title}">${test.title}</h4>
+          <span class="font-mono text-xs text-slate-400 shrink-0"><i class="fa-regular fa-clock text-blue-400 mr-1"></i>${test.duration} Phút</span>
+        </div>
         <div class="space-y-1.5 mb-6 text-xs text-slate-400">
-          <div><i class="fa-solid fa-list-ol mr-1.5 text-slate-500"></i>Số câu hỏi: <span class="text-slate-200 font-bold">${test.questionCount} câu</span></div>
-          <div><i class="fa-solid fa-calculator mr-1.5 text-slate-500"></i>Thang điểm: <span class="text-slate-200 font-bold">${test.scoreVal} điểm</span></div>
+          <div><i class="fa-solid fa-list-ol mr-1.5 text-slate-500"></i>Số câu hỏi: <span class="text-slate-200 font-bold">${test.questionCount || (test.questions ? test.questions.length : 0)} câu</span></div>
+          <div><i class="fa-solid fa-calculator mr-1.5 text-slate-500"></i>Thang điểm: <span class="text-slate-200 font-bold">${test.scoreVal || 100} điểm</span></div>
         </div>
       </div>
       <div class="flex justify-end pt-3 border-t border-slate-800">
@@ -925,6 +965,7 @@ function handleTestSubmit(e) {
   const title = document.getElementById("testTitleInput").value.trim();
   const level = document.getElementById("testLevelInput").value;
   const duration = parseInt(document.getElementById("testDurationInput").value);
+  const blockId = document.getElementById("testBlockInput") ? document.getElementById("testBlockInput").value : "all";
   
   const select = document.getElementById("testQuestionsInput");
   const selectedQuestions = Array.from(select.selectedOptions).map(opt => opt.value);
@@ -942,6 +983,7 @@ function handleTestSubmit(e) {
     title,
     level,
     duration,
+    blockId,
     questionCount: selectedQuestions.length,
     questions: selectedQuestions,
     scoreVal: 100,
@@ -980,11 +1022,21 @@ function renderRankingList() {
   const paginationEl = document.getElementById("ranking-pagination");
   if (paginationEl) paginationEl.innerHTML = "";
 
+  // Filter students by search ranking
+  const searchQuery = document.getElementById("searchRanking") ? document.getElementById("searchRanking").value.trim().toLowerCase() : "";
+  let filteredStudents = [...students];
+  if (searchQuery) {
+    filteredStudents = filteredStudents.filter(std => 
+      (std.name || "").toLowerCase().includes(searchQuery) || 
+      (std.email || "").toLowerCase().includes(searchQuery)
+    );
+  }
+
   // Sort students by EXP descending
-  const sortedAll = [...students].sort((a, b) => b.exp - a.exp);
+  const sortedAll = filteredStudents.sort((a, b) => b.exp - a.exp);
 
   if (sortedAll.length === 0) {
-    listEl.innerHTML = `<div class="py-8 text-center text-slate-500 text-sm">Chưa có học sinh nào.</div>`;
+    listEl.innerHTML = `<div class="py-8 text-center text-slate-500 text-sm">Chưa có học sinh nào phù hợp tìm kiếm.</div>`;
     return;
   }
 
@@ -1057,6 +1109,35 @@ function renderRankingList() {
 
 
 // ==================== REWARDS SECTION ====================
+window.currentAdminRewardTab = "all";
+
+window.switchAdminRewardTab = function(tabId) {
+  window.currentAdminRewardTab = tabId;
+  const buttons = document.querySelectorAll("#admin-reward-tabs-container button");
+  buttons.forEach(btn => {
+    if (btn.id === `tab-reward-btn-${tabId}`) {
+      btn.classList.remove("bg-slate-800", "text-slate-300");
+      btn.classList.add("bg-blue-600", "text-white");
+    } else {
+      btn.classList.remove("bg-blue-600", "text-white");
+      btn.classList.add("bg-slate-800", "text-slate-300");
+    }
+  });
+  window.adminPagination.rewards = 1;
+  renderRewardsGrid();
+};
+
+window.toggleRewardLock = async function(id) {
+  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+  const r = rewards.find(item => item.id === id);
+  if (r) {
+    r.isLocked = !r.isLocked;
+    await window.saveData(window.IC3_KEYS.REWARDS, rewards, id);
+    window.showToast(r.isLocked ? "Đã khóa phần quà thành công!" : "Đã mở khóa phần quà thành công!", "success");
+    renderRewardsGrid();
+  }
+};
+
 function renderRewardsGrid() {
   const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
   const gridEl = document.getElementById("admin-rewards-grid");
@@ -1065,14 +1146,20 @@ function renderRewardsGrid() {
   const paginationEl = document.getElementById("rewards-pagination");
   if (paginationEl) paginationEl.innerHTML = "";
 
-  if (rewards.length === 0) {
-    gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Cửa hàng phần quà đang trống.</div>`;
+  const selectedTab = window.currentAdminRewardTab || "all";
+  let rewardsToRender = rewards;
+  if (selectedTab !== "all") {
+    rewardsToRender = rewards.filter(r => r.type === selectedTab);
+  }
+
+  if (rewardsToRender.length === 0) {
+    gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Cửa hàng phần quà đang trống cho danh mục này.</div>`;
     return;
   }
 
   const currentPage = window.adminPagination.rewards || 1;
-  const filtered = rewards.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  renderPagination(rewards.length, currentPage, 'rewards-pagination', 'rewards');
+  const filtered = rewardsToRender.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(rewardsToRender.length, currentPage, 'rewards-pagination', 'rewards');
 
   filtered.forEach(r => {
     // Check if link or symbol for illustration
@@ -1081,11 +1168,16 @@ function renderRewardsGrid() {
       imgRender = `<img src="${r.image}" class="w-14 h-14 object-contain" alt="${r.name}">`;
     }
 
+    const lockBadge = r.isLocked ? `<span class="absolute top-2 right-2 bg-red-600/85 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1 shadow-md"><i class="fa-solid fa-lock text-[8px]"></i> Đã Khóa</span>` : '';
+    const lockBtnClass = r.isLocked ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20" : "bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border border-yellow-500/20";
+    const lockBtnText = r.isLocked ? `<i class="fa-solid fa-lock-open mr-1"></i> Mở khóa` : `<i class="fa-solid fa-lock mr-1"></i> Khóa`;
+
     const div = document.createElement("div");
     div.className = "bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-700 transition-all";
     div.innerHTML = `
       <div>
-        <div class="w-full h-24 rounded-xl bg-slate-950 flex items-center justify-center border border-slate-800/80 mb-3 shadow-inner">
+        <div class="w-full h-24 rounded-xl bg-slate-950 flex items-center justify-center border border-slate-800/80 mb-3 shadow-inner relative">
+          ${lockBadge}
           ${imgRender}
         </div>
         <div class="flex justify-between items-start gap-2 mb-1.5">
@@ -1094,7 +1186,13 @@ function renderRewardsGrid() {
         </div>
         <p class="text-[10px] text-slate-400 leading-relaxed mb-4 min-h-[30px] line-clamp-2">${r.desc}</p>
       </div>
-      <div class="flex justify-end pt-3 border-t border-slate-800">
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button onclick="window.toggleRewardLock('${r.id}')" class="px-2.5 py-1 text-[10px] font-bold rounded transition-all ${lockBtnClass}">
+          ${lockBtnText}
+        </button>
+        <button onclick="openRewardModal('${r.id}')" class="px-2.5 py-1 text-[10px] font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded transition-all">
+          <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa quà
+        </button>
         <button onclick="deleteReward('${r.id}')" class="px-2.5 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-all">
           <i class="fa-solid fa-trash-can mr-1"></i> Xóa quà
         </button>
@@ -1104,9 +1202,107 @@ function renderRewardsGrid() {
   });
 }
 
-function openRewardModal() {
+window.toggleRewardPokeKeySelect = function() {
+  const typeVal = document.getElementById("rewardTypeInput").value;
+  const container = document.getElementById("rewardPokeKeyContainer");
+  const nameInput = document.getElementById("rewardNameInput");
+  const imageInput = document.getElementById("rewardImageInput");
+  const descInput = document.getElementById("rewardDescInput");
+  const costInput = document.getElementById("rewardCostInput");
+  const idInput = document.getElementById("rewardIdInput");
+
+  if (typeVal === "pokemon") {
+    container.classList.remove("hidden");
+    if (!idInput.value) {
+       // Only auto-fill if we are creating a new reward
+       descInput.value = "Mở khóa Pokémon này để sử dụng làm Avatar thám hiểm của bạn!";
+       costInput.value = 300;
+    }
+  } else {
+    container.classList.add("hidden");
+    if (!idInput.value) {
+      if (typeVal === "item") {
+        nameInput.value = "Chuối Vàng Thần Kỳ 🍌";
+        imageInput.value = "🍌";
+        descInput.value = "Chuối Vàng chứa năng lượng vũ trụ! Cho Pokémon ăn tại mục Tiến Hóa để thăng cấp.";
+        costInput.value = 50;
+      } else if (typeVal === "avatar") {
+        descInput.value = "Mở khóa Avatar mới để thể hiện phong cách của bạn!";
+        costInput.value = 150;
+      } else if (typeVal === "frame") {
+        descInput.value = "Mở khóa Khung trang trí Avatar siêu đẹp!";
+        costInput.value = 200;
+      } else if (typeVal === "nickname") {
+        descInput.value = "Mở khóa Biệt hiệu mới cực ngầu!";
+        costInput.value = 100;
+      }
+    }
+  }
+};
+
+window.updateRewardFieldsFromPokeKey = function() {
+  const pokeKey = document.getElementById("rewardPokeKeyInput").value;
+  const nameInput = document.getElementById("rewardNameInput");
+  const imageInput = document.getElementById("rewardImageInput");
+  const idInput = document.getElementById("rewardIdInput");
+  
+  if (!idInput.value) {
+    const pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+    const p = pokemons.find(item => item.id === pokeKey);
+    if (p) {
+      nameInput.value = `Thần thú: ${p.name}`;
+      imageInput.value = p.avatar || "🥚";
+    }
+  }
+};
+
+function openRewardModal(id = null) {
   const modal = document.getElementById("rewardModal");
   document.getElementById("rewardForm").reset();
+  
+  const titleEl = document.getElementById("rewardModalTitle");
+  const submitBtnEl = document.querySelector("#rewardForm button[type='submit']");
+  const idInput = document.getElementById("rewardIdInput");
+  
+  const typeSelect = document.getElementById("rewardTypeInput");
+  const pokeContainer = document.getElementById("rewardPokeKeyContainer");
+  const pokeSelect = document.getElementById("rewardPokeKeyInput");
+
+  // Dynamically populate Pokémon selection dropdown from cached pokemons
+  const pokemons = window.IC3_CACHE[window.IC3_KEYS.POKEMONS] || [];
+  if (pokeSelect) {
+    pokeSelect.innerHTML = pokemons.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join("");
+  }
+
+  if (id && typeof id === "string") {
+    titleEl.innerText = "Sửa phần thưởng đổi Coins";
+    submitBtnEl.innerText = "Cập nhật phần quà";
+    idInput.value = id;
+    
+    const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+    const r = rewards.find(item => item.id === id);
+    if (r) {
+      document.getElementById("rewardNameInput").value = r.name || "";
+      typeSelect.value = r.type || "physical";
+      document.getElementById("rewardCostInput").value = r.cost || 100;
+      document.getElementById("rewardImageInput").value = r.image || "";
+      document.getElementById("rewardDescInput").value = r.desc || "";
+      
+      if (r.type === "pokemon") {
+        const pokeKey = r.id.replace("reward_", "");
+        pokeSelect.value = pokeKey;
+        pokeContainer.classList.remove("hidden");
+      } else {
+        pokeContainer.classList.add("hidden");
+      }
+    }
+  } else {
+    titleEl.innerText = "Thêm phần thưởng săn Coins";
+    submitBtnEl.innerText = "Thêm phần quà";
+    idInput.value = "";
+    pokeContainer.classList.add("hidden");
+  }
+  
   modal.classList.remove("hidden");
 }
 
@@ -1116,26 +1312,85 @@ function closeRewardModal() {
 
 function handleRewardSubmit(e) {
   e.preventDefault();
+  const idInput = document.getElementById("rewardIdInput");
+  const editId = idInput ? idInput.value : "";
+  
   const name = document.getElementById("rewardNameInput").value.trim();
   const type = document.getElementById("rewardTypeInput").value;
   const cost = parseInt(document.getElementById("rewardCostInput").value);
   const image = document.getElementById("rewardImageInput").value.trim();
   const desc = document.getElementById("rewardDescInput").value.trim();
 
-  const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
-  const newId = `reward_custom_${Date.now().toString().slice(-6)}`;
+  let rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+  
+  let targetId = editId;
+  if (!targetId) {
+    if (type === "pokemon") {
+      const pokeKey = document.getElementById("rewardPokeKeyInput").value;
+      targetId = `reward_${pokeKey}`;
+    } else if (type === "item") {
+      targetId = "reward_banana";
+    } else {
+      targetId = `reward_custom_${Date.now().toString().slice(-6)}`;
+    }
+    
+    // Check if duplicate ID exists
+    if (rewards.some(r => r.id === targetId)) {
+      window.showToast("Phần quà cho Thần thú hoặc loại này đã tồn tại!", "error");
+      return;
+    }
 
-  const newReward = {
-    id: newId,
-    name,
-    type,
-    cost,
-    image,
-    desc
-  };
-
-  rewards.push(newReward);
-  window.saveData(window.IC3_KEYS.REWARDS, rewards, newId);
+    const newReward = {
+      id: targetId,
+      name,
+      type,
+      cost,
+      image,
+      desc
+    };
+    rewards.push(newReward);
+    window.saveData(window.IC3_KEYS.REWARDS, rewards, targetId);
+    window.showToast("Thêm phần quà mới thành công!", "success");
+  } else {
+    // Edit mode
+    const idx = rewards.findIndex(r => r.id === editId);
+    if (idx !== -1) {
+      let finalId = editId;
+      if (type === "pokemon") {
+        const pokeKey = document.getElementById("rewardPokeKeyInput").value;
+        finalId = `reward_${pokeKey}`;
+      } else if (type === "item") {
+        finalId = "reward_banana";
+      } else if (editId.startsWith("reward_") && !editId.startsWith("reward_custom_") && editId !== "reward_banana") {
+        finalId = `reward_custom_${Date.now().toString().slice(-6)}`;
+      }
+      
+      const updatedReward = {
+        ...rewards[idx],
+        id: finalId,
+        name,
+        type,
+        cost,
+        image,
+        desc
+      };
+      
+      if (finalId !== editId) {
+        // ID changed
+        if (rewards.some((r, i) => i !== idx && r.id === finalId)) {
+          window.showToast("Phần quà cho Thần thú hoặc loại này đã tồn tại!", "error");
+          return;
+        }
+        rewards[idx] = updatedReward;
+        window.deleteData(window.IC3_KEYS.REWARDS, editId);
+        window.saveData(window.IC3_KEYS.REWARDS, rewards, finalId);
+      } else {
+        rewards[idx] = updatedReward;
+        window.saveData(window.IC3_KEYS.REWARDS, rewards, editId);
+      }
+      window.showToast("Cập nhật phần quà thành công!", "success");
+    }
+  }
 
   closeRewardModal();
   renderRewardsGrid();
@@ -1255,6 +1510,27 @@ function saveAdminSettings() {
 }
 
 // ==================== BOSS MANAGEMENT OPERATIONS ====================
+window.toggleAllBossDays = function(checked) {
+  const checkboxes = document.querySelectorAll('input[name="bossActiveDays"]');
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+  });
+};
+
+window.resetBossHp = async function(id) {
+  let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
+  const boss = bosses.find(b => b.id === id);
+  if (boss) {
+    boss.hp = boss.maxHp;
+    if (boss.hasOwnProperty('isDefeated')) {
+      boss.isDefeated = false;
+    }
+    await window.saveData(window.IC3_KEYS.BOSSES, bosses, id);
+    window.showToast(`Đã hồi sinh và reset HP của ${boss.name} thành công!`, "success");
+    renderBossesGrid();
+  }
+};
+
 function renderBossesGrid() {
   const container = document.getElementById("admin-bosses-grid");
   if (!container) return;
@@ -1268,10 +1544,10 @@ function renderBossesGrid() {
   if (bosses.length === 0) {
     // Seed default bosses
     const defaultBosses = [
-      { id: "boss_1", name: "Thần Cây Dữ Liệu 🌳", hp: 500, maxHp: 500, avatar: "🌳", desc: "Đối thủ tin học căn bản đầu tiên thách thức kỹ năng cấu trúc thư mục của bạn." },
-      { id: "boss_2", name: "Người Máy Siêu Việt 🤖", hp: 800, maxHp: 800, avatar: "🤖", desc: "Thách thức các ứng dụng văn phòng Microsoft Word & Excel đỉnh cao." },
-      { id: "boss_3", name: "Rồng Hỏa Ngục An Ninh 👾", hp: 1200, maxHp: 1200, avatar: "👾", desc: "Ngự trị vùng đất bảo mật thông tin và an toàn không gian mạng." },
-      { id: "boss_4", name: "Phù Thủy Thuật Toán 🔮", hp: 1500, maxHp: 1500, avatar: "🔮", desc: "Sở hữu ma thuật giải thuật toán tin học đỉnh cao." }
+      { id: "boss_1", name: "Thần Cây Dữ Liệu 🌳", hp: 500, maxHp: 500, avatar: "🌳", desc: "Đối thủ tin học căn bản đầu tiên thách thức kỹ năng cấu trúc thư mục của bạn.", activeDays: ["Thứ 2", "Thứ 4", "Thứ 6"] },
+      { id: "boss_2", name: "Người Máy Siêu Việt 🤖", hp: 800, maxHp: 800, avatar: "🤖", desc: "Thách thức các ứng dụng văn phòng Microsoft Word & Excel đỉnh cao.", activeDays: ["Thứ 3", "Thứ 5", "Thứ 7"] },
+      { id: "boss_3", name: "Rồng Hỏa Ngục An Ninh 👾", hp: 1200, maxHp: 1200, avatar: "👾", desc: "Ngự trị vùng đất bảo mật thông tin và an toàn không gian mạng.", activeDays: ["Thứ 2", "Thứ 5", "Chủ Nhật"] },
+      { id: "boss_4", name: "Phù Thủy Thuật Toán 🔮", hp: 1500, maxHp: 1500, avatar: "🔮", desc: "Sở hữu ma thuật giải thuật toán tin học đỉnh cao.", activeDays: ["Chủ Nhật"] }
     ];
     window.saveData(window.IC3_KEYS.BOSSES, defaultBosses, defaultBosses.map(b => b.id));
     window.IC3_CACHE[window.IC3_KEYS.BOSSES] = defaultBosses;
@@ -1284,7 +1560,7 @@ function renderBossesGrid() {
 
   filtered.forEach(boss => {
     const card = document.createElement("div");
-    card.className = "bg-slate-950 border border-indigo-950/50 p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-lg hover:border-red-500/30 transition-all";
+    card.className = "bg-slate-950 border border-indigo-950/50 p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-lg hover:border-red-500/30 transition-all relative";
     
     // Check if avatar is an emoji or link
     const isEmoji = !boss.avatar.startsWith("http");
@@ -1292,19 +1568,41 @@ function renderBossesGrid() {
       ? `<span class="text-5xl select-none">${boss.avatar}</span>`
       : `<img src="${boss.avatar}" alt="${boss.name}" class="w-16 h-16 rounded-xl object-contain shadow-md" referrerPolicy="no-referrer" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">`;
 
+    const scheduleText = boss.activeDays && boss.activeDays.length > 0 ? boss.activeDays.join(", ") : "Hàng ngày";
+    const hpPercentage = Math.max(0, Math.min(100, (boss.hp / boss.maxHp) * 100));
+    const isDefeated = boss.hp <= 0;
+
+    let resetBtnHtml = '';
+    if (isDefeated) {
+      resetBtnHtml = `
+        <button onclick="window.resetBossHp('${boss.id}')" class="absolute -top-2.5 -right-2.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black rounded-xl shadow-xl flex items-center gap-1.5 border-2 border-white/20 animate-pulse transition-all z-10">
+          <i class="fa-solid fa-rotate-left"></i> Reset HP (Đã bị tiêu diệt)
+        </button>
+      `;
+    }
+
     card.innerHTML = `
+      ${resetBtnHtml}
       <div class="flex items-center gap-4">
         <div class="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
           ${avatarHtml}
         </div>
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <h4 class="font-poppins font-bold text-sm text-white truncate">${boss.name}</h4>
           <span class="inline-block px-2 py-0.5 mt-1 bg-red-950/50 border border-red-900/30 text-red-400 text-[10px] font-bold rounded-full">
             HP: ${boss.hp}/${boss.maxHp}
           </span>
+          <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mt-1.5 border border-slate-800/50">
+            <div class="bg-red-500 h-full" style="width: ${hpPercentage}%"></div>
+          </div>
         </div>
       </div>
       <p class="text-[11px] text-slate-400 leading-relaxed min-h-[3rem]">${boss.desc || "Không có mô tả."}</p>
+      
+      <div class="text-[10px] text-slate-500 flex items-center gap-1">
+        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Lịch: <span class="text-indigo-300 font-semibold truncate" title="${scheduleText}">${scheduleText}</span>
+      </div>
+
       <div class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-900">
         <button onclick="openBossModal('${boss.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1">
           <i class="fa-solid fa-pen-to-square"></i> Sửa
@@ -1326,6 +1624,12 @@ function openBossModal(id = null) {
   form.reset();
 
   const titleEl = document.getElementById("bossModalTitle");
+  
+  // Reset all activeDays checkboxes
+  const checkboxes = document.querySelectorAll('input[name="bossActiveDays"]');
+  checkboxes.forEach(cb => cb.checked = false);
+  const allCheckbox = document.getElementById("bossActiveAll");
+  if (allCheckbox) allCheckbox.checked = false;
 
   if (id) {
     // Edit mode
@@ -1339,6 +1643,20 @@ function openBossModal(id = null) {
       document.getElementById("bossHpInput").value = boss.hp;
       document.getElementById("bossAvatarInput").value = boss.avatar;
       document.getElementById("bossDescInput").value = boss.desc || "";
+
+      if (boss.activeDays && Array.isArray(boss.activeDays)) {
+        checkboxes.forEach(cb => {
+          if (boss.activeDays.includes(cb.value)) {
+            cb.checked = true;
+          }
+        });
+        
+        // If all 7 are checked, set "All" to true
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        if (allCheckbox && checkedCount === checkboxes.length) {
+          allCheckbox.checked = true;
+        }
+      }
     }
   } else {
     // Add mode
@@ -1364,19 +1682,22 @@ function handleBossSubmit(e) {
   const avatar = document.getElementById("bossAvatarInput").value;
   const desc = document.getElementById("bossDescInput").value;
 
+  const checkboxes = document.querySelectorAll('input[name="bossActiveDays"]');
+  const activeDays = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
   let bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
 
   if (id) {
     // Edit
     const bIdx = bosses.findIndex(b => b.id === id);
     if (bIdx !== -1) {
-      bosses[bIdx] = { id, name, maxHp, hp, avatar, desc };
+      bosses[bIdx] = { id, name, maxHp, hp, avatar, desc, activeDays };
       window.saveData(window.IC3_KEYS.BOSSES, bosses, id);
     }
   } else {
     // Add
     const newId = `boss_${Date.now()}`;
-    bosses.push({ id: newId, name, maxHp, hp, avatar, desc });
+    bosses.push({ id: newId, name, maxHp, hp, avatar, desc, activeDays });
     window.saveData(window.IC3_KEYS.BOSSES, bosses, newId);
   }
 
@@ -1477,7 +1798,7 @@ window.downloadSheetTemplate = downloadSheetTemplate;
 
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  adjustQuestionAnswers, checkAdminAuth, closeBossModal, closeQuestionModal, closeRewardModal, closeStudentModal, closeTeacherModal, closeTestModal, deleteBoss, deleteQuestion, deleteReward, deleteStudent, deleteTeacher, deleteTest, downloadSheetTemplate, editStudent, filterQuestionsForTestSelection, getBossHuntDayKey, handleBossSubmit, handleQuestionSubmit, handleRewardSubmit, handleStudentSubmit, handleTeacherSubmit, handleTestSubmit, initClock, initDashboard, logoutAdmin, openBossModal, openQuestionModal, openRewardModal, openStudentModal, openTeacherModal, openTestModal, renderAdminSettings, renderBossesGrid, renderDashboardRecentScores, renderDashboardTopStudents, renderQuestionsTable, renderRankingList, renderRewardsGrid, renderStudentsTable, renderTeachersGrid, renderTestsGrid, resetDatabaseToDefault, saveAdminSettings, startAdminApp, switchTab, updateLevelsQuestionCount
+  adjustQuestionAnswers, checkAdminAuth, closeBossModal, closeQuestionModal, closeRewardModal, closeStudentModal, closeTeacherModal, closeTestModal, deleteBoss, deleteQuestion, deleteReward, deleteStudent, deleteTeacher, deleteTest, downloadSheetTemplate, editStudent, filterQuestionsForTestSelection, getBossHuntDayKey, handleBossSubmit, handleQuestionSubmit, handleRewardSubmit, handleStudentSubmit, handleTeacherSubmit, handleTestSubmit, initClock, initDashboard, logoutAdmin, openBossModal, openQuestionModal, openRewardModal, openStudentModal, openTeacherModal, openTestModal, renderAdminSettings, renderBossesGrid, renderDashboardRecentScores, renderDashboardTopStudents, renderQuestionsTable, renderRankingList, renderRewardsGrid, renderStudentsTable, renderTeachersGrid, renderTestsGrid, resetDatabaseToDefault, saveAdminSettings, startAdminApp, switchTab, updateLevelsQuestionCount, toggleRewardPokeKeySelect, updateRewardFieldsFromPokeKey
 });
 
 // ==========================================

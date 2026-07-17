@@ -335,7 +335,7 @@ function renderClassStudentsTable() {
             <i class="fa-solid fa-eye"></i> Lịch sử
           </button>
           <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/20 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded transition-all cursor-pointer">
-            <i class="fa-solid fa-arrows-rotate"></i> Reset Boss
+            <i class="fa-solid fa-arrows-rotate"></i> Reset Lượt Săn
           </button>
           <button onclick="removeStudentFromClass('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/20 text-red-600 hover:bg-red-100 border border-red-200 rounded transition-all cursor-pointer">
             <i class="fa-solid fa-user-minus"></i> Xóa

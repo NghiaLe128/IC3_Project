@@ -208,6 +208,16 @@ window.getPokemonSpriteUrl = function(formName) {
     return `https://projectpokemon.org/images/normal-sprite/${name}.gif`;
 };
 
+window.getEvolutionSpriteUrl = function(pokeKey, stageIndex, formName) {
+    if (window.evoImagesMap && window.evoImagesMap[pokeKey] && window.evoImagesMap[pokeKey][stageIndex]) {
+        const customUrl = window.evoImagesMap[pokeKey][stageIndex];
+        if (customUrl && customUrl.trim().startsWith("http")) {
+            return customUrl.trim();
+        }
+    }
+    return window.getPokemonSpriteUrl(formName);
+};
+
 window.useEvolutionForm = async function(formName) {
     if (!currentStudent) return;
     currentStudent.pokemon = formName;
@@ -284,8 +294,9 @@ window.renderEvolutionSlideshow = function() {
     }
     
     if (avatarEl) {
-        // ALWAYS use 3D Showdown GIF for beautiful preview
-        avatarEl.src = window.getPokemonSpriteUrl(slideTargetName);
+        // ALWAYS use 3D Showdown GIF or custom URL for beautiful preview
+        const customUrl = window.getEvolutionSpriteUrl(pokeKey, window.currentEvolutionIndex, slideTargetName);
+        avatarEl.src = customUrl;
         avatarEl.classList.remove("hidden");
         avatarEl.onerror = function() {
             this.src = `https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif`;
@@ -457,6 +468,7 @@ window.feedBananaToPokemon = async function() {
     if (idx !== -1) {
         students[idx] = currentStudent;
         const res = await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+        localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
         if (res.success) {
             window.showToast(`Ngon quá! 🍌 Pokémon đã ăn 1 quả Chuối Vàng (${currentStudent.pokemonFedBananas}/${targetBananas})`);
             window.confetti({ particleCount: 30, spread: 40 });
@@ -512,6 +524,7 @@ window.triggerEvolvePokemon = async function() {
     if (idx !== -1) {
         students[idx] = currentStudent;
         const res = await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+        localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
         if (res.success) {
             window.showToast(`Chúc mừng! Pokémon của bạn đã tiến hóa thành thành công! 🎉`);
             window.confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -860,6 +873,28 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function startStudentApp() {
+  // Load custom evolutions from Cloud/Firestore
+  try {
+    const colRef = window.fStore.collection(window.db, "pokemonEvolutions");
+    const snapshot = await window.fStore.getDocs(colRef);
+    const customEvoMap = {};
+    const customEvoImagesMap = {};
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.forms) {
+        customEvoMap[docSnap.id] = data.forms;
+      }
+      if (data.images) {
+        customEvoImagesMap[docSnap.id] = data.images;
+      }
+    });
+    Object.assign(window.evoMap, customEvoMap);
+    window.evoImagesMap = customEvoImagesMap;
+    console.log("Loaded custom pokemonEvolutions successfully", window.evoMap, window.evoImagesMap);
+  } catch (e) {
+    console.error("Error loading pokemonEvolutions on student side:", e);
+  }
+
   await checkStudentAuth();
   loadStudentProfile();
   applySavedTheme();
@@ -2233,8 +2268,9 @@ function finishBossHunt() {
   if (idx !== -1) {
     students[idx] = currentStudent;
     window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+    localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
   }
-
+  
   // Save Boss persistent HP
   if (bossActivePlayingTest && bossActivePlayingTest.bossId) {
     const bosses = window.IC3_CACHE[window.IC3_KEYS.BOSSES] || [];
@@ -2273,6 +2309,7 @@ function revivePokemonInBossHunt() {
   if (idx !== -1) {
     students[idx] = currentStudent;
     window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+    localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
   }
   
   // Hide revival screen
@@ -3200,7 +3237,7 @@ function renderEvolutionInInventory() {
                     <span class="text-[10px] font-black text-indigo-400 tracking-widest uppercase mb-1 block" id="evo-stage-text-inv">${stageText}</span>
                     <div class="h-40 flex justify-center mb-4 items-center relative perspective-500">
                         <div class="absolute w-28 h-28 rounded-full bg-gradient-to-tr from-yellow-500/10 to-indigo-500/20 blur-xl animate-pulse"></div>
-                        <img id="evo-target-avatar-inv" src="${window.getPokemonSpriteUrl(slideTargetName)}" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif'">
+                        <img id="evo-target-avatar-inv" src="${window.getEvolutionSpriteUrl(pokeKey, window.currentEvolutionIndex, slideTargetName)}" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif'">
                         <div id="evo-lock-overlay-inv" class="absolute inset-0 flex items-center justify-center bg-slate-950/60 rounded-full hidden z-20">
                             <span class="text-white text-3xl drop-shadow-md"><i class="fa-solid fa-lock text-red-500"></i></span>
                         </div>
@@ -5445,23 +5482,19 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
   const titleEl = document.getElementById("victory-title");
   const iconWrapperEl = document.getElementById("victory-icon-wrapper");
   const iconEl = document.getElementById("victory-icon");
-  const scoreBadgeEl = document.getElementById("victory-score");
   
   if (titleEl && iconWrapperEl && iconEl) {
     if (correctCount < 20) {
-      // QUÁ YẾU
       titleEl.innerText = "QUÁ YẾU 😭";
       titleEl.className = "font-poppins font-black text-2xl text-red-500 tracking-wide uppercase mb-1";
       iconWrapperEl.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-red-500 via-rose-600 to-red-800 p-0.5 shadow-xl shadow-red-500/30 animate-shake mb-6";
       iconEl.innerText = "💀";
     } else if (wrongCount >= 5) {
-      // THẤT BẠI
       titleEl.innerText = "THẤT BẠI 😢";
       titleEl.className = "font-poppins font-black text-2xl text-orange-500 tracking-wide uppercase mb-1";
       iconWrapperEl.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-orange-400 via-red-500 to-rose-500 p-0.5 shadow-xl shadow-orange-500/30 mb-6";
       iconEl.innerText = "💥";
     } else {
-      // VICTORY
       titleEl.innerText = "🎉 VICTORY SCREEN 🎉";
       titleEl.className = "font-poppins font-black text-2xl text-yellow-400 tracking-wide uppercase mb-1";
       iconWrapperEl.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-yellow-400 via-orange-500 to-pink-500 p-0.5 shadow-xl shadow-yellow-500/30 animate-bounce mb-6";
@@ -5508,7 +5541,7 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
 
 function closeVictoryScreen() {
   document.getElementById("game-victory-screen").classList.add("hidden");
-  window.lastTestEligibility = null; // Clear if they skip
+  window.lastTestEligibility = null;
   loadStudentProfile();
   renderBattleArena();
 }
@@ -5524,44 +5557,45 @@ function renderRewardsStore() {
   const grid = document.getElementById("student-rewards-store-grid");
   if (grid) grid.innerHTML = "";
 
-  // Always use standard, corrected, up-to-date rewards templates
-  const rewards = [
-    // Pokémon (Category: pokemon)
-    { id: "reward_bulbasaur", type: "pokemon", name: "Bulbasaur (Hạt Giống)", image: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Thuộc tính: Cỏ / Độc 🍃\nHP: 45 | ATK: 49 | DEF: 49\nNgười bạn đồng hành tuyệt vời cho người mới bắt đầu.", cost: 100, reqMode: "buy" },
-    { id: "reward_charmander", type: "pokemon", name: "Charmander (Thằn Lằn Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nNhanh nhẹn và mạnh mẽ trong chiến đấu.", cost: 100, reqMode: "buy" },
-    { id: "reward_squirtle", type: "pokemon", name: "Squirtle (Rùa Nước)", image: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Thuộc tính: Nước 💧\nHP: 44 | ATK: 48 | DEF: 65\nPhòng thủ cực tốt với lớp mai cứng.", cost: 100, reqMode: "buy" },
-    { id: "reward_pikachu", type: "pokemon", name: "Pichu Sơ Sinh", image: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Thuộc tính: Điện ⚡\nHP: 20 | ATK: 40 | DEF: 15\nNhanh như chớp, biểu tượng của sự nhanh nhẹn.", cost: 150, reqMode: "buy" },
-    { id: "reward_eevee", type: "pokemon", name: "Eevee (Tiến Hóa)", image: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Thuộc tính: Thường 🌟\nHP: 55 | ATK: 55 | DEF: 50\nTiềm năng tiến hóa vô hạn.", cost: 200, reqMode: "buy" },
-    { id: "reward_snorlax", type: "pokemon", name: "Munchlax (Khổng Lồ Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/munchlax.gif", desc: "Thuộc tính: Thường 🌟\nHP: 135 | ATK: 85 | DEF: 40\nHáu ăn và cực kỳ đáng yêu, tiềm năng sức mạnh khổng lồ.", cost: 500, reqMode: "buy" },
-    { id: "reward_gengar", type: "pokemon", name: "Gastly (Bóng Ma Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/gastly.gif", desc: "Thuộc tính: Ma / Độc 👻\nHP: 30 | ATK: 35 | DEF: 30\nKẻ tinh nghịch trong bóng tối, tiềm năng ma thuật vô hạn.", cost: 600, reqMode: "buy" },
-    { id: "reward_lucario", type: "pokemon", name: "Riolu (Chiến Binh Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/riolu.gif", desc: "Thuộc tính: Giác Đấu ⚔️\nHP: 40 | ATK: 70 | DEF: 40\nCảm nhận hào quang, dũng cảm và trung thành tuyệt đối.", cost: 800, reqMode: "buy" },
-    { id: "reward_charizard", type: "pokemon", name: "Charizard (Thống Lĩnh)", image: "https://play.pokemonshowdown.com/sprites/xyani/charizard.gif", desc: "Thuộc tính: Lửa / Bay 🔥🍃\nHP: 78 | ATK: 84 | DEF: 78\nThần thú rồng lửa kiêu hãnh thăng hoa từ ngọn lửa vĩnh cửu. Nhận từ Boss Vua Thống Lĩnh IC3.", cost: 9999, reqMode: "boss" },
-    { id: "reward_dragonite", type: "pokemon", name: "Dratini (Rồng Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/dratini.gif", desc: "Thuộc tính: Rồng 🐉\nHP: 41 | ATK: 64 | DEF: 45\nSinh vật thần thoại. Thưởng từ Boss Rồng Hỏa Ngục.", cost: 9999, reqMode: "boss" },
-    { id: "reward_mewtwo", type: "pokemon", name: "Mewtwo (Tối Thượng)", image: "https://play.pokemonshowdown.com/sprites/xyani/mewtwo.gif", desc: "Thuộc tính: Tâm Linh 🔮\nHP: 106 | ATK: 110 | DEF: 90\nChúa tể trí tuệ. Yêu cầu: Hạ gục Phù Thủy Thuật Toán.", cost: 9999, reqMode: "boss" },
-    
-    // Items (Category: item)
-    { id: "reward_banana", type: "item", name: "Chuối Vàng Thần Kỳ 🍌", image: "🍌", desc: "Chuối Vàng chứa năng lượng vũ trụ siêu đặc biệt! Cho Pokémon của bạn ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp.", cost: 50, reqMode: "buy" },
-    { id: "reward_potion", type: "item", name: "Thuốc Hồi Phục 🧪", image: "🧪", desc: "Phục hồi 50 HP ngay lập tức trong trận đấu Boss (Sắp ra mắt).", cost: 30, reqMode: "buy" },
-    
-    // Avatars (Category: avatar)
-    { id: "reward_av_1", type: "avatar", name: "Phi hành gia 🧑‍🚀", image: "🧑‍🚀", desc: "Khám phá vũ trụ tri thức IC3.", cost: 100, reqMode: "buy" },
-    { id: "reward_av_2", type: "avatar", name: "Rồng lửa 🐲", image: "🐲", desc: "Sức mạnh từ ngọn lửa vĩnh cửu.", cost: 150, reqMode: "buy" },
-    { id: "reward_av_3", type: "avatar", name: "Kỹ sư nhí 👷", image: "👷", desc: "Làm chủ công nghệ tương lai.", cost: 120, reqMode: "buy" },
-    { id: "reward_av_4", type: "avatar", name: "Siêu nhân IC3 🦸", image: "🦸", desc: "Người bảo vệ hòa bình thế giới số.", cost: 200, reqMode: "buy" },
+  // Load rewards templates dynamically from cache, falling back to defaults if empty
+  let rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+  if (rewards.length === 0) {
+    rewards = [
+      // Pokémon (Category: pokemon)
+      { id: "reward_bulbasaur", type: "pokemon", name: "Bulbasaur (Hạt Giống)", image: "https://play.pokemonshowdown.com/sprites/xyani/bulbasaur.gif", desc: "Thuộc tính: Cỏ / Độc 🍃\nHP: 45 | ATK: 49 | DEF: 49\nNgười bạn đồng hành tuyệt vời cho người mới bắt đầu.", cost: 100, reqMode: "buy" },
+      { id: "reward_charmander", type: "pokemon", name: "Charmander (Thằn Lằn Lửa)", image: "https://play.pokemonshowdown.com/sprites/xyani/charmander.gif", desc: "Thuộc tính: Lửa 🔥\nHP: 39 | ATK: 52 | DEF: 43\nNhanh nhẹn và mạnh mẽ trong chiến đấu.", cost: 100, reqMode: "buy" },
+      { id: "reward_squirtle", type: "pokemon", name: "Squirtle (Rùa Nước)", image: "https://play.pokemonshowdown.com/sprites/xyani/squirtle.gif", desc: "Thuộc tính: Nước 💧\nHP: 44 | ATK: 48 | DEF: 65\nPhòng thủ cực tốt với lớp mai cứng.", cost: 100, reqMode: "buy" },
+      { id: "reward_pikachu", type: "pokemon", name: "Pichu Sơ Sinh", image: "https://play.pokemonshowdown.com/sprites/xyani/pichu.gif", desc: "Thuộc tính: Điện ⚡\nHP: 20 | ATK: 40 | DEF: 15\nNhanh như chớp, biểu tượng của sự nhanh nhẹn.", cost: 150, reqMode: "buy" },
+      { id: "reward_eevee", type: "pokemon", name: "Eevee (Tiến Hóa)", image: "https://play.pokemonshowdown.com/sprites/xyani/eevee.gif", desc: "Thuộc tính: Thường 🌟\nHP: 55 | ATK: 55 | DEF: 50\nTiềm năng tiến hóa vô hạn.", cost: 200, reqMode: "buy" },
+      { id: "reward_snorlax", type: "pokemon", name: "Munchlax (Khổng Lồ Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/munchlax.gif", desc: "Thuộc tính: Thường 🌟\nHP: 135 | ATK: 85 | DEF: 40\nHáu ăn và cực kỳ đáng yêu, tiềm năng sức mạnh khổng lồ.", cost: 500, reqMode: "buy" },
+      { id: "reward_gengar", type: "pokemon", name: "Gastly (Bóng Ma Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/gastly.gif", desc: "Thuộc tính: Ma / Độc 👻\nHP: 30 | ATK: 35 | DEF: 30\nKẻ tinh nghịch trong bóng tối, tiềm năng ma thuật vô hạn.", cost: 600, reqMode: "buy" },
+      { id: "reward_lucario", type: "pokemon", name: "Riolu (Chiến Binh Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/riolu.gif", desc: "Thuộc tính: Giác Đấu ⚔️\nHP: 40 | ATK: 70 | DEF: 40\nCảm nhận hào quang, dũng cảm và trung thành tuyệt đối.", cost: 800, reqMode: "buy" },
+      { id: "reward_charizard", type: "pokemon", name: "Charizard (Thống Lĩnh)", image: "https://play.pokemonshowdown.com/sprites/xyani/charizard.gif", desc: "Thuộc tính: Lửa / Bay 🔥🍃\nHP: 78 | ATK: 84 | DEF: 78\nThần thú rồng lửa kiêu hãnh thăng hoa từ ngọn lửa vĩnh cửu. Nhận từ Boss Vua Thống Lĩnh IC3.", cost: 9999, reqMode: "boss" },
+      { id: "reward_dragonite", type: "pokemon", name: "Dratini (Rồng Nhỏ)", image: "https://play.pokemonshowdown.com/sprites/xyani/dratini.gif", desc: "Thuộc tính: Rồng 🐉\nHP: 41 | ATK: 64 | DEF: 45\nSinh vật thần thoại. Thưởng từ Boss Rồng Hỏa Ngục.", cost: 9999, reqMode: "boss" },
+      { id: "reward_mewtwo", type: "pokemon", name: "Mewtwo (Tối Thượng)", image: "https://play.pokemonshowdown.com/sprites/xyani/mewtwo.gif", desc: "Thuộc tính: Tâm Linh 🔮\nHP: 106 | ATK: 110 | DEF: 90\nChúa tể trí tuệ. Yêu cầu: Hạ gục Phù Thủy Thuật Toán.", cost: 9999, reqMode: "boss" },
+      
+      // Items (Category: item)
+      { id: "reward_banana", type: "item", name: "Chuối Vàng Thần Kỳ 🍌", image: "🍌", desc: "Chuối Vàng chứa năng lượng vũ trụ siêu đặc biệt! Cho Pokémon của bạn ăn tại mục Tiến Hóa để tích lũy năng lượng thăng cấp.", cost: 50, reqMode: "buy" },
+      { id: "reward_potion", type: "item", name: "Thuốc Hồi Phục 🧪", image: "🧪", desc: "Phục hồi 50 HP ngay lập tức trong trận đấu Boss (Sắp ra mắt).", cost: 30, reqMode: "buy" },
+      
+      // Avatars (Category: avatar)
+      { id: "reward_av_1", type: "avatar", name: "Phi hành gia 🧑‍🚀", image: "🧑‍🚀", desc: "Khám phá vũ trụ tri thức IC3.", cost: 100, reqMode: "buy" },
+      { id: "reward_av_2", type: "avatar", name: "Rồng lửa 🐲", image: "🐲", desc: "Sức mạnh từ ngọn lửa vĩnh cửu.", cost: 150, reqMode: "buy" },
+      { id: "reward_av_3", type: "avatar", name: "Kỹ sư nhí 👷", image: "👷", desc: "Làm chủ công nghệ tương lai.", cost: 120, reqMode: "buy" },
+      { id: "reward_av_4", type: "avatar", name: "Siêu nhân IC3 🦸", image: "🦸", desc: "Người bảo vệ hòa bình thế giới số.", cost: 200, reqMode: "buy" },
 
-    // Frames (Category: frame)
-    { id: "reward_fr_1", type: "frame", name: "Khung Vàng Hoàng Kim", image: "border-yellow-400", desc: "Khung ảnh viền vàng lấp lánh sang trọng.", cost: 300, reqMode: "buy" },
-    { id: "reward_fr_2", type: "frame", name: "Khung Lửa Rực Cháy", image: "border-red-500", desc: "Khung ảnh với hiệu ứng lửa bùng nổ.", cost: 250, reqMode: "buy" },
-    { id: "reward_fr_3", type: "frame", name: "Khung Băng Lạnh Giá", image: "border-cyan-400", desc: "Khung ảnh phong cách pha lê băng tuyết.", cost: 250, reqMode: "buy" },
+      // Frames (Category: frame)
+      { id: "reward_fr_1", type: "frame", name: "Khung Vàng Hoàng Kim", image: "border-yellow-400", desc: "Khung ảnh viền vàng lấp lánh sang trọng.", cost: 300, reqMode: "buy" },
+      { id: "reward_fr_2", type: "frame", name: "Khung Lửa Rực Cháy", image: "border-red-500", desc: "Khung ảnh với hiệu ứng lửa bùng nổ.", cost: 250, reqMode: "buy" },
+      { id: "reward_fr_3", type: "frame", name: "Khung Băng Lạnh Giá", image: "border-cyan-400", desc: "Khung ảnh phong cách pha lê băng tuyết.", cost: 250, reqMode: "buy" },
 
-    // Nicknames (Category: nickname)
-    { id: "reward_nn_1", type: "nickname", name: "Dũng Sĩ Diệt Boss", image: "⚔️", desc: "Biệt danh dành cho kẻ săn boss thực thụ.", cost: 200, reqMode: "buy" },
-    { id: "reward_nn_2", type: "nickname", name: "Thiên Tài Lập Trình", image: "💻", desc: "Làm chủ mọi dòng code IC3.", cost: 250, reqMode: "buy" },
-    { id: "reward_nn_3", type: "nickname", name: "Bậc Thầy Thú Cưng", image: "🐾", desc: "Người bạn của mọi loài Pokémon.", cost: 180, reqMode: "buy" }
-  ];
-  
-  // Save/Cache standard listings
-  window.saveData(window.IC3_KEYS.REWARDS, rewards, rewards.map(r => r.id));
+      // Nicknames (Category: nickname)
+      { id: "reward_nn_1", type: "nickname", name: "Dũng Sĩ Diệt Boss", image: "⚔️", desc: "Biệt danh dành cho kẻ săn boss thực thụ.", cost: 200, reqMode: "buy" },
+      { id: "reward_nn_2", type: "nickname", name: "Thiên Tài Lập Trình", image: "💻", desc: "Làm chủ mọi dòng code IC3.", cost: 250, reqMode: "buy" },
+      { id: "reward_nn_3", type: "nickname", name: "Bậc Thầy Thú Cưng", image: "🐾", desc: "Người bạn của mọi loài Pokémon.", cost: 180, reqMode: "buy" }
+    ];
+    window.saveData(window.IC3_KEYS.REWARDS, rewards, rewards.map(r => r.id));
+  }
 
   // Ensure student has the new unlock arrays
   if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
@@ -5700,6 +5734,7 @@ function buyStoreItem(id, cost, type) {
     if (idx !== -1) {
       students[idx] = currentStudent;
       window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+      localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
     }
 
     loadStudentProfile();
@@ -7288,6 +7323,7 @@ function finishCatchSequence(success) {
       if (idx !== -1) {
         students[idx] = currentStudent;
         window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+        localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
       }
     }
   } else {
