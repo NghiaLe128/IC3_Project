@@ -276,8 +276,11 @@ window.renderEvolutionSlideshow = function() {
     
     const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
     const currentLvlName = currentStudent.level || "Beginner";
-    let unlockedIndex = levels.indexOf(currentLvlName);
-    if (unlockedIndex === -1) unlockedIndex = 0;
+    let unlockedLevelIndex = levels.indexOf(currentLvlName);
+    if (unlockedLevelIndex === -1) unlockedLevelIndex = 0;
+
+    // Current Pokemon stage
+    const currentPokemonStage = evolutions.indexOf(currentStudent.pokemon || pokeKey);
 
     const slideTargetName = evolutions[window.currentEvolutionIndex];
     const titleEl = document.getElementById("evolution-target-title");
@@ -305,7 +308,8 @@ window.renderEvolutionSlideshow = function() {
         // Remove grayscale or brightness reduction so users can preview the beautiful 3D model fully
         avatarEl.classList.remove("grayscale", "blur-[5px]", "brightness-[0.3]");
         
-        if (window.currentEvolutionIndex > unlockedIndex) {
+        // Lock logic: Lock if stage is beyond what student has already evolved TO
+        if (window.currentEvolutionIndex > currentPokemonStage) {
             if (lockEl) lockEl.classList.remove("hidden");
         } else {
             if (lockEl) lockEl.classList.add("hidden");
@@ -326,18 +330,26 @@ window.renderEvolutionSlideshow = function() {
     const barExpEl = document.getElementById("evolution-req-bar");
 
     let pct = 0;
-    if (window.currentEvolutionIndex <= unlockedIndex) {
-        // Already unlocked
-        if (reqBananasEl) reqBananasEl.innerText = "Đã Đạt Cấp ✅";
+    if (window.currentEvolutionIndex <= currentPokemonStage) {
+        // Already evolved to this stage or higher
+        if (reqBananasEl) reqBananasEl.innerText = "Đã Tiến Hóa ✅";
         pct = 100;
-    } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
-        // Next stage (the one they can actively feed and evolve)
-        const fed = currentStudent.pokemonFedBananas || 0;
-        if (reqBananasEl) reqBananasEl.innerText = `${fed} / ${targetBananas} 🍌`;
-        pct = targetBananas === 0 ? 100 : Math.min(100, Math.round((fed / targetBananas) * 100));
+    } else if (window.currentEvolutionIndex === currentPokemonStage + 1) {
+        // Next stage to evolve to
+        if (unlockedLevelIndex < window.currentEvolutionIndex) {
+            // Level requirement not met
+            if (reqBananasEl) reqBananasEl.innerText = `Cần Cấp: ${levels[window.currentEvolutionIndex]} 🔒`;
+            pct = 0;
+        } else {
+            // Level met, check bananas
+            const fedMap = currentStudent.pokemonFedBananasMap || {};
+            const fed = fedMap[pokeKey] || 0;
+            if (reqBananasEl) reqBananasEl.innerText = `${fed} / ${targetBananas} 🍌`;
+            pct = targetBananas === 0 ? 100 : Math.min(100, Math.round((fed / targetBananas) * 100));
+        }
     } else {
-        // Locked stage further in the future
-        if (reqBananasEl) reqBananasEl.innerText = `Cần ${targetBananas} 🍌 (Khóa 🔒)`;
+        // Stages further in the future
+        if (reqBananasEl) reqBananasEl.innerText = `Chưa Thể Tiến Hóa 🔒`;
         pct = 0;
     }
 
@@ -345,31 +357,40 @@ window.renderEvolutionSlideshow = function() {
         barExpEl.style.width = `${pct}%`;
     }
 
+
     // Update buttons
     const feedBtn = document.getElementById("feed-poke-btn");
     const evolveBtn = document.getElementById("evolve-poke-btn");
 
     if (feedBtn) {
-        if (window.currentEvolutionIndex <= unlockedIndex) {
+        if (window.currentEvolutionIndex <= currentPokemonStage) {
             feedBtn.innerText = "Đã Tiến Hóa";
             feedBtn.className = "w-full py-2.5 bg-slate-800 text-slate-500 text-xs font-black rounded-xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
             feedBtn.disabled = true;
             feedBtn.onclick = null;
-        } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
-            const fed = currentStudent.pokemonFedBananas || 0;
-            if (fed >= targetBananas) {
-                feedBtn.innerText = "Đã Ăn Đủ 🍌";
-                feedBtn.className = "w-full py-2.5 bg-slate-800 text-yellow-500 text-xs font-black rounded-xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-yellow-500/25";
+        } else if (window.currentEvolutionIndex === currentPokemonStage + 1) {
+            if (unlockedLevelIndex < window.currentEvolutionIndex) {
+                feedBtn.innerText = "Chưa Đủ Cấp 🔒";
+                feedBtn.className = "w-full py-2.5 bg-slate-950 text-slate-600 text-xs font-black rounded-xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
                 feedBtn.disabled = true;
                 feedBtn.onclick = null;
             } else {
-                feedBtn.innerText = "Cho Ăn 🍌";
-                feedBtn.className = "w-full py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider";
-                feedBtn.disabled = false;
-                feedBtn.onclick = window.feedBananaToPokemon;
+                const fedMap = currentStudent.pokemonFedBananasMap || {};
+                const fed = fedMap[pokeKey] || 0;
+                if (fed >= targetBananas) {
+                    feedBtn.innerText = "Đã Ăn Đủ 🍌";
+                    feedBtn.className = "w-full py-2.5 bg-slate-800 text-yellow-500 text-xs font-black rounded-xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-yellow-500/25";
+                    feedBtn.disabled = true;
+                    feedBtn.onclick = null;
+                } else {
+                    feedBtn.innerText = "Cho Ăn 🍌";
+                    feedBtn.className = "w-full py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider";
+                    feedBtn.disabled = false;
+                    feedBtn.onclick = window.feedBananaToPokemon;
+                }
             }
         } else {
-            feedBtn.innerText = "Chưa Đủ Cấp 🔒";
+            feedBtn.innerText = "Khóa 🔒";
             feedBtn.className = "w-full py-2.5 bg-slate-950 text-slate-600 text-xs font-black rounded-xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
             feedBtn.disabled = true;
             feedBtn.onclick = null;
@@ -377,7 +398,7 @@ window.renderEvolutionSlideshow = function() {
     }
 
     if (evolveBtn) {
-        if (window.currentEvolutionIndex <= unlockedIndex) {
+        if (window.currentEvolutionIndex <= currentPokemonStage) {
             const isCurrentlyEquipped = (currentStudent.pokemon || "pikachu") === slideTargetName;
             if (isCurrentlyEquipped) {
                 evolveBtn.innerText = "Đang Đồng Hành ⚡";
@@ -390,18 +411,25 @@ window.renderEvolutionSlideshow = function() {
                     window.useEvolutionForm(slideTargetName);
                 };
             }
-        } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
-            const fed = currentStudent.pokemonFedBananas || 0;
-            if (fed >= targetBananas) {
-                evolveBtn.innerText = "Tiến Hóa Ngay 🔮";
-                evolveBtn.className = "w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.3)]";
-                evolveBtn.onclick = window.triggerEvolvePokemon;
+        } else if (window.currentEvolutionIndex === currentPokemonStage + 1) {
+            if (unlockedLevelIndex < window.currentEvolutionIndex) {
+                evolveBtn.innerText = `Cần Cấp: ${levels[window.currentEvolutionIndex]} 🔒`;
+                evolveBtn.className = "w-full py-2.5 bg-slate-900/50 text-slate-500 text-[10px] font-black rounded-xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
+                evolveBtn.onclick = null;
             } else {
-                evolveBtn.innerText = "Chưa Đủ Chuối 🔒";
-                evolveBtn.className = "w-full py-2.5 bg-slate-800 text-slate-400 text-xs font-black rounded-xl cursor-pointer hover:bg-slate-750 transition-all text-center uppercase tracking-wider";
-                evolveBtn.onclick = function() {
-                    window.showToast("Hãy cho Pokémon ăn đủ " + targetBananas + " quả Chuối Vàng 🍌 để tiến hóa nhé!", "info");
-                };
+                const fedMap = currentStudent.pokemonFedBananasMap || {};
+                const fed = fedMap[pokeKey] || 0;
+                if (fed >= targetBananas) {
+                    evolveBtn.innerText = "Tiến Hóa Ngay 🔮";
+                    evolveBtn.className = "w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.3)]";
+                    evolveBtn.onclick = window.triggerEvolvePokemon;
+                } else {
+                    evolveBtn.innerText = "Chưa Đủ Chuối 🔒";
+                    evolveBtn.className = "w-full py-2.5 bg-slate-800 text-slate-400 text-xs font-black rounded-xl cursor-pointer hover:bg-slate-750 transition-all text-center uppercase tracking-wider";
+                    evolveBtn.onclick = function() {
+                        window.showToast("Hãy cho Pokémon ăn đủ " + targetBananas + " quả Chuối Vàng 🍌 để tiến hóa nhé!", "info");
+                    };
+                }
             }
         } else {
             evolveBtn.innerText = "Đã Khóa 🔒";
@@ -409,6 +437,7 @@ window.renderEvolutionSlideshow = function() {
             evolveBtn.onclick = null;
         }
     }
+
 }
 
 window.prevEvolution = function() {
@@ -431,36 +460,36 @@ window.nextEvolution = function() {
 
 window.feedBananaToPokemon = async function() {
     if (!currentStudent) return;
-    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-    const currentLvlName = currentStudent.level || "Beginner";
-    let unlockedIndex = levels.indexOf(currentLvlName);
-    if (unlockedIndex === -1) unlockedIndex = 0;
-
+    
     const pokeKey = window.getBasePokemonKey(currentStudent.pokemon || "pikachu");
     const evolutions = window.evoMap[pokeKey] || [pokeKey];
-    const maxIndex = evolutions.length - 1;
+    const currentPokemonStage = evolutions.indexOf(currentStudent.pokemon || pokeKey);
 
-    if (unlockedIndex >= maxIndex) {
-        window.showToast("Pokémon của bạn đã đạt cấp tiến hóa tối đa rồi! 🎉", "info");
+    // Ensure we are feeding the next stage
+    if (window.currentEvolutionIndex !== currentPokemonStage + 1) {
+        window.showToast("Bạn chỉ có thể cho Pokémon ăn để tiến hóa lên bậc tiếp theo!", "warning");
         return;
     }
 
     const bananaReqs = [0, 5, 10, 15, 20, 30, 50];
-    const targetBananas = bananaReqs[unlockedIndex + 1];
+    const targetBananas = bananaReqs[window.currentEvolutionIndex] || 0;
+
+    if (!currentStudent.pokemonFedBananasMap) currentStudent.pokemonFedBananasMap = {};
+    const currentFed = currentStudent.pokemonFedBananasMap[pokeKey] || 0;
+
+    if (currentFed >= targetBananas) {
+        window.showToast("Pokémon đã ăn đủ chuối! Hãy nhấp 'Tiến Hóa Ngay' để thăng cấp nhé. 🔮", "info");
+        return;
+    }
 
     if ((currentStudent.bananas || 0) <= 0) {
         window.showToast("Bạn không có Chuối Vàng 🍌! Hãy vào Cửa hàng dùng Coins vàng để đổi chuối nhé.", "error");
         return;
     }
 
-    if ((currentStudent.pokemonFedBananas || 0) >= targetBananas) {
-        window.showToast("Pokémon đã ăn đủ chuối! Hãy nhấp 'Tiến Hóa Ngay' để thăng cấp nhé. 🔮", "info");
-        return;
-    }
-
     // Feed banana
     currentStudent.bananas -= 1;
-    currentStudent.pokemonFedBananas = (currentStudent.pokemonFedBananas || 0) + 1;
+    currentStudent.pokemonFedBananasMap[pokeKey] = currentFed + 1;
 
     // Save
     const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -470,46 +499,77 @@ window.feedBananaToPokemon = async function() {
         const res = await window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
         localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
         if (res.success) {
-            window.showToast(`Ngon quá! 🍌 Pokémon đã ăn 1 quả Chuối Vàng (${currentStudent.pokemonFedBananas}/${targetBananas})`);
+            window.showToast(`Ngon quá! 🍌 Pokémon đã ăn 1 quả Chuối Vàng (${currentStudent.pokemonFedBananasMap[pokeKey]}/${targetBananas})`);
             window.confetti({ particleCount: 30, spread: 40 });
             loadStudentProfile();
-            window.renderEvolutionSlideshow();
+            
+            // Refresh UI
+            if (window.currentInventoryTab === 'evolution') {
+                if (typeof renderEvolutionInInventory === 'function') renderEvolutionInInventory();
+            } else {
+                window.renderEvolutionSlideshow();
+            }
         } else {
             window.showToast("Lỗi hệ thống khi cho ăn", "error");
             currentStudent.bananas += 1; // rollback
-            currentStudent.pokemonFedBananas -= 1; // rollback
+            currentStudent.pokemonFedBananasMap[pokeKey] -= 1; // rollback
         }
     }
 }
 
 window.triggerEvolvePokemon = async function() {
     if (!currentStudent) return;
+    
+    // Re-check level based on EXP thresholds
+    if (currentStudent.exp >= 3000) {
+        currentStudent.level = "Master IC3";
+        currentStudent.rank = "Diamond";
+    } else if (currentStudent.exp >= 1500) {
+        currentStudent.level = "Expert";
+        currentStudent.rank = "Gold";
+    } else if (currentStudent.exp >= 500) {
+        currentStudent.level = "Explorer";
+        currentStudent.rank = "Silver";
+    } else {
+        currentStudent.level = "Beginner";
+        currentStudent.rank = "Bronze";
+    }
+
     const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
     const currentLvlName = currentStudent.level || "Beginner";
-    let unlockedIndex = levels.indexOf(currentLvlName);
-    if (unlockedIndex === -1) unlockedIndex = 0;
+    let unlockedLevelIndex = levels.indexOf(currentLvlName);
+    if (unlockedLevelIndex === -1) unlockedLevelIndex = 0;
 
     const pokeKey = window.getBasePokemonKey(currentStudent.pokemon || "pikachu");
     const evolutions = window.evoMap[pokeKey] || [pokeKey];
+    const currentPokemonStage = evolutions.indexOf(currentStudent.pokemon || pokeKey);
     const slideTargetName = evolutions[window.currentEvolutionIndex];
 
-    if (window.currentEvolutionIndex !== unlockedIndex + 1) {
-        window.showToast("Chưa đủ điều kiện tiến hóa stage này!", "error");
+    if (window.currentEvolutionIndex !== currentPokemonStage + 1) {
+        window.showToast("Bạn chỉ có thể tiến hóa lên bậc tiếp theo!", "error");
+        return;
+    }
+
+    if (unlockedLevelIndex < window.currentEvolutionIndex) {
+        window.showToast(`Bạn cần đạt cấp độ ${levels[window.currentEvolutionIndex]} để tiến hóa thăng cấp Pokémon này!`, "error");
         return;
     }
 
     const bananaReqs = [0, 5, 10, 15, 20, 30, 50];
-    const targetBananas = bananaReqs[unlockedIndex + 1];
+    const targetBananas = bananaReqs[window.currentEvolutionIndex] || 0;
 
-    if ((currentStudent.pokemonFedBananas || 0) < targetBananas) {
+    if (!currentStudent.pokemonFedBananasMap) currentStudent.pokemonFedBananasMap = {};
+    const fed = currentStudent.pokemonFedBananasMap[pokeKey] || 0;
+
+    if (fed < targetBananas) {
         window.showToast(`Cần cho Pokémon ăn đủ ${targetBananas} quả Chuối Vàng 🍌 để tiến hóa!`, "error");
         return;
     }
 
-    // Reset fed bananas and evolve!
-    currentStudent.pokemonFedBananas = 0;
-    currentStudent.level = levels[window.currentEvolutionIndex];
+    // Reset fed bananas for this family and evolve!
+    currentStudent.pokemonFedBananasMap[pokeKey] = 0;
     currentStudent.pokemon = slideTargetName;
+
 
     // Add to unlockedPokemons array
     if (!currentStudent.unlockedPokemons) {
@@ -972,6 +1032,21 @@ async function checkStudentAuth() {
 function loadStudentProfile() {
   if (!currentStudent) return;
 
+  // Re-sync level with EXP thresholds
+  if (currentStudent.exp >= 3000) {
+    currentStudent.level = "Master IC3";
+    currentStudent.rank = "Diamond";
+  } else if (currentStudent.exp >= 1500) {
+    currentStudent.level = "Expert";
+    currentStudent.rank = "Gold";
+  } else if (currentStudent.exp >= 500) {
+    currentStudent.level = "Explorer";
+    currentStudent.rank = "Silver";
+  } else {
+    currentStudent.level = "Beginner";
+    currentStudent.rank = "Bronze";
+  }
+
   // Validate and correct active pokemon form according to current level
   const correctedForm = window.validateAndGetCorrectPokemonForm(currentStudent);
   if (currentStudent.pokemon !== correctedForm) {
@@ -989,7 +1064,13 @@ function loadStudentProfile() {
 
   // Initialize bananas and fed bananas
   currentStudent.bananas = currentStudent.bananas || 0;
-  currentStudent.pokemonFedBananas = currentStudent.pokemonFedBananas || 0;
+  if (!currentStudent.pokemonFedBananasMap) {
+    currentStudent.pokemonFedBananasMap = {};
+    if (currentStudent.pokemonFedBananas) {
+      const pKey = window.getBasePokemonKey(currentStudent.pokemon || "pikachu");
+      currentStudent.pokemonFedBananasMap[pKey] = currentStudent.pokemonFedBananas;
+    }
+  }
 
   const bananasEl = document.getElementById("playerBananasCount");
   if (bananasEl) bananasEl.innerText = currentStudent.bananas;
@@ -2201,6 +2282,7 @@ function nextBossQuestion() {
 }
 
 function finishBossHunt() {
+  if (!currentStudent) return;
   clearInterval(bossTestTimerInterval);
   document.getElementById("boss-hunting-screen").classList.add("hidden");
   exitAntiCheatMode();
@@ -2926,6 +3008,7 @@ const NICKNAME_DEFINITIONS = [
 ];
 
 function renderInventory() {
+  if (!currentStudent) return;
   if (!currentStudent.unlockedPokemons) {
     currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
   }
@@ -3051,11 +3134,15 @@ function renderInventory() {
   pageItems.forEach(item => {
     if (item.type === 'pokemon') {
       const comp = item.data;
-      const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-      const currentLvlName = currentStudent.level || "Beginner";
-      let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
       const evolutions = window.evoMap[comp.id] || [comp.id];
-      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || comp.id;
+      // Find the highest form currently in unlockedPokemons for this family
+      let targetForm = comp.id;
+      for (let i = evolutions.length - 1; i >= 0; i--) {
+        if (currentStudent.unlockedPokemons.includes(evolutions[i])) {
+          targetForm = evolutions[i];
+          break;
+        }
+      }
       const baseActiveKey = window.getBasePokemonKey(currentStudent.pokemon || "pichu");
       const isCurrent = baseActiveKey === comp.id;
 
@@ -3215,8 +3302,11 @@ function renderEvolutionInInventory() {
     
     const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
     const currentLvlName = currentStudent.level || "Beginner";
-    let unlockedIndex = levels.indexOf(currentLvlName);
-    if (unlockedIndex === -1) unlockedIndex = 0;
+    let unlockedLevelIndex = levels.indexOf(currentLvlName);
+    if (unlockedLevelIndex === -1) unlockedLevelIndex = 0;
+
+    // Current Pokemon stage
+    const currentPokemonStage = evolutions.indexOf(currentStudent.pokemon || pokeKey);
 
     const slideTargetName = evolutions[window.currentEvolutionIndex];
     const prettyName = window.pokemonNames[slideTargetName] || slideTargetName.toUpperCase();
@@ -3270,7 +3360,7 @@ function renderEvolutionInInventory() {
 
     const lockEl = document.getElementById("evo-lock-overlay-inv");
     if (lockEl) {
-        if (window.currentEvolutionIndex > unlockedIndex) {
+        if (window.currentEvolutionIndex > currentPokemonStage) {
             lockEl.classList.remove("hidden");
         } else {
             lockEl.classList.add("hidden");
@@ -3285,18 +3375,26 @@ function renderEvolutionInInventory() {
     const barExpEl = document.getElementById("evo-req-bar-inv");
 
     let pct = 0;
-    if (window.currentEvolutionIndex <= unlockedIndex) {
-        // Already unlocked
-        if (reqBananasEl) reqBananasEl.innerText = "Đã Đạt Cấp ✅";
+    if (window.currentEvolutionIndex <= currentPokemonStage) {
+        // Already evolved to this stage or higher
+        if (reqBananasEl) reqBananasEl.innerText = "Đã Tiến Hóa ✅";
         pct = 100;
-    } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
-        // Next stage
-        const fed = currentStudent.pokemonFedBananas || 0;
-        if (reqBananasEl) reqBananasEl.innerText = `${fed} / ${targetBananas} 🍌`;
-        pct = targetBananas === 0 ? 100 : Math.min(100, Math.round((fed / targetBananas) * 100));
+    } else if (window.currentEvolutionIndex === currentPokemonStage + 1) {
+        // Next stage to evolve to
+        if (unlockedLevelIndex < window.currentEvolutionIndex) {
+            // Level requirement not met
+            if (reqBananasEl) reqBananasEl.innerText = `Cần Cấp: ${levels[window.currentEvolutionIndex]} 🔒`;
+            pct = 0;
+        } else {
+            // Level met, check bananas
+            const fedMap = currentStudent.pokemonFedBananasMap || {};
+            const fed = fedMap[pokeKey] || 0;
+            if (reqBananasEl) reqBananasEl.innerText = `${fed} / ${targetBananas} 🍌`;
+            pct = targetBananas === 0 ? 100 : Math.min(100, Math.round((fed / targetBananas) * 100));
+        }
     } else {
-        // Locked stage further in the future
-        if (reqBananasEl) reqBananasEl.innerText = `Cần ${targetBananas} 🍌 (Khóa 🔒)`;
+        // Stages further in the future
+        if (reqBananasEl) reqBananasEl.innerText = `Chưa Thể Tiến Hóa 🔒`;
         pct = 0;
     }
 
@@ -3323,6 +3421,7 @@ function renderEvolutionInInventory() {
             if (idx !== -1) {
                 students[idx] = currentStudent;
                 window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+                localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
             }
             
             window.showToast("Đã cập nhật Ảnh đại diện thành công!", "success");
@@ -3338,29 +3437,37 @@ function renderEvolutionInInventory() {
     const evolveBtn = document.getElementById("evo-evolve-btn-inv");
 
     if (feedBtn) {
-        if (window.currentEvolutionIndex <= unlockedIndex) {
+        if (window.currentEvolutionIndex <= currentPokemonStage) {
             feedBtn.innerText = "Đã Tiến Hóa";
             feedBtn.className = "w-full py-3 bg-slate-800 text-slate-500 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
             feedBtn.disabled = true;
             feedBtn.onclick = null;
-        } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
-            const fed = currentStudent.pokemonFedBananas || 0;
-            if (fed >= targetBananas) {
-                feedBtn.innerText = "Đã Ăn Đủ 🍌";
-                feedBtn.className = "w-full py-3 bg-slate-800 text-yellow-500 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-yellow-500/25";
+        } else if (window.currentEvolutionIndex === currentPokemonStage + 1) {
+            if (unlockedLevelIndex < window.currentEvolutionIndex) {
+                feedBtn.innerText = "Chưa Đủ Cấp 🔒";
+                feedBtn.className = "w-full py-3 bg-slate-950 text-slate-600 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
                 feedBtn.disabled = true;
                 feedBtn.onclick = null;
             } else {
-                feedBtn.innerText = "Cho Ăn 🍌";
-                feedBtn.className = "w-full py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-2xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider";
-                feedBtn.disabled = false;
-                feedBtn.onclick = async function() {
-                    await window.feedBananaToPokemon();
-                    renderEvolutionInInventory();
-                };
+                const fedMap = currentStudent.pokemonFedBananasMap || {};
+                const fed = fedMap[pokeKey] || 0;
+                if (fed >= targetBananas) {
+                    feedBtn.innerText = "Đã Ăn Đủ 🍌";
+                    feedBtn.className = "w-full py-3 bg-slate-800 text-yellow-500 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-yellow-500/25";
+                    feedBtn.disabled = true;
+                    feedBtn.onclick = null;
+                } else {
+                    feedBtn.innerText = "Cho Ăn 🍌";
+                    feedBtn.className = "w-full py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-950 text-xs font-black rounded-2xl cursor-pointer hover:from-yellow-300 hover:to-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] active:scale-[0.98] transition-all text-center uppercase tracking-wider";
+                    feedBtn.disabled = false;
+                    feedBtn.onclick = async function() {
+                        await window.feedBananaToPokemon();
+                        renderEvolutionInInventory();
+                    };
+                }
             }
         } else {
-            feedBtn.innerText = "Chưa Đủ Cấp 🔒";
+            feedBtn.innerText = "Khóa 🔒";
             feedBtn.className = "w-full py-3 bg-slate-950 text-slate-600 text-xs font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
             feedBtn.disabled = true;
             feedBtn.onclick = null;
@@ -3368,7 +3475,7 @@ function renderEvolutionInInventory() {
     }
 
     if (evolveBtn) {
-        if (window.currentEvolutionIndex <= unlockedIndex) {
+        if (window.currentEvolutionIndex <= currentPokemonStage) {
             const isCurrentlyEquipped = (currentStudent.pokemon || "pikachu") === slideTargetName;
             if (isCurrentlyEquipped) {
                 evolveBtn.innerText = "Đang Đồng Hành ⚡";
@@ -3382,21 +3489,28 @@ function renderEvolutionInInventory() {
                     renderEvolutionInInventory();
                 };
             }
-        } else if (window.currentEvolutionIndex === unlockedIndex + 1) {
-            const fed = currentStudent.pokemonFedBananas || 0;
-            if (fed >= targetBananas) {
-                evolveBtn.innerText = "Tiến Hóa Ngay 🔮";
-                evolveBtn.className = "w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-2xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.3)]";
-                evolveBtn.onclick = async function() {
-                    await window.triggerEvolvePokemon();
-                    renderEvolutionInInventory();
-                };
+        } else if (window.currentEvolutionIndex === currentPokemonStage + 1) {
+            if (unlockedLevelIndex < window.currentEvolutionIndex) {
+                evolveBtn.innerText = `Cần Cấp: ${levels[window.currentEvolutionIndex]} 🔒`;
+                evolveBtn.className = "w-full py-3 bg-slate-900/50 text-slate-500 text-[10px] font-black rounded-2xl cursor-not-allowed transition-all text-center uppercase tracking-wider border border-white/5";
+                evolveBtn.onclick = null;
             } else {
-                evolveBtn.innerText = "Chưa Đủ Chuối 🔒";
-                evolveBtn.className = "w-full py-3 bg-slate-800 text-slate-400 text-xs font-black rounded-2xl cursor-pointer hover:bg-slate-750 transition-all text-center uppercase tracking-wider";
-                evolveBtn.onclick = function() {
-                    window.showToast("Hãy cho Pokémon ăn đủ " + targetBananas + " quả Chuối Vàng 🍌 để tiến hóa nhé!", "info");
-                };
+                const fedMap = currentStudent.pokemonFedBananasMap || {};
+                const fed = fedMap[pokeKey] || 0;
+                if (fed >= targetBananas) {
+                    evolveBtn.innerText = "Tiến Hóa Ngay 🔮";
+                    evolveBtn.className = "w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black rounded-2xl cursor-pointer hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] transition-all text-center uppercase tracking-wider shadow-[0_4px_12px_rgba(16,185,129,0.3)]";
+                    evolveBtn.onclick = async function() {
+                        await window.triggerEvolvePokemon();
+                        renderEvolutionInInventory();
+                    };
+                } else {
+                    evolveBtn.innerText = "Chưa Đủ Chuối 🔒";
+                    evolveBtn.className = "w-full py-3 bg-slate-800 text-slate-400 text-xs font-black rounded-2xl cursor-pointer hover:bg-slate-750 transition-all text-center uppercase tracking-wider";
+                    evolveBtn.onclick = function() {
+                        window.showToast("Hãy cho Pokémon ăn đủ " + targetBananas + " quả Chuối Vàng 🍌 để tiến hóa nhé!", "info");
+                    };
+                }
             }
         } else {
             evolveBtn.innerText = "Đã Khóa 🔒";
@@ -3407,18 +3521,23 @@ function renderEvolutionInInventory() {
 }
 
 function selectInventoryCompanion(pokeId) {
+  if (!currentStudent) return;
   const baseKey = window.getBasePokemonKey(pokeId);
   const evolutions = window.evoMap[baseKey] || [baseKey];
   
-  const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-  const currentLvlName = currentStudent.level || "Beginner";
-  let unlockedIndex = levels.indexOf(currentLvlName);
-  if (unlockedIndex === -1) unlockedIndex = 0;
-  
-  const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || baseKey;
+  // Find highest UNLOCKED form in this family (must have been evolved or initially picked)
+  let highestUnlockedForm = baseKey;
+  if (currentStudent.unlockedPokemons) {
+    // Check all forms in evolution chain and pick highest one that exists in unlockedPokemons
+    for (const form of evolutions) {
+      if (currentStudent.unlockedPokemons.includes(form)) {
+        highestUnlockedForm = form;
+      }
+    }
+  }
   
   // EQUIP the pokemon as companion
-  currentStudent.pokemon = targetForm;
+  currentStudent.pokemon = highestUnlockedForm;
   
   // Save changes to database
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -3426,10 +3545,12 @@ function selectInventoryCompanion(pokeId) {
   if (idx !== -1) {
     students[idx] = currentStudent;
     window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+    localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
   }
 
-  // Set evolution view context
-  window.currentEvolutionIndex = evolutions.indexOf(targetForm);
+  // Set evolution view context for this family
+  window.currentEvolutionIndex = evolutions.indexOf(highestUnlockedForm);
+  if (window.currentEvolutionIndex === -1) window.currentEvolutionIndex = 0;
 
   // Switch to evolution tab to show details & avatar option
   window.currentInventoryTab = 'evolution';
@@ -3438,13 +3559,14 @@ function selectInventoryCompanion(pokeId) {
   // Update battle arena if visible
   if (typeof renderBattleArena === "function") renderBattleArena();
   
-  const prettyName = window.pokemonNames[targetForm] || targetForm.toUpperCase();
+  const prettyName = window.pokemonNames[highestUnlockedForm] || highestUnlockedForm.toUpperCase();
   window.showToast(`🎉 Đã đổi Pokémon đồng hành thành ${prettyName}!`, "success");
   loadStudentProfile();
 }
 
+
 function useInventoryItem(itemIndex) {
-  if (!currentStudent.ownedItems) return;
+  if (!currentStudent || !currentStudent.ownedItems) return;
   const itemId = currentStudent.ownedItems[itemIndex];
   if (!itemId) return;
 
@@ -3476,52 +3598,6 @@ function useInventoryItem(itemIndex) {
   }
 }
 
-function triggerEvolvePokemon() {
-  let nextExpReq = 500;
-  let nextLevelName = "Explorer";
-
-  if (currentStudent.level === "Explorer") {
-    nextExpReq = 1500;
-    nextLevelName = "Expert";
-  } else if (currentStudent.level === "Expert") {
-    nextExpReq = 3000;
-    nextLevelName = "Master IC3";
-  } else if (currentStudent.level === "Master IC3") {
-    window.showToast("Thần thú Pokémon của bạn đã đạt cấp tiến hóa tối cao MASTER IC3 siêu phàm! Không còn cấp tiến hóa nào hơn nữa.", 'error');
-    return;
-  }
-
-  if (currentStudent.exp < nextExpReq) {
-    window.showToast(`❌ TIẾN HÓA THẤT BẠI!\nBạn cần tích lũy tối thiểu ${nextExpReq} EXP bằng cách khiêu chiến làm bài thi và Mini-Quiz mới đủ năng lượng siêu thú.`, 'error');
-    return;
-  }
-
-  // Elevate level!
-  const previousLevel = currentStudent.level;
-  currentStudent.level = nextLevelName;
-  
-  if (nextLevelName === "Explorer") currentStudent.rank = "Silver";
-  else if (nextLevelName === "Expert") currentStudent.rank = "Gold";
-  else if (nextLevelName === "Master IC3") currentStudent.rank = "Diamond";
-
-  // Award special evolution badge
-  if (!currentStudent.badges.includes("Persistent Warrior")) {
-    currentStudent.badges.push("Persistent Warrior");
-  }
-
-  // Save changes
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
-  const idx = students.findIndex(s => s.email === currentStudent.email);
-  if (idx !== -1) {
-    students[idx] = currentStudent;
-    window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
-  }
-
-  window.showToast(`🔮 TIẾN HÓA THẦN THỨ THÀNH CÔNG! 🔮\n\nChúc mừng thám hiểm giả! Pokémon và trình độ kiến thức của bạn đã thăng cấp thành công từ ${previousLevel.toUpperCase()} lên ${nextLevelName.toUpperCase()}!\n\nGiao diện thám hiểm, bảng xếp hạng và danh hiệu vương giả mới đã được cập nhật!`);
-  
-  loadStudentProfile();
-  renderInventory();
-}
 
 function updateZoneLockUI(levelId, isUnlocked) {
   const card = document.getElementById(`zone-${levelId}`);
@@ -5823,6 +5899,7 @@ function switchProfileCustomTab(tabId) {
 }
 
 function renderProfileCustomizationContent() {
+  if (!currentStudent) return;
   const grid = document.getElementById("profile-customization-content-grid");
   grid.innerHTML = "";
 
@@ -7296,7 +7373,7 @@ function handleThrowPokeballAnimated() {
 
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerEvolvePokemon, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo, renderLuckTab, handleShakeTree, handlePickBanana, closeCatchScreen, startCatchPokemonSequence, handleThrowPokeballAnimated
+  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo, renderLuckTab, handleShakeTree, handlePickBanana, closeCatchScreen, startCatchPokemonSequence, handleThrowPokeballAnimated
 });
 
 function finishCatchSequence(success) {
@@ -7309,6 +7386,7 @@ function finishCatchSequence(success) {
   if (results) results.classList.remove("hidden");
   
   if (success) {
+    if (!currentStudent) return;
     icon.innerText = "🎉";
     title.innerText = "CHÚC MỪNG!";
     title.className = "text-4xl font-black text-emerald-400 mb-4 tracking-tighter drop-shadow-md";
@@ -7324,6 +7402,11 @@ function finishCatchSequence(success) {
         students[idx] = currentStudent;
         window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
         localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
+        
+        // Refresh UI to show new pokemon in inventory/companion selection
+        if (typeof loadStudentProfile === "function") {
+          loadStudentProfile();
+        }
       }
     }
   } else {
