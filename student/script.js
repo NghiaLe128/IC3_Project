@@ -3778,6 +3778,38 @@ window.addEventListener("keydown", (e) => {
   ) {
     e.preventDefault();
     handleCheatDetected("Sử dụng phím tắt bị cấm");
+    return;
+  }
+
+  // Handle navigation keys based on mode
+  if (currentTestMode === "practice") {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      nextGameQuestion();
+    }
+  } else if (currentTestMode === "exam") {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Do nothing for Enter in exam mode
+    } else if (e.key === "PageUp") {
+      e.preventDefault();
+      prevGameQuestion();
+    } else if (e.key === "PageDown") {
+      e.preventDefault();
+      nextGameQuestion();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      if (activeQuestionIndex !== 0) {
+        activeQuestionIndex = 0;
+        renderGameQuestion();
+      }
+    } else if (e.key === "End") {
+      e.preventDefault();
+      if (activeQuestionIndex !== testQuestions.length - 1) {
+        activeQuestionIndex = testQuestions.length - 1;
+        renderGameQuestion();
+      }
+    }
   }
 });
 
@@ -5539,10 +5571,10 @@ function finishTest() {
   scores.push(scoreEntry);
   window.saveData(window.IC3_KEYS.SCORES, scores, scoreEntry.id);
 
-  // Store catch eligibility
+  // Store catch eligibility - ONLY for exam mode
   window.lastTestEligibility = {
     wrongCount: wrongCount,
-    isEligible: wrongCount <= 2
+    isEligible: (currentTestMode === "exam") && (wrongCount <= 2)
   };
 
   // Render Victory Overlay Screen
