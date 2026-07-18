@@ -131,7 +131,8 @@ async function autoSyncSheetClasses() {
              level: "Tân binh",
              pokemon: "pikachu",
              coins: 0,
-             testsCompleted: 0
+             testsCompleted: 0,
+             isFirstLogin: true
            });
            newStudentIds.push(sEmail);
            updated = true;

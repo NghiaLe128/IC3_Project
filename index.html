@@ -315,7 +315,7 @@
             try {
               const studentDoc = await window.fStore.getDoc(window.fStore.doc(window.db, 'students', user.email));
               const studentData = studentDoc.exists() ? studentDoc.data() : null;
-              if (studentData && studentData.pokemon) {
+              if (studentData && studentData.pokemon && studentData.isFirstLogin !== true) {
                 window.location.href = './student/index.html';
               } else {
                 window.location.href = './pokemon-select.html';
