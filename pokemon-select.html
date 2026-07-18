@@ -276,6 +276,7 @@
           if (pendingData) {
             const studentDocRef = window.fStore.doc(window.db, 'students', user.email);
             pendingData.pokemon = pokemon;
+            pendingData.isFirstLogin = false;
             // Map pokemon choice to base key for unlockedPokemons
             let baseKey = pokemon;
             if (pokemon === "pichu") baseKey = "pikachu";
@@ -290,6 +291,7 @@
             if (docSnap.exists()) {
               const studentData = docSnap.data();
               studentData.pokemon = pokemon;
+              studentData.isFirstLogin = false;
               let baseKey = pokemon;
               if (pokemon === "pichu") baseKey = "pikachu";
               studentData.unlockedPokemons = studentData.unlockedPokemons || [];
@@ -312,7 +314,8 @@
                  bananas: 0,
                  exp: 0,
                  level: 1,
-                 hp: 100
+                 hp: 100,
+                 isFirstLogin: false
                });
             }
           }

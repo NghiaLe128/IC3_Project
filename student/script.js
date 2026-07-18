@@ -1012,8 +1012,8 @@ async function checkStudentAuth() {
         currentStudent.blockId = "block_3";
       }
       
-      // If student exists but has no pokemon, redirect to selection
-      if (!currentStudent.pokemon) {
+      // If student exists but has no pokemon or has not completed first login setup, redirect to selection
+      if (!currentStudent.pokemon || currentStudent.isFirstLogin === true) {
         window.location.href = "../pokemon-select.html";
         return;
       }

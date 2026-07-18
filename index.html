@@ -408,7 +408,7 @@
                 const studentData = studentDoc.exists() ? studentDoc.data() : null;
                 
                 setTimeout(() => {
-                  if (studentData && studentData.pokemon) {
+                  if (studentData && studentData.pokemon && studentData.isFirstLogin !== true) {
                     window.location.href = './student/index.html';
                   } else {
                     // Prepare pending data for pokemon-select.html
@@ -427,7 +427,8 @@
                         unlockedLessons: ["lesson_l1_1"],
                         unlockedZones: ["level_1"],
                         bananas: 0,
-                        pokemonFedBananas: 0
+                        pokemonFedBananas: 0,
+                        isFirstLogin: true
                       };
                       localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
                     } else {
@@ -500,7 +501,7 @@
             const studentData = studentDoc.exists() ? studentDoc.data() : null;
             
             setTimeout(() => {
-              if (studentData && studentData.pokemon) {
+              if (studentData && studentData.pokemon && studentData.isFirstLogin !== true) {
                 window.location.href = './student/index.html';
               } else {
                 // Prepare pending data for pokemon-select.html
@@ -519,7 +520,8 @@
                     unlockedLessons: ["lesson_l1_1"],
                     unlockedZones: ["level_1"],
                     bananas: 0,
-                    pokemonFedBananas: 0
+                    pokemonFedBananas: 0,
+                    isFirstLogin: true
                   };
                   localStorage.setItem("pendingStudentData", JSON.stringify(newStudent));
                 } else {
@@ -714,7 +716,7 @@
                 const studentDoc = await window.fStore.getDoc(window.fStore.doc(window.db, 'students', res.user.email));
                 const studentData = studentDoc.exists() ? studentDoc.data() : {};
                 
-                if (studentData.pokemon) {
+                if (studentData.pokemon && studentData.isFirstLogin !== true) {
                   document.getElementById('loginSlider').style.transform = 'translateX(0%)';
                   const mainSuccessBox = document.getElementById('successBox');
                   if (mainSuccessBox) {
@@ -725,7 +727,7 @@
                     window.location.href = './student/index.html';
                   }, 1000);
                 } else {
-                  // No Pokémon, show selection
+                  // No Pokémon or first login, show selection
                   window.location.href = './pokemon-select.html';
                 }
               } else {

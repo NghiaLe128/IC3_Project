@@ -559,7 +559,8 @@ function importStudentsExcel(e) {
             rank: "Bronze",
             badges: [],
             unlockedLessons: ["lesson_l1_1"],
-            unlockedZones: ["level_1"]
+            unlockedZones: ["level_1"],
+            isFirstLogin: true
           };
           
           students.push(newStudent);
@@ -2561,7 +2562,8 @@ document.getElementById("classSheetForm").addEventListener("submit", function(e)
         level: "Tân binh",
         pokemon: "pikachu",
         coins: 0,
-        testsCompleted: 0
+        testsCompleted: 0,
+        isFirstLogin: true
       });
       newStudentIds.push(sEmail);
       newStudentsCount++;

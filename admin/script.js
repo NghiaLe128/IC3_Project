@@ -434,7 +434,8 @@ function handleStudentSubmit(e) {
       rank: "Bronze",
       badges: [],
       unlockedLessons: ["lesson_l1_1"],
-      unlockedZones: ["level_1"]
+      unlockedZones: ["level_1"],
+      isFirstLogin: true
     };
     students.push(newStudent);
     window.saveData(window.IC3_KEYS.STUDENTS, students, email);

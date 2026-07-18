@@ -475,7 +475,8 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
         unlockedLessons: ["lesson_l1_1"], 
         unlockedZones: ["level_1"],
         bananas: 0,
-        pokemonFedBananas: 0
+        pokemonFedBananas: 0,
+        isFirstLogin: true
       };
       localStorage.setItem("pendingStudentData", JSON.stringify(studentData));
       
