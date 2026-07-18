@@ -164,7 +164,13 @@
 
           <!-- Live Progress Tracker Table -->
           <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm">
-            <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4"><i class="fa-solid fa-person-running text-emerald-500 mr-2"></i>Tiến độ học tập và thăng cấp Pokémon thời gian thực</h3>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+              <h3 class="font-poppins font-bold text-base text-indigo-50"><i class="fa-solid fa-person-running text-emerald-500 mr-2"></i>Tiến độ học tập và thăng cấp Pokémon thời gian thực</h3>
+              <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
+                <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
+                <input type="text" id="overviewSearch" placeholder="Tìm kiếm học sinh..." oninput="window.teacherPagination.overview = 1; renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId))" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-40">
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm text-indigo-100">
                 <thead class="text-xs text-indigo-300 uppercase bg-[#131424]/80">
@@ -182,6 +188,7 @@
                 </tbody>
               </table>
             </div>
+            <div id="overview-pagination" class="flex justify-center items-center p-4 gap-2 border-t border-indigo-500/30 bg-[#131424]/40 mt-4 rounded-b-xl"></div>
           </div>
 
         </section>
@@ -196,14 +203,12 @@
             </div>
             
             <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <!-- Filter by School/Class -->
+              <!-- Search Students -->
               <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
-                <span class="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">Lọc Trường lớp:</span>
-                <select id="schoolClassFilter" onchange="renderClassStudentsTable()" class="bg-transparent border-0 text-xs font-bold text-white focus:outline-none cursor-pointer max-w-[150px]">
-                  <option value="" class="bg-[#0B0D17] text-white">Tất cả</option>
-                  <!-- Injected by JS -->
-                </select>
+                <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
+                <input type="text" id="studentsSearch" placeholder="Tìm tên/email học sinh..." oninput="window.teacherPagination.students = 1; renderClassStudentsTable()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-40">
               </div>
+
 
               <!-- Excel Import -->
               <input type="file" id="excel-import-input" accept=".xlsx, .xls" class="hidden" onchange="importStudentsExcel(event)">
@@ -224,12 +229,12 @@
                 <thead class="text-xs text-indigo-300 uppercase bg-[#131424]/80">
                   <tr>
                     <th class="px-5 py-3.5">Học sinh</th>
-                    <th class="px-5 py-3.5">Trường học</th>
-                    <th class="px-5 py-3.5">Lớp học</th>
-                    <th class="px-5 py-3.5">Email liên hệ</th>
-                    <th class="px-5 py-3.5">Cấp độ học tập</th>
+                    <th class="px-5 py-3.5">Email</th>
+                    <th class="px-5 py-3.5">Mật khẩu</th>
+                    <th class="px-5 py-3.5">Pokémon</th>
+                    <th class="px-5 py-3.5">Vàng (Coins)</th>
                     <th class="px-5 py-3.5">Học lực (EXP)</th>
-                    <th class="px-5 py-3.5">Số lần thi đạt</th>
+                    <th class="px-5 py-3.5">Số bài đạt</th>
                     <th class="px-5 py-3.5 text-right">Hành động</th>
                   </tr>
                 </thead>
@@ -238,6 +243,7 @@
                 </tbody>
               </table>
             </div>
+            <div id="students-pagination" class="flex justify-center items-center p-4 gap-2 border-t border-indigo-500/30 bg-[#131424]/40"></div>
           </div>
         </section>
 
@@ -312,10 +318,11 @@
                 <!-- 4. Danh sách câu hỏi đã tạo bên dưới -->
                 <div id="m-questionsListContainer" class="space-y-2 hidden flex-grow flex flex-col overflow-hidden min-h-[280px]">
                   <label class="block text-xs font-bold text-indigo-300 uppercase">Danh sách câu hỏi trong bộ đề:</label>
-                  <input type="text" id="m-questionSearch" oninput="renderQuestionsList()" placeholder="Tìm kiếm câu hỏi..." class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 text-xs mb-2">
+                  <input type="text" id="m-questionSearch" oninput="window.teacherPagination.questions = 1; renderQuestionsList()" placeholder="Tìm kiếm câu hỏi..." class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 text-xs mb-2">
                   <div id="m-questionsList" class="flex-grow overflow-y-auto border border-indigo-500/30 rounded-xl divide-y divide-indigo-500/20 bg-slate-950/20 max-h-[380px]">
                     <!-- Dynamically populated list -->
                   </div>
+                  <div id="questions-pagination" class="flex justify-center items-center py-2 gap-2 mt-2"></div>
                 </div>
 
               </div>
@@ -449,7 +456,13 @@
         <!-- ==================== TAB: RESULTS ==================== -->
         <section id="tab-results" class="tab-content space-y-6 hidden">
           <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm">
-            <h3 class="font-poppins font-bold text-base text-indigo-50 mb-4"><i class="fa-solid fa-clipboard-check text-emerald-500 mr-2"></i>Lịch sử làm bài thi của học sinh trong lớp</h3>
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-poppins font-bold text-base text-indigo-50"><i class="fa-solid fa-clipboard-check text-emerald-500 mr-2"></i>Lịch sử làm bài thi của học sinh trong lớp</h3>
+              <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
+                <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
+                <input type="text" id="resultsSearch" placeholder="Tìm tên/email..." oninput="window.teacherPagination.results = 1; renderResultsTable()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-40">
+              </div>
+            </div>
             
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm text-indigo-100">
@@ -469,6 +482,7 @@
                 </tbody>
               </table>
             </div>
+            <div id="results-pagination" class="flex justify-center items-center p-4 gap-2 border-t border-indigo-500/30 bg-[#131424]/40 mt-4 rounded-b-xl"></div>
           </div>
         </section>
 
@@ -478,25 +492,39 @@
           <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm max-w-4xl mx-auto">
             <div class="flex justify-between items-center mb-6">
               <h3 class="font-poppins font-bold text-lg text-indigo-50"><i class="fa-solid fa-ranking-star text-amber-500 mr-2"></i>Bảng xếp hạng thi đua lớp học</h3>
-              <span class="text-xs text-emerald-600 font-bold bg-emerald-500/20 px-2 py-1 rounded">Học mà chơi - Đua tốp rinh quà</span>
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
+                  <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
+                  <input type="text" id="rankingSearch" placeholder="Tìm tên..." oninput="window.teacherPagination.ranking = 1; renderClassRanking()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-32">
+                </div>
+                <span class="text-xs text-emerald-600 font-bold bg-emerald-500/20 px-2 py-1 rounded">Học mà chơi - Đua tốp rinh quà</span>
+              </div>
             </div>
 
             <div class="space-y-4" id="class-ranking-leaderboard">
               <!-- JS Injected List -->
             </div>
+            <div id="ranking-pagination" class="flex justify-center items-center p-4 gap-2 mt-4"></div>
           </div>
         </section>
         <!-- ==================== TAB: REWARDS MANAGEMENT ==================== -->
         <section id="tab-rewards" class="tab-content space-y-6 hidden">
           <div class="bg-indigo-950/30 border border-indigo-500/20 p-5 rounded-2xl shadow-xl">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="font-poppins font-bold text-lg text-indigo-50"><i class="fa-solid fa-gift text-pink-500 mr-2"></i>Quản lý Phần thưởng / Pokémon</h3>
-              <p class="text-xs text-indigo-300">Khóa hoặc mở các phần thưởng để giới hạn thời gian học sinh đổi quà.</p>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div>
+                <h3 class="font-poppins font-bold text-lg text-indigo-50"><i class="fa-solid fa-gift text-pink-500 mr-2"></i>Quản lý Phần thưởng / Pokémon</h3>
+                <p class="text-xs text-indigo-300">Khóa hoặc mở các phần thưởng để giới hạn thời gian học sinh đổi quà.</p>
+              </div>
+              <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
+                <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
+                <input type="text" id="rewardsSearch" placeholder="Tìm kiếm phần thưởng..." oninput="window.teacherPagination.rewards = 1; renderTeacherRewards()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-48">
+              </div>
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="teacher-rewards-grid">
               <!-- JS Injected List -->
             </div>
+            <div id="rewards-pagination" class="flex justify-center items-center p-4 gap-2 mt-4"></div>
           </div>
         </section>
 
@@ -515,7 +543,14 @@
     <div id="classModal" class="modal-overlay hidden">
       <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative">
         <button onclick="closeClassModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-xmark text-lg"></i></button>
-        <h3 class="font-poppins font-bold text-lg text-indigo-50 mb-5">Tạo lớp học mới</h3>
+        <h3 class="font-poppins font-bold text-lg text-indigo-50 mb-4">Tạo lớp học mới</h3>
+        
+        <!-- Tabs -->
+        <div class="flex gap-2 border-b border-indigo-500/30 mb-4">
+          <button type="button" id="tabBtn-manualClass" onclick="switchClassModalTab('manual')" class="px-4 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-400">Tạo thủ công</button>
+          <button type="button" id="tabBtn-sheetClass" onclick="switchClassModalTab('sheet')" class="px-4 py-2 text-xs font-bold text-indigo-300 border-b-2 border-transparent">Từ file Sheet</button>
+        </div>
+
         <form id="classForm" class="space-y-4">
           <div>
             <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Mã định danh lớp (Không khoảng trắng, viết liền)</label>
@@ -530,6 +565,46 @@
             <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold shadow-sm shadow-emerald-500/10">Tạo lớp</button>
           </div>
         </form>
+
+        <form id="classSheetForm" class="space-y-4 hidden">
+          <div id="sheetLoadingWrapper" class="hidden text-center py-4">
+             <i class="fa-solid fa-spinner fa-spin text-emerald-500 text-2xl mb-2"></i>
+             <p class="text-xs text-indigo-300 mt-2">Đang tải dữ liệu từ Google Sheets...</p>
+          </div>
+          <div id="sheetFieldsWrapper">
+            <div>
+              <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Chọn Trường</label>
+              <select id="sheetSchoolSelect" onchange="updateSheetClassDropdown()" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" required>
+                <option value="">-- Đang tải... --</option>
+              </select>
+            </div>
+            <div class="mt-3">
+              <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Chọn Lớp</label>
+              <select id="sheetClassSelect" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" required>
+                <option value="">-- Chọn Trường trước --</option>
+              </select>
+            </div>
+          </div>
+          <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
+            <button type="button" onclick="closeClassModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold">Hủy bỏ</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-sm shadow-blue-500/10">Tạo lớp từ Sheet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Modal: Confirm Delete Class -->
+    <div id="confirmDeleteClassModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-red-500/30 w-full max-w-sm p-6 rounded-2xl shadow-xl relative text-center">
+        <div class="w-12 h-12 rounded-full bg-red-500/10 text-red-500 mx-auto flex items-center justify-center text-xl mb-4">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="font-poppins font-bold text-lg text-indigo-50 mb-2">Xóa lớp học?</h3>
+        <p class="text-xs text-indigo-300 mb-6">Thao tác này không thể hoàn tác. Mọi thông tin về lớp học này sẽ bị xóa, nhưng học sinh vẫn được giữ lại trên hệ thống.</p>
+        <div class="flex justify-center gap-3">
+          <button type="button" onclick="closeConfirmDeleteClassModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold">Hủy bỏ</button>
+          <button type="button" id="btnConfirmDeleteClass" class="px-5 py-2 rounded-lg bg-red-500 text-white text-xs font-bold shadow-sm shadow-red-500/10 hover:bg-red-600">Đồng ý xóa</button>
+        </div>
       </div>
     </div>
 

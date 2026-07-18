@@ -201,7 +201,7 @@ function renderDashboardTopStudents(students) {
       <div class="flex items-center gap-3">
         <span class="font-poppins font-extrabold text-base ${medalColors[index] || 'text-slate-400'}">#${index + 1}</span>
         <div class="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-lg relative shadow-inner">
-          ${pokemonIcons[std.pokemon] || "🦊"}
+          ${window.pokemonAvatars[std.pokemon] || "🦊"}
           <span class="absolute -bottom-1 -right-1 bg-blue-500 text-[8px] font-bold px-1 rounded-full text-white">Lv.${std.level === 'Master IC3' ? '4' : std.level === 'Expert' ? '3' : std.level === 'Explorer' ? '2' : '1'}</span>
         </div>
         <div>
@@ -211,7 +211,7 @@ function renderDashboardTopStudents(students) {
       </div>
       <div class="text-right">
         <span class="font-mono text-xs font-bold text-yellow-400">${std.exp} EXP</span>
-        <p class="text-[9px] text-slate-500"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins}</p>
+        <p class="text-[9px] text-slate-500"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins || 0}</p>
       </div>
     `;
     listEl.appendChild(div);
@@ -325,11 +325,11 @@ function renderStudentsTable() {
           <span class="text-[9px] text-slate-500 font-semibold tracking-wider">Rank: ${std.rank}</span>
         </div>
       </td>
-      <td class="px-5 py-4 text-xs text-slate-300 font-medium">${pokemonIcons[std.pokemon] || std.pokemon}</td>
+      <td class="px-5 py-4 text-xs text-slate-300 font-medium">${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon || "Chưa có"}</td>
       <td class="px-5 py-4">
         <div class="flex flex-col font-mono text-xs">
           <span class="text-yellow-400 font-bold">${std.exp} EXP</span>
-          <span class="text-indigo-300 font-medium"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins} Coins</span>
+          <span class="text-indigo-300 font-medium"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins || 0} Coins</span>
           <span class="text-rose-400 font-semibold mt-1">👹 Săn Boss: ${huntRecord}/${limit}</span>
         </div>
       </td>
@@ -1090,7 +1090,7 @@ function renderRankingList() {
       <div class="flex items-center gap-4">
         ${medal}
         <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xl border border-slate-700 shadow-inner">
-          ${pokemonIcons[std.pokemon] || "🦊"}
+          ${window.pokemonAvatars[std.pokemon] || "🦊"}
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -1109,7 +1109,7 @@ function renderRankingList() {
       <!-- Experience & Level Progress -->
       <div class="text-right shrink-0">
         <span class="font-mono text-xs font-bold text-yellow-400 block">${std.exp} EXP</span>
-        <span class="text-[10px] text-indigo-300 font-semibold block"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins} Coins</span>
+        <span class="text-[10px] text-indigo-300 font-semibold block"><i class="fa-solid fa-coins text-yellow-400"></i> ${std.coins || 0} Coins</span>
         <span class="text-[9px] text-slate-500">Cấp độ: <span class="font-bold text-slate-300">${std.level}</span></span>
       </div>
     `;

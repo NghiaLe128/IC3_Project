@@ -25,6 +25,52 @@ function convertDriveUrl(url) {
 let activeClassId = "";
 let activeQuestionId = ""; // Track selected question in manage-tests tab
 
+const ITEMS_PER_PAGE = 8;
+window.teacherPagination = {
+  students: 1,
+  results: 1,
+  ranking: 1,
+  rewards: 1,
+  questions: 1
+};
+
+function renderPagination(totalItems, currentPage, containerId, tabId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  if (totalPages <= 1) return;
+
+  const btnClass = "px-3 py-1 text-xs font-bold rounded bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/30 transition-all border border-indigo-500/30";
+  const activeClass = "px-3 py-1 text-xs font-bold rounded bg-indigo-600 text-white transition-all shadow-md shadow-indigo-600/20";
+
+  // Prev
+  const prev = document.createElement("button");
+  prev.innerHTML = `<i class="fa-solid fa-chevron-left"></i>`;
+  prev.className = currentPage === 1 ? btnClass + " opacity-50 cursor-not-allowed" : btnClass;
+  prev.disabled = currentPage === 1;
+  prev.onclick = () => { window.teacherPagination[tabId] = currentPage - 1; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId)); break;} };
+  container.appendChild(prev);
+
+  // Pages
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement("button");
+    btn.innerText = i;
+    btn.className = i === currentPage ? activeClass : btnClass;
+    btn.onclick = () => { window.teacherPagination[tabId] = i; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId)); break;} };
+    container.appendChild(btn);
+  }
+
+  // Next
+  const next = document.createElement("button");
+  next.innerHTML = `<i class="fa-solid fa-chevron-right"></i>`;
+  next.className = currentPage === totalPages ? btnClass + " opacity-50 cursor-not-allowed" : btnClass;
+  next.disabled = currentPage === totalPages;
+  next.onclick = () => { window.teacherPagination[tabId] = currentPage + 1; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId)); break;} };
+  container.appendChild(next);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   if (window.IC3_DB_INITIALIZED) {
     startTeacherApp();
@@ -41,6 +87,65 @@ function startTeacherApp() {
   // Form listeners
   document.getElementById("classForm").addEventListener("submit", handleClassSubmit);
   document.getElementById("addStudentToClassForm").addEventListener("submit", handleStudentToClassSubmit);
+  
+  // Auto-sync students for sheet classes on load
+  autoSyncSheetClasses();
+}
+
+async function autoSyncSheetClasses() {
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const sheetClasses = classes.filter(c => c.isFromSheet);
+  
+  if (sheetClasses.length === 0) return;
+  
+  try {
+    const config = await window.getGoogleSheetsConfig();
+    if (!config || !config.spreadsheetId) return;
+    
+    const students = await window.fetchGoogleSheetData(config.spreadsheetId, config.studentSheetName || "Tổng quát");
+    if (!students || students.length === 0) return;
+    
+    const allStudents = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+    let updated = false;
+    let newStudentIds = [];
+    
+    const cleanStringForId = (str) => {
+      if (!str) return "";
+      return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
+    };
+    
+    sheetClasses.forEach(c => {
+       const studentsInClass = students.filter(s => (s.school || "Mặc định") === c.sheetSchool && s.className === c.sheetClassName);
+       
+       studentsInClass.forEach(s => {
+         const studentId = cleanStringForId(s.name) + "_" + cleanStringForId(c.sheetClassName) + "_" + cleanStringForId(c.sheetSchool) + "_" + s.rowIndex;
+         const sEmail = `${studentId}@ic3lms.edu.vn`;
+         if (!allStudents.some(ex => ex.id === sEmail || ex.email === sEmail)) {
+           allStudents.push({
+             id: sEmail,
+             email: sEmail,
+             name: s.name,
+             classId: c.id,
+             password: s.password,
+             badges: [],
+             level: "Tân binh",
+             pokemon: "pikachu",
+             coins: 0,
+             testsCompleted: 0
+           });
+           newStudentIds.push(sEmail);
+           updated = true;
+         }
+       });
+    });
+    
+    if (updated) {
+      window.saveData(window.IC3_KEYS.STUDENTS, allStudents, newStudentIds);
+      initClassSelector();
+    }
+  } catch (error) {
+    console.error("Auto sync failed:", error);
+  }
 }
 
 // 1. Auth Validation
@@ -73,12 +178,49 @@ function logoutTeacher() {
 }
 
 // 3. Class selection control
+function syncTeacherDataToCollections(teacher) {
+  const users = window.IC3_CACHE[window.IC3_KEYS.USERS] || [];
+  const uIndex = users.findIndex(u => u.email === teacher.email);
+  if (uIndex >= 0) users[uIndex] = teacher;
+  else users.push(teacher);
+  window.saveData(window.IC3_KEYS.USERS, users, teacher.email);
+
+  const teachers = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+  const tIndex = teachers.findIndex(t => t.email === teacher.email);
+  if (tIndex >= 0) {
+      teachers[tIndex].classes = teacher.classes;
+      window.saveData(window.IC3_KEYS.TEACHERS, teachers, teacher.email);
+  } else {
+      teachers.push(teacher);
+      window.saveData(window.IC3_KEYS.TEACHERS, teachers, teacher.email);
+  }
+}
+
 function initClassSelector() {
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
-  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  let teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
   
+  // Sync with teachers collection if available
+  const teachersInDb = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
+  const teacherInDb = teachersInDb.find(t => t.email === teacher.email);
+  if (teacherInDb) {
+    teacher.classes = teacherInDb.classes || [];
+    localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
+  } else {
+    let needsMigration = false;
+    if (!teacher.classes) {
+      teacher.classes = [];
+      needsMigration = true;
+    }
+
+    if (needsMigration) {
+      localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
+      syncTeacherDataToCollections(teacher);
+    }
+  }
+
   // Filter classes belonging to this teacher
-  const teacherClasses = classes.filter(c => c.teacherEmail === teacher.email);
+  const teacherClasses = classes.filter(c => teacher.classes && teacher.classes.includes(c.id));
   const selector = document.getElementById("classSelector");
   selector.innerHTML = "";
 
@@ -179,7 +321,7 @@ function renderOverview() {
 function renderClassesGrid() {
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
   const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
-  const teacherClasses = classes.filter(c => c.teacherEmail === teacher.email);
+  const teacherClasses = classes.filter(c => teacher.classes && teacher.classes.includes(c.id));
   
   const gridEl = document.getElementById("teacher-classes-grid");
   gridEl.innerHTML = "";
@@ -198,7 +340,8 @@ function renderClassesGrid() {
         <span class="text-[10px] text-indigo-300 font-mono block uppercase mt-0.5">${c.id}</span>
         <p class="text-xs text-indigo-200 mt-2"><i class="fa-solid fa-graduation-cap mr-1"></i>Sĩ số: <span class="font-bold">${classSize} học sinh</span></p>
       </div>
-      <div class="flex justify-end gap-2 mt-4 pt-3 border-t border-indigo-500/30">
+      <div class="flex justify-between items-center mt-4 pt-3 border-t border-indigo-500/30">
+        <button onclick="deleteClass('${c.id}')" class="px-2 py-1 text-[11px] font-bold text-red-400 hover:text-white hover:bg-red-500 rounded-md transition-all"><i class="fa-solid fa-trash"></i> Xóa</button>
         <button onclick="selectSpecificClass('${c.id}')" class="px-2.5 py-1 text-[11px] font-bold ${isCurrent ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-indigo-200 hover:bg-slate-200'} rounded-md transition-all">Quản lý</button>
       </div>
     `;
@@ -245,11 +388,11 @@ function renderOverviewProgressTable(classStudents) {
         <span class="text-[9px] text-indigo-300 font-mono">${std.email}</span>
       </td>
       <td class="px-4 py-3.5"><span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded font-bold">${std.level}</span></td>
-      <td class="px-4 py-3.5 font-medium text-indigo-200">${pokemonIcons[std.pokemon] || std.pokemon}</td>
+      <td class="px-4 py-3.5 font-medium text-indigo-200">${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon}</td>
       <td class="px-4 py-3.5">
         <div class="flex items-center gap-2">
           <span class="font-mono text-xs font-bold text-indigo-50">${std.exp} EXP</span>
-          <span class="text-[10px] text-yellow-600"><i class="fa-solid fa-coins"></i> ${std.coins}</span>
+          <span class="text-[10px] text-yellow-600"><i class="fa-solid fa-coins"></i> ${std.coins || 0}</span>
         </div>
       </td>
       <td class="px-4 py-3.5"><span class="font-bold text-indigo-50">${std.rank}</span></td>
@@ -264,29 +407,44 @@ function renderOverviewProgressTable(classStudents) {
 function renderClassStudentsTable() {
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const classStudents = students.filter(s => s.classId === activeClassId);
-
   // Populate filter dropdown with unique school classes
   populateSchoolClassFilter(classStudents);
+  
+  const filterEl = document.getElementById("schoolClassFilter");
+  const filterVal = filterEl ? filterEl.value : "";
+  const searchInput = document.getElementById("studentsSearch");
+  const searchQuery = searchInput ? searchInput.value.toLowerCase() : "";
 
-  const filterVal = document.getElementById("schoolClassFilter").value;
-  const filteredStudents = filterVal ? classStudents.filter(s => s.schoolClass === filterVal) : classStudents;
+  let filteredStudents = filterVal ? classStudents.filter(s => s.schoolClass === filterVal) : classStudents;
+  if (searchQuery) {
+    filteredStudents = filteredStudents.filter(s => 
+      (s.name && s.name.toLowerCase().includes(searchQuery)) || 
+      (s.email && s.email.toLowerCase().includes(searchQuery))
+    );
+  }
 
   const body = document.getElementById("class-students-table-body");
   body.innerHTML = "";
+
+  const paginationContainerId = 'students-pagination';
+  const paginationEl = document.getElementById(paginationContainerId);
+  if (paginationEl) paginationEl.innerHTML = "";
 
   if (filteredStudents.length === 0) {
     body.innerHTML = `<tr><td colspan="8" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
     return;
   }
 
-  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
+  const currentPage = window.teacherPagination.students || 1;
+  const pagedStudents = filteredStudents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(filteredStudents.length, currentPage, paginationContainerId, 'students');
 
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
   const settings = window.IC3_CACHE[window.IC3_KEYS.SETTINGS] || [];
   const config = settings.find(s => s.id === "game_config");
   const limit = config && config.bossHuntLimit !== undefined ? config.bossHuntLimit : 2;
   const today = getBossHuntDayKey();
-
-  filteredStudents.forEach(std => {
+  pagedStudents.forEach(std => {
     // Count success tests (>=50)
     const passedCount = scores.filter(sc => sc.studentEmail === std.email && sc.score >= 50).length;
     
@@ -320,12 +478,12 @@ function renderClassStudentsTable() {
           <i class="fa-solid fa-circle-user text-indigo-300"></i> ${std.name}
         </button>
       </td>
-      <td class="px-5 py-3.5 font-medium text-indigo-200">${schoolText}</td>
-      <td class="px-5 py-3.5 font-medium text-indigo-200">${classText}</td>
       <td class="px-5 py-3.5 font-mono text-indigo-300">${std.email}</td>
-      <td class="px-5 py-3.5"><span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded font-bold">${std.level || "Beginner"}</span></td>
+      <td class="px-5 py-3.5 font-mono font-medium text-emerald-400">${std.password || 'Chưa thiết lập'}</td>
+      <td class="px-5 py-3.5 font-medium text-indigo-200"><i class="fa-solid fa-paw mr-1 text-indigo-400"></i> ${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon || "Chưa có"}</td>
+      <td class="px-5 py-3.5 font-mono font-bold text-yellow-500"><i class="fa-solid fa-coins mr-1"></i> ${std.coins || 0}</td>
       <td class="px-5 py-3.5 font-mono font-bold text-yellow-600">
-        <div>${std.exp} EXP</div>
+        <div>${std.exp || 0} EXP</div>
         <div class="text-[10px] text-rose-400 font-semibold mt-1">👹 Boss: ${huntRecord}/${limit}</div>
       </td>
       <td class="px-5 py-3.5 text-center font-bold text-emerald-600">${passedCount} bài đạt</td>
@@ -349,6 +507,7 @@ function renderClassStudentsTable() {
 
 function populateSchoolClassFilter(classStudents) {
   const filter = document.getElementById("schoolClassFilter");
+  if (!filter) return;
   const previousValue = filter.value;
   filter.innerHTML = `<option value="">Tất cả</option>`;
   
@@ -538,7 +697,7 @@ window.resetBossHunts = function(studentEmail) {
 }
 
 // ==================== POPUP MODAL: STUDENT DETAILS & HISTORY ====================
-function openStudentDetailsModal(studentEmail) {
+async function openStudentDetailsModal(studentEmail) {
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   const student = students.find(s => s.email === studentEmail);
   if (!student) {
@@ -546,26 +705,43 @@ function openStudentDetailsModal(studentEmail) {
     return;
   }
 
-  const pokemonAvatars = {
-    pikachu: "⚡",
-    charmander: "🔥",
-    bulbasaur: "🌱",
-    squirtle: "💧",
-    eevee: "🦊"
-  };
-  document.getElementById("detail-pokemon-avatar").innerText = pokemonAvatars[student.pokemon] || "🦊";
+  document.getElementById("detail-pokemon-avatar").innerText = window.pokemonAvatars[student.pokemon] || "🦊";
   document.getElementById("detail-student-name").innerText = student.name;
   document.getElementById("detail-student-email").innerText = student.email;
   document.getElementById("detail-student-level").innerText = `Cấp độ: ${student.level || "Beginner"}`;
   document.getElementById("detail-student-rank").innerText = `Hạng: ${student.rank || "Bronze"}`;
   document.getElementById("detail-student-school").innerText = `Trường: ${student.schoolClass || "Chưa có"}`;
+  
+  const attemptsTbody = document.getElementById("detail-attempts-tbody");
+  const highestScoresTbody = document.getElementById("detail-highest-scores-tbody");
+  
+  attemptsTbody.innerHTML = `<tr><td colspan="3" class="px-4 py-3.5 text-center text-indigo-300 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Đang tải dữ liệu...</td></tr>`;
+  highestScoresTbody.innerHTML = `<tr><td colspan="2" class="px-4 py-3.5 text-center text-indigo-300 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Đang tải dữ liệu...</td></tr>`;
+  document.getElementById("studentDetailsModal").classList.remove("hidden");
 
-  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
-  const studentScores = scores.filter(s => s.studentEmail === studentEmail);
+  let studentScores = [];
+  try {
+    if (window.fStore && window.db) {
+      const { collection, query, where, getDocs } = window.fStore;
+      const scoreQuery = query(
+        collection(window.db, window.IC3_KEYS.SCORES),
+        where("studentEmail", "==", studentEmail)
+      );
+      const scoreSnap = await getDocs(scoreQuery);
+      studentScores = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    } else {
+      const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
+      studentScores = scores.filter(s => s.studentEmail === studentEmail);
+    }
+  } catch (err) {
+    console.error("Error fetching student scores:", err);
+    const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
+    studentScores = scores.filter(s => s.studentEmail === studentEmail);
+  }
+
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
 
   // Lịch sử làm bài thi
-  const attemptsTbody = document.getElementById("detail-attempts-tbody");
   attemptsTbody.innerHTML = "";
   if (studentScores.length === 0) {
     attemptsTbody.innerHTML = `<tr><td colspan="3" class="px-4 py-3.5 text-center text-indigo-300 text-xs">Chưa có lịch sử thám hiểm nào.</td></tr>`;
@@ -585,7 +761,6 @@ function openStudentDetailsModal(studentEmail) {
   }
 
   // Điểm các bài kiểm tra cao nhất
-  const highestScoresTbody = document.getElementById("detail-highest-scores-tbody");
   highestScoresTbody.innerHTML = "";
   
   const takenTestIds = [...new Set(studentScores.map(sc => sc.testId))];
@@ -606,8 +781,6 @@ function openStudentDetailsModal(studentEmail) {
       highestScoresTbody.appendChild(tr);
     });
   }
-
-  document.getElementById("studentDetailsModal").classList.remove("hidden");
 }
 
 function closeStudentDetailsModal() {
@@ -746,28 +919,25 @@ function renderQuestionsList() {
   const testQuestions = questions.filter(q => test.questions.includes(q.id));
 
   const filteredQuestions = testQuestions.filter(q => 
-    (!typeFilter || q.type === typeFilter) &&
-    (!searchQuery || q.question.toLowerCase().includes(searchQuery))
-  ).sort((a, b) => a.id.localeCompare(b.id));
+    (typeFilter === "" || q.type === typeFilter) &&
+    (q.text.toLowerCase().includes(searchQuery))
+  );
+
+  const paginationContainerId = 'questions-pagination';
+  const paginationEl = document.getElementById(paginationContainerId);
+  if (paginationEl) paginationEl.innerHTML = "";
 
   if (filteredQuestions.length === 0) {
-    listContainer.innerHTML = `<p class="p-4 text-center text-[11px] text-indigo-300 italic">Không tìm thấy câu hỏi phù hợp.</p>`;
+    listContainer.innerHTML = `<div class="p-6 text-center text-xs text-indigo-300">Không có câu hỏi nào.</div>`;
     return;
   }
 
-  const typeLabels = {
-    choice: "Trắc nghiệm 1 đáp án",
-    drag_text: "Kéo thả chữ",
-    drag_image_text: "Kéo thả hình + chữ",
-    table_match: "Nối bảng / Ghép",
-    multi_choice: "Chọn nhiều đáp án",
-    image_choice: "Chọn bằng hình ảnh",
-    multiple_choice: "Trắc nghiệm cũ",
-    true_false: "Đúng / Sai",
-    fill_blank: "Điền khuyết"
-  };
+  const currentPage = window.teacherPagination.questions || 1;
+  const pagedQuestions = filteredQuestions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(filteredQuestions.length, currentPage, paginationContainerId, 'questions');
 
-  filteredQuestions.forEach((q, idx) => {
+  pagedQuestions.forEach((q, idxOnPage) => {
+    const idx = (currentPage - 1) * ITEMS_PER_PAGE + idxOnPage;
     const item = document.createElement("button");
     item.id = `q-list-item-${q.id}`;
     item.onclick = () => selectActiveQuestion(q.id);
@@ -2081,11 +2251,29 @@ function renderResultsTable() {
   const emails = classStudents.map(s => s.email);
 
   const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
-  const classScores = scores.filter(sc => emails.includes(sc.studentEmail));
+  let classScores = scores.filter(sc => emails.includes(sc.studentEmail));
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
+
+  const searchInput = document.getElementById("resultsSearch");
+  const searchQuery = searchInput ? searchInput.value.toLowerCase() : "";
+
+  if (searchQuery) {
+    classScores = classScores.filter(sc => {
+      const std = classStudents.find(s => s.email === sc.studentEmail);
+      const nameMatch = std && std.name && std.name.toLowerCase().includes(searchQuery);
+      const emailMatch = sc.studentEmail.toLowerCase().includes(searchQuery);
+      const test = tests.find(t => t.id === sc.testId);
+      const testMatch = test && test.title && test.title.toLowerCase().includes(searchQuery);
+      return nameMatch || emailMatch || testMatch;
+    });
+  }
 
   const body = document.getElementById("teacher-results-table-body");
   body.innerHTML = "";
+
+  const paginationContainerId = 'results-pagination';
+  const paginationEl = document.getElementById(paginationContainerId);
+  if (paginationEl) paginationEl.innerHTML = "";
 
   const levelLabels = {
     level_1: `<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold border border-blue-200">Level 1</span>`,
@@ -2101,7 +2289,11 @@ function renderResultsTable() {
   // Sort scores by date desc
   classScores.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  classScores.forEach(sc => {
+  const currentPage = window.teacherPagination.results || 1;
+  const pagedScores = classScores.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(classScores.length, currentPage, paginationContainerId, 'results');
+
+  pagedScores.forEach(sc => {
     const student = students.find(s => s.email === sc.studentEmail) || { name: sc.studentEmail };
     const test = tests.find(t => t.id === sc.testId) || { title: sc.testId, level: "level_1" };
     
@@ -2129,17 +2321,33 @@ function renderResultsTable() {
 // ==================== CLASS RANKING ====================
 function renderClassRanking() {
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  const classStudents = students.filter(s => s.classId === activeClassId);
+  let classStudents = students.filter(s => s.classId === activeClassId);
+
+  const searchInput = document.getElementById("rankingSearch");
+  const searchQuery = searchInput ? searchInput.value.toLowerCase() : "";
+  if (searchQuery) {
+    classStudents = classStudents.filter(s => s.name && s.name.toLowerCase().includes(searchQuery));
+  }
+
   const leaderboardEl = document.getElementById("class-ranking-leaderboard");
   leaderboardEl.innerHTML = "";
+  
+  const paginationContainerId = 'ranking-pagination';
+  const paginationEl = document.getElementById(paginationContainerId);
+  if (paginationEl) paginationEl.innerHTML = "";
 
   if (classStudents.length === 0) {
-    leaderboardEl.innerHTML = `<div class="py-8 text-center text-indigo-300 text-sm italic">Lớp học chưa có thành viên nào.</div>`;
+    leaderboardEl.innerHTML = `<div class="py-8 text-center text-indigo-300 text-sm italic">Không có dữ liệu xếp hạng.</div>`;
     return;
   }
 
   // Sort by EXP desc
   classStudents.sort((a, b) => b.exp - a.exp);
+  
+  const currentPage = window.teacherPagination.ranking || 1;
+  const pagedRanked = classStudents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(classStudents.length, currentPage, paginationContainerId, 'ranking');
+
 
   const pokemonIcons = {
     pikachu: "⚡",
@@ -2149,7 +2357,8 @@ function renderClassRanking() {
     eevee: "🦊"
   };
 
-  classStudents.forEach((std, index) => {
+  pagedRanked.forEach((std, idxOnPage) => {
+    const index = (currentPage - 1) * ITEMS_PER_PAGE + idxOnPage;
     let medal = `<span class="font-poppins font-extrabold text-base text-indigo-300 w-8 text-center">${index + 1}</span>`;
     if (index === 0) medal = `<span class="w-8 flex justify-center text-xl">🥇</span>`;
     else if (index === 1) medal = `<span class="w-8 flex justify-center text-xl">🥈</span>`;
@@ -2161,7 +2370,7 @@ function renderClassRanking() {
       <div class="flex items-center gap-4">
         ${medal}
         <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg border border-indigo-500/30 shadow-inner">
-          ${pokemonIcons[std.pokemon] || "🦊"}
+          ${window.pokemonAvatars[std.pokemon] || "🦊"}
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -2173,7 +2382,7 @@ function renderClassRanking() {
       </div>
       <div class="text-right">
         <span class="font-mono text-xs font-bold text-emerald-600 block">${std.exp} EXP</span>
-        <span class="text-[10px] text-yellow-600 font-semibold block"><i class="fa-solid fa-coins"></i> ${std.coins} Coins</span>
+        <span class="text-[10px] text-yellow-600 font-semibold block"><i class="fa-solid fa-coins"></i> ${std.coins || 0} Coins</span>
       </div>
     `;
     leaderboardEl.appendChild(div);
@@ -2182,6 +2391,189 @@ function renderClassRanking() {
 
 
 // ==================== CLASS CRUD MODALS ====================
+
+let classToDeleteId = null;
+
+window.deleteClass = function(classId) {
+  classToDeleteId = classId;
+  const modal = document.getElementById("confirmDeleteClassModal");
+  if(modal) modal.classList.remove("hidden");
+};
+
+window.closeConfirmDeleteClassModal = function() {
+  classToDeleteId = null;
+  const modal = document.getElementById("confirmDeleteClassModal");
+  if(modal) modal.classList.add("hidden");
+};
+
+document.getElementById("btnConfirmDeleteClass")?.addEventListener("click", function() {
+  if (!classToDeleteId) return;
+  const classId = classToDeleteId;
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const updatedClasses = classes.filter(c => c.id !== classId);
+  window.saveData(window.IC3_KEYS.CLASSES, updatedClasses);
+  
+  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  if (teacher.classes) {
+    teacher.classes = teacher.classes.filter(id => id !== classId);
+    localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
+    syncTeacherDataToCollections(teacher);
+  }
+
+  if (activeClassId === classId) {
+    activeClassId = "";
+  }
+  
+  initClassSelector();
+  closeConfirmDeleteClassModal();
+  window.showToast("Đã xóa lớp thành công!", "success");
+});
+
+let fetchedSheetStudents = [];
+
+window.switchClassModalTab = function(tab) {
+  const manualBtn = document.getElementById("tabBtn-manualClass");
+  const sheetBtn = document.getElementById("tabBtn-sheetClass");
+  const manualForm = document.getElementById("classForm");
+  const sheetForm = document.getElementById("classSheetForm");
+
+  if (tab === 'manual') {
+    manualBtn.className = "px-4 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-400";
+    sheetBtn.className = "px-4 py-2 text-xs font-bold text-indigo-300 border-b-2 border-transparent";
+    manualForm.classList.remove("hidden");
+    sheetForm.classList.add("hidden");
+  } else {
+    sheetBtn.className = "px-4 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-400";
+    manualBtn.className = "px-4 py-2 text-xs font-bold text-indigo-300 border-b-2 border-transparent";
+    sheetForm.classList.remove("hidden");
+    manualForm.classList.add("hidden");
+    loadSchoolsFromSheet();
+  }
+};
+
+window.loadSchoolsFromSheet = async function() {
+  const wrapper = document.getElementById("sheetFieldsWrapper");
+  const loading = document.getElementById("sheetLoadingWrapper");
+  const schoolSelect = document.getElementById("sheetSchoolSelect");
+  
+  wrapper.classList.add("hidden");
+  loading.classList.remove("hidden");
+  schoolSelect.innerHTML = '<option value="">-- Chọn Trường --</option>';
+  
+  try {
+    const config = await window.getGoogleSheetsConfig();
+    if (!config || !config.spreadsheetId) {
+      window.showToast("Chưa cấu hình Google Sheets trong Admin", "error");
+      closeClassModal();
+      return;
+    }
+    
+    const students = await window.fetchGoogleSheetData(config.spreadsheetId, config.studentSheetName || "Tổng quát");
+    fetchedSheetStudents = students || [];
+    
+    const schools = [...new Set(fetchedSheetStudents.map(s => s.school || "Mặc định"))];
+    
+    schools.forEach(sch => {
+      schoolSelect.innerHTML += `<option value="${sch}">${sch}</option>`;
+    });
+  } catch (error) {
+    console.error("Error loading schools:", error);
+    window.showToast("Lỗi tải danh sách từ Google Sheets", "error");
+  } finally {
+    wrapper.classList.remove("hidden");
+    loading.classList.add("hidden");
+  }
+};
+
+window.updateSheetClassDropdown = function() {
+  const school = document.getElementById("sheetSchoolSelect").value;
+  const classSelect = document.getElementById("sheetClassSelect");
+  classSelect.innerHTML = '<option value="">-- Chọn Lớp --</option>';
+  
+  if (!school) return;
+  
+  const classesForSchool = [...new Set(fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school).map(s => s.className))];
+  
+  classesForSchool.forEach(cls => {
+    if (cls) {
+      classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
+    }
+  });
+};
+
+document.getElementById("classSheetForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  const school = document.getElementById("sheetSchoolSelect").value;
+  const className = document.getElementById("sheetClassSelect").value;
+  
+  if (!school || !className) return window.showToast("Vui lòng chọn trường và lớp", "error");
+  
+  const cleanStringForId = (str) => {
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
+  };
+  
+  const classId = `class_${cleanStringForId(school)}_${cleanStringForId(className)}`;
+  const displayClassName = `${className} - ${school}`;
+  
+  const currentClasses = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const existingClass = currentClasses.find(c => c.id === classId);
+
+  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+
+  if (!existingClass) {
+    const newClass = {
+      id: classId,
+      name: displayClassName,
+      teacherEmail: teacher.email,
+      isFromSheet: true, // Mark this class as synced from sheet
+      sheetSchool: school,
+      sheetClassName: className,
+      createdAt: new Date().toISOString()
+    };
+    
+    currentClasses.push(newClass);
+    window.saveData(window.IC3_KEYS.CLASSES, currentClasses, classId);
+  }
+
+  if (!teacher.classes) teacher.classes = [];
+  if (!teacher.classes.includes(classId)) teacher.classes.push(classId);
+  localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
+  
+  syncTeacherDataToCollections(teacher);
+
+  // also add students immediately
+  const studentsInClass = fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school && s.className === className);
+  const allStudents = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  
+  let newStudentsCount = 0;
+  let newStudentIds = [];
+  studentsInClass.forEach(s => {
+    const studentId = cleanStringForId(s.name) + "_" + cleanStringForId(className) + "_" + cleanStringForId(school) + "_" + s.rowIndex;
+    const sEmail = `${studentId}@ic3lms.edu.vn`;
+    if (!allStudents.some(ex => ex.id === sEmail || ex.email === sEmail)) {
+      allStudents.push({
+        id: sEmail,
+        email: sEmail,
+        name: s.name,
+        classId: classId,
+        password: s.password,
+        badges: [],
+        level: "Tân binh",
+        pokemon: "pikachu",
+        coins: 0,
+        testsCompleted: 0
+      });
+      newStudentIds.push(sEmail);
+      newStudentsCount++;
+    }
+  });
+  window.saveData(window.IC3_KEYS.STUDENTS, allStudents, newStudentIds);
+  
+  initClassSelector();
+  closeClassModal();
+  window.showToast(`Tạo lớp thành công! Đã đồng bộ ${newStudentsCount} học sinh.`, "success");
+});
+
 function openClassModal() {
   const modal = document.getElementById("classModal");
   document.getElementById("classForm").reset();
@@ -2213,6 +2605,12 @@ function handleClassSubmit(e) {
 
   classes.push(newClass);
   window.saveData(window.IC3_KEYS.CLASSES, classes, id);
+
+  if (!teacher.classes) teacher.classes = [];
+  if (!teacher.classes.includes(id)) teacher.classes.push(id);
+  localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
+  
+  syncTeacherDataToCollections(teacher);
 
   closeClassModal();
   initClassSelector();
@@ -2519,16 +2917,32 @@ window.initHotspotDrawing = () => {
 async function renderTeacherRewards() {
   const grid = document.getElementById("teacher-rewards-grid");
   if (!grid) return;
-  grid.innerHTML = "";
 
   const rewards = window.IC3_CACHE[window.IC3_KEYS.REWARDS] || [];
+  let filteredRewards = rewards;
+
+  const searchInput = document.getElementById("rewardsSearch");
+  const searchQuery = searchInput ? searchInput.value.toLowerCase() : "";
+  if (searchQuery) {
+    filteredRewards = filteredRewards.filter(r => r.name && r.name.toLowerCase().includes(searchQuery));
+  }
+
+  grid.innerHTML = "";
   
-  if (rewards.length === 0) {
-    grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-4">Chưa có phần thưởng nào trong hệ thống. Hãy đăng nhập bên học sinh để khởi tạo phần thưởng.</div>';
+  const paginationContainerId = 'rewards-pagination';
+  const paginationEl = document.getElementById(paginationContainerId);
+  if (paginationEl) paginationEl.innerHTML = "";
+
+  if (filteredRewards.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-4">Chưa có phần thưởng nào trong hệ thống hoặc không khớp tìm kiếm.</div>';
     return;
   }
 
-  rewards.forEach(r => {
+  const currentPage = window.teacherPagination.rewards || 1;
+  const pagedRewards = filteredRewards.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  renderPagination(filteredRewards.length, currentPage, paginationContainerId, 'rewards');
+
+  pagedRewards.forEach(r => {
     let imgRender = `<div class="text-3xl">${r.image}</div>`;
     if (r.image.startsWith("http")) {
       imgRender = `<img src="${r.image}" class="w-16 h-16 object-contain filter drop-shadow-md" alt="${r.name}">`;

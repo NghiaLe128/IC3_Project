@@ -401,11 +401,21 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
       window.IC3_CACHE[window.IC3_KEYS.CLASSES] = classesList;
     }
 
-    const matchingClass = classesList.find(c => c.name.toLowerCase() === className.toLowerCase());
-    if (matchingClass) targetClassId = matchingClass.id;
-    else {
-      targetClassId = `class_sheet_${className.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "")}`;
-      const newClass = { id: targetClassId, name: className, teacherEmail: config?.configuredBy || "teacher@gmail.com", studentCount: 1 };
+    targetClassId = `class_${cleanStringForId(school)}_${cleanStringForId(className)}`;
+
+    const matchingClass = classesList.find(c => c.id === targetClassId);
+    if (!matchingClass) {
+      const teacherEmail = config?.configuredBy || "teacher@gmail.com";
+      const newClass = { 
+        id: targetClassId, 
+        name: `${className} - ${school}`, 
+        teacherEmail: teacherEmail, 
+        studentCount: 1,
+        isFromSheet: true,
+        sheetSchool: school,
+        sheetClassName: className,
+        createdAt: new Date().toISOString()
+      };
       await setDoc(doc(db, "classes", targetClassId), newClass);
       if (!window.IC3_CACHE["classes"]) window.IC3_CACHE["classes"] = [];
       window.IC3_CACHE["classes"].push(newClass);

@@ -50,6 +50,106 @@ window.auth = auth;
 window.fStore = { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, onSnapshot };
 window.fAuth = { signInWithEmailAndPassword, signOut, onAuthStateChanged };
 
+window.pokemonAvatars = {
+    pichu: "🍼",
+    pikachu: "⚡",
+    raichu: "⚡⚡",
+    "raichu-alola": "🌊⚡",
+    "pikachu-gmax": "🌩️",
+    charmander: "🔥",
+    charmeleon: "💥",
+    charizard: "🐉🔥",
+    "charizard-megax": "💙🐉",
+    "charizard-megay": "🧡🐉",
+    bulbasaur: "🌱",
+    ivysaur: "🌿",
+    venusaur: "🌸",
+    "venusaur-gmax": "🌺",
+    "venusaur-mega": "💮",
+    squirtle: "💧",
+    wartortle: "🌀",
+    blastoise: "🐢",
+    "blastoise-gmax": "🌊",
+    "blastoise-mega": "🔱",
+    eevee: "🦊",
+    vaporeon: "🧜‍♀️",
+    jolteon: "⚡🦊",
+    flareon: "🔥🦊",
+    espeon: "🔮",
+    umbreon: "🌙",
+    sylveon: "🎀",
+    munchlax: "🧸",
+    snorlax: "💤",
+    "snorlax-gmax": "🏢💤",
+    gastly: "👻",
+    haunter: "👿",
+    gengar: "😈",
+    "gengar-mega": "👾😈",
+    "gengar-gmax": "💀😈",
+    riolu: "🐾",
+    lucario: "🐺",
+    "lucario-mega": "🌟🐺",
+    dratini: "🐍",
+    dragonair: "🐉",
+    dragonite: "🐲",
+    mewtwo: "👽",
+    "mewtwo-megax": "👊👽",
+    "mewtwo-megay": "🧠👽",
+    rayquaza: "🐍🐉",
+    "rayquaza-mega": "🔱🐉",
+    arceus: "👑"
+};
+
+window.pokemonNames = {
+    pichu: "Pichu Sơ Sinh",
+    pikachu: "Pikachu Điện Sấm",
+    raichu: "Raichu Lôi Đế",
+    "raichu-alola": "Raichu Alola Thần Tốc",
+    "pikachu-gmax": "Pikachu Gigantamax Sấm Sét",
+    charmander: "Charmander Đuôi Đỏ",
+    charmeleon: "Charmeleon Cuồng Nộ",
+    charizard: "Charizard Rồng Lửa",
+    "charizard-megax": "Mega Charizard Hỏa Ngục X",
+    "charizard-megay": "Mega Charizard Hỏa Ngục Y",
+    bulbasaur: "Bulbasaur Bão Lá",
+    ivysaur: "Ivysaur Gai Hoa",
+    venusaur: "Venusaur Đại Thụ",
+    "venusaur-gmax": "Venusaur Gigantamax Địa Chấn",
+    "venusaur-mega": "Mega Venusaur Cự Long",
+    squirtle: "Squirtle Pháo Nước",
+    wartortle: "Wartortle Rùa Sóng Thần",
+    blastoise: "Blastoise Đại Pháo",
+    "blastoise-gmax": "Blastoise Gigantamax Khổng Lồ",
+    "blastoise-mega": "Mega Blastoise Chiến Thần",
+    eevee: "Eevee Thường Giả",
+    vaporeon: "Vaporeon Mỹ Nhân Ngư",
+    jolteon: "Jolteon Thú Chớp Điện",
+    flareon: "Flareon Sư Tử Lửa",
+    espeon: "Espeon Linh Thú Tâm Linh",
+    umbreon: "Umbreon Hắc Nguyệt Thần",
+    sylveon: "Sylveon Công Chúa Ruy Băng",
+    munchlax: "Munchlax Bé Con",
+    snorlax: "Snorlax Ham Ăn",
+    "snorlax-gmax": "Snorlax Gigantamax Đảo Ngủ",
+    gastly: "Gastly Đốm Sương",
+    haunter: "Haunter Quỷ Ám",
+    gengar: "Gengar Ma Vương",
+    "gengar-mega": "Mega Gengar Ám Ảnh",
+    "gengar-gmax": "Gengar Gigantamax Hắc Ám",
+    riolu: "Riolu Tiểu Quyền",
+    lucario: "Lucario Dũng Sĩ Hào Quang",
+    "lucario-mega": "Mega Lucario Đại Sư",
+    dratini: "Dratini Rồng Bột",
+    dragonair: "Dragonair Lam Long",
+    dragonite: "Dragonite Thần Long",
+    mewtwo: "Mewtwo Nhân Tạo",
+    "mewtwo-megax": "Mega Mewtwo Bá Vương X",
+    "mewtwo-megay": "Mega Mewtwo Thần Lực Y",
+    rayquaza: "Rayquaza Không Vương",
+    "rayquaza-mega": "Mega Rayquaza Sáng Thế",
+    arceus: "Arceus Đấng Sáng Thế"
+};
+
 const IC3_KEYS = {
   USERS: "users",
   STUDENTS: "students",
@@ -132,7 +232,7 @@ async function initData() {
   if (portal === "admin") {
     collectionsToFetch = Object.values(IC3_KEYS).filter(k => k !== IC3_KEYS.CURRENT_USER);
   } else if (portal === "teacher") {
-    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.REWARDS];
+    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.REWARDS, IC3_KEYS.TEACHERS];
   } else if (portal === "student") {
     collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.REWARDS, IC3_KEYS.BOSSES, IC3_KEYS.POKEMONS, IC3_KEYS.SETTINGS];
   }
@@ -178,7 +278,7 @@ async function initData() {
         window.IC3_CACHE[IC3_KEYS.STUDENTS] = studentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         
         console.log(`☁️ Fetching recent scores for class...`);
-        const scoreQuery = query(collection(db, IC3_KEYS.SCORES), limit(500)); 
+        const scoreQuery = query(collection(db, IC3_KEYS.SCORES)); 
         const scoreSnap = await getDocs(scoreQuery);
         window.IC3_CACHE[IC3_KEYS.SCORES] = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       }
