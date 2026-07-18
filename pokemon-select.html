@@ -267,8 +267,25 @@
           if (!userStr) throw new Error("Phiên làm việc hết hạn. Vui lòng đăng nhập lại.");
 
           const user = JSON.parse(userStr);
-          const pendingData = JSON.parse(localStorage.getItem("pendingStudentData"));
-          const pendingUserData = JSON.parse(localStorage.getItem("pendingUserData"));
+          let pendingData = null;
+          try {
+            const pendingDataStr = localStorage.getItem("pendingStudentData");
+            if (pendingDataStr && pendingDataStr.trim() !== "") {
+              pendingData = JSON.parse(pendingDataStr);
+            }
+          } catch (e) {
+            console.error("Error parsing pendingStudentData:", e);
+          }
+
+          let pendingUserData = null;
+          try {
+            const pendingUserDataStr = localStorage.getItem("pendingUserData");
+            if (pendingUserDataStr && pendingUserDataStr.trim() !== "") {
+              pendingUserData = JSON.parse(pendingUserDataStr);
+            }
+          } catch (e) {
+            console.error("Error parsing pendingUserData:", e);
+          }
           
           // Kiểm tra Firebase sẵn sàng
           if (!window.db || !window.fStore) throw new Error("Hệ thống chưa sẵn sàng, hãy đợi vài giây.");
