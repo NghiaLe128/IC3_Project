@@ -462,7 +462,7 @@ const getPortal = () => {
   const path = window.location.pathname;
   if (path.includes("/admin/")) return "admin";
   if (path.includes("/teacher/")) return "teacher";
-  if (path.includes("/student/")) return "student";
+  if (path.includes("/student/") || path.includes("/student_practice/")) return "student";
   return "root";
 };
 

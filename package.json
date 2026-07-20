@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && cp -r admin teacher student dist/ && cp pokemon-select.html dist/ && mkdir -p dist/assets && cp -r assets/* dist/assets/",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && cp -r admin teacher student student_practice dist/ && cp pokemon-select.html dist/ && mkdir -p dist/assets && cp -r assets/* dist/assets/",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

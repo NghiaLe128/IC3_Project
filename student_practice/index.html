@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cổng Luyện Thi Học Sinh - IC3 LMS</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+      window.confetti = window.confetti || (typeof confetti !== 'undefined' ? confetti : null);
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              edu: {
+                bg: '#F8FAFC',
+                primary: '#2563EB',
+                secondary: '#3B82F6',
+                success: '#10B981',
+                danger: '#EF4444',
+                warning: '#F59E0B',
+                card: '#FFFFFF',
+                border: '#E5E7EB',
+                text: '#1E293B',
+                muted: '#64748B'
+              }
+            },
+            boxShadow: {
+              'premium': '0 4px 20px -2px rgba(37, 99, 235, 0.08), 0 2px 8px -1px rgba(37, 99, 235, 0.04)',
+              'hover-premium': '0 20px 25px -5px rgba(37, 99, 235, 0.12), 0 10px 10px -5px rgba(37, 99, 235, 0.06)'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Smooth Transitions and Apple Scrollbars */
+      * {
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+        scrollbar-width: thin;
+        scrollbar-color: #CBD5E1 #F1F5F9;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #F1F5F9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94A3B8;
+      }
+
+      /* Button Ripple Effect */
+      .btn-ripple {
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-ripple::after {
+        content: "";
+        background: rgba(255, 255, 255, 0.2);
+        display: block;
+        position: absolute;
+        border-radius: 50%;
+        padding-top: 240%;
+        padding-left: 240%;
+        margin-left: -120%;
+        margin-top: -120%;
+        opacity: 0;
+        transition: all 0.8s ease;
+      }
+      .btn-ripple:active::after {
+        padding: 0;
+        margin: 0;
+        opacity: 1;
+        transition: 0s;
+      }
+
+      /* Hotspot cursor */
+      #student-hotspot-container {
+        cursor: crosshair;
+      }
+      
+      /* Slide-up Transition */
+      .slide-up {
+        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      /* Choice buttons custom styling */
+      .option-btn {
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .option-btn:hover {
+        transform: translateY(-2px);
+      }
+      .option-btn.selected {
+        border-color: #2563EB;
+        background-color: rgba(37, 99, 235, 0.05);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+      }
+      .option-btn.correct {
+        border-color: #10B981 !important;
+        background-color: rgba(16, 185, 129, 0.08) !important;
+        color: #065F46 !important;
+      }
+      .option-btn.wrong {
+        border-color: #EF4444 !important;
+        background-color: rgba(239, 68, 68, 0.08) !important;
+        color: #991B1B !important;
+      }
+    </style>
+  </head>
+  <body class="bg-[#F8FAFC] text-[#1E293B] min-h-screen font-sans flex flex-col selection:bg-blue-500/10">
+
+    <!-- Global App Loading Cover -->
+    <div id="edu-app-loader" class="fixed inset-0 bg-white/90 backdrop-blur-md z-[999] flex flex-col items-center justify-center gap-4">
+      <div class="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="font-semibold text-gray-600 animate-pulse text-sm">Đang tải học liệu và hệ thống...</p>
+    </div>
+
+    <!-- ==================== SCREEN: AUTHENTICATION ==================== -->
+    <section id="screen-auth" class="flex-grow flex items-center justify-center px-4 py-12 hidden">
+      <div class="w-full max-w-md bg-white rounded-3xl border border-gray-200 shadow-premium p-8 slide-up relative overflow-hidden">
+        <div class="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600"></div>
+        
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100">
+            <i class="fa-solid fa-graduation-cap text-3xl"></i>
+          </div>
+          <h2 class="text-2xl font-black tracking-tight text-gray-900">CỔNG HỌC SINH</h2>
+          <p class="text-gray-500 text-sm mt-1">Đăng nhập tài khoản bằng Google Sheet</p>
+        </div>
+
+        <form id="eduLoginForm" class="space-y-5">
+          <!-- School dropdown -->
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider">Trường học</label>
+            <select id="sheetSchoolSelect" required onchange="onSchoolChange()"
+              class="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-2xl px-4 py-3.5 text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-sm appearance-none cursor-pointer">
+              <option value="">-- Đang quét danh sách trường... --</option>
+            </select>
+          </div>
+
+          <!-- Class dropdown -->
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider">Lớp học</label>
+            <select id="sheetClassSelect" required onchange="onClassChange()" disabled
+              class="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-2xl px-4 py-3.5 text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-sm appearance-none cursor-not-allowed">
+              <option value="">-- Chọn trường trước --</option>
+            </select>
+          </div>
+
+          <!-- Student Name dropdown -->
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider">Học sinh</label>
+            <select id="sheetStudentSelect" required disabled
+              class="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-2xl px-4 py-3.5 text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-sm appearance-none cursor-not-allowed">
+              <option value="">-- Chọn lớp trước --</option>
+            </select>
+          </div>
+
+          <!-- Password field -->
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider">Mật khẩu</label>
+            <div class="relative">
+              <input id="sheetPassword" type="password" required placeholder="Nhập mật khẩu của bạn"
+                class="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-2xl pl-4 pr-10 py-3.5 text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-sm">
+              <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <i id="passwordToggleIcon" class="fa-solid fa-eye-slash"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Error Alert -->
+          <div id="loginErrorAlert" class="hidden p-4 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium flex items-start gap-2.5">
+            <i class="fa-solid fa-triangle-exclamation text-base shrink-0"></i>
+            <span id="loginErrorMessage">Lỗi thông tin đăng nhập!</span>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submitLoginBtn" class="btn-ripple w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 active:scale-98 transition-all text-sm flex items-center justify-center gap-2">
+            Đăng nhập hệ thống <i class="fa-solid fa-right-to-bracket"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==================== SCREEN: STUDENT DASHBOARD ==================== -->
+    <section id="screen-dashboard" class="flex-grow flex flex-col hidden">
+      <!-- Main Header -->
+      <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <!-- Logo & Brand -->
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/20">
+              IC3
+            </div>
+            <div>
+              <h1 class="font-bold text-gray-900 tracking-tight text-base leading-none">IC3 LMS</h1>
+              <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">Cổng Học Sinh</span>
+            </div>
+          </div>
+
+          <!-- User Details & Logout -->
+          <div class="flex items-center gap-4">
+            <div class="text-right hidden sm:block">
+              <p id="headerStudentName" class="font-bold text-gray-900 text-sm">Học sinh</p>
+              <p id="headerStudentClass" class="text-xs text-gray-500 font-medium">Trường học</p>
+            </div>
+            <div class="h-10 w-px bg-gray-200 hidden sm:block"></div>
+            <a href="../student/index.html" class="px-4 py-2 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-600 font-bold rounded-xl text-xs flex items-center gap-2 transition-all">
+              <i class="fa-solid fa-gamepad"></i> Về Game Pokémon
+            </a>
+            <button onclick="handleLogout()" class="px-4 py-2 bg-gray-50 border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-gray-600 font-bold rounded-xl text-xs flex items-center gap-2 transition-all">
+              Đăng xuất <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dashboard Main Layout -->
+      <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        <!-- Welcome Hero & Summary Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Welcome Hero card -->
+          <div class="lg:col-span-2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-8 text-white shadow-premium relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+            <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-12 translate-y-12">
+              <i class="fa-solid fa-graduation-cap text-[14rem]"></i>
+            </div>
+            <div class="space-y-2">
+              <span class="px-3 py-1 bg-white/10 rounded-full text-xs font-bold uppercase tracking-wider">Học tập mỗi ngày</span>
+              <h2 id="welcomeGreeting" class="text-2xl sm:text-3xl font-black leading-tight tracking-tight mt-2">Chào mừng quay trở lại!</h2>
+              <p class="text-blue-100 text-sm max-w-md font-medium">Hãy ôn tập chăm chỉ để chuẩn bị sẵn sàng cho các bài kiểm tra thực hành chứng chỉ tin học quốc tế IC3.</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-bold text-blue-200">
+              <i class="fa-solid fa-clock"></i> 
+              <span id="currentTimeDisplay">Đang tải thời gian...</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Statistics Widget -->
+          <div class="bg-white rounded-3xl border border-gray-200 p-6 shadow-premium flex flex-col justify-between gap-4">
+            <h3 class="font-bold text-gray-900 text-sm tracking-tight border-b border-gray-100 pb-3 flex items-center gap-2">
+              <i class="fa-solid fa-chart-simple text-blue-600"></i> Tiến trình học tập
+            </h3>
+            <div class="grid grid-cols-2 gap-4 flex-grow items-center">
+              <div class="bg-blue-50/50 border border-blue-100/50 rounded-2xl p-4 text-center">
+                <span class="text-xs font-bold text-gray-500 block">Đã làm bài</span>
+                <span id="statCompletedTests" class="text-2xl font-black text-blue-600 mt-1 block">0</span>
+                <span class="text-[10px] font-bold text-gray-400">bài ôn luyện</span>
+              </div>
+              <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 text-center">
+                <span class="text-xs font-bold text-gray-500 block">Tỉ lệ đúng TB</span>
+                <span id="statAvgCorrectRate" class="text-2xl font-black text-emerald-500 mt-1 block">0%</span>
+                <span class="text-[10px] font-bold text-gray-400">đáp án chính xác</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Navigation Tabs -->
+        <div class="border-b border-gray-200">
+          <nav class="flex space-x-6">
+            <button onclick="switchTab('tests')" id="tabBtn-tests" class="border-b-2 border-blue-600 text-blue-600 py-4 px-1 text-sm font-bold flex items-center gap-2">
+              <i class="fa-solid fa-file-invoice"></i> Đề ôn tập & Kiểm tra
+            </button>
+            <button onclick="switchTab('history')" id="tabBtn-history" class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left"></i> Lịch sử kết quả
+            </button>
+            <button onclick="switchTab('leaderboard')" id="tabBtn-leaderboard" class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+              <i class="fa-solid fa-trophy"></i> Bảng vàng thành tích
+            </button>
+          </nav>
+        </div>
+
+        <!-- TAB: TESTS LIST -->
+        <div id="tab-content-tests" class="space-y-6 slide-up">
+          <!-- Filter and Search Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Khối học tập:</span>
+              <div class="flex flex-wrap gap-1.5" id="blockFiltersContainer">
+                <button onclick="filterByBlock('all')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm border border-transparent">Tất cả</button>
+                <button onclick="filterByBlock('block_3')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 3</button>
+                <button onclick="filterByBlock('block_4')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 4</button>
+                <button onclick="filterByBlock('block_5')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 5</button>
+                <button onclick="filterByBlock('block_6')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 6</button>
+              </div>
+            </div>
+            <div class="relative w-full sm:w-72">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+              <input id="testSearchInput" type="text" oninput="handleTestSearch()" placeholder="Tìm kiếm bộ đề thi..."
+                class="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl pl-9 pr-4 py-2.5 text-xs text-gray-900 focus:outline-none transition-all">
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div id="testsEmptyState" class="hidden text-center py-16 bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
+            <i class="fa-solid fa-folder-open text-gray-300 text-5xl mb-4"></i>
+            <h4 class="font-bold text-gray-700 text-base">Không tìm thấy bộ đề phù hợp</h4>
+            <p class="text-gray-400 text-sm mt-1">Giáo viên chưa phân bổ bộ đề thi nào cho khối học này.</p>
+          </div>
+
+          <!-- Tests grid -->
+          <div id="testsContainerGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Test cards go here dynamic -->
+          </div>
+        </div>
+
+        <!-- TAB: HISTORY TABLE -->
+        <div id="tab-content-history" class="hidden space-y-4 slide-up">
+          <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-premium">
+            <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="font-bold text-gray-900 text-base">Kết quả bài thi đã làm</h3>
+              <span id="historyCountBadge" class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">0 bản ghi</span>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th class="p-5">STT</th>
+                    <th class="p-5">Tên Bộ Đề</th>
+                    <th class="p-5">Chế độ</th>
+                    <th class="p-5">Điểm số</th>
+                    <th class="p-5">Số câu đúng</th>
+                    <th class="p-5">Thời gian làm</th>
+                    <th class="p-5">Ngày thi</th>
+                    <th class="p-5 text-right">Xem lại</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody" class="divide-y divide-gray-100 text-sm text-gray-700 font-medium">
+                  <!-- History rows go here -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty State for History -->
+            <div id="historyEmptyState" class="hidden text-center py-16 p-8">
+              <i class="fa-solid fa-rectangle-list text-gray-300 text-5xl mb-4"></i>
+              <h4 class="font-bold text-gray-700 text-base">Chưa làm bài thi nào</h4>
+              <p class="text-gray-400 text-sm mt-1">Hãy bắt đầu ôn luyện bằng cách nhấp vào "Luyện tập" hoặc "Kiểm tra" ở thẻ bộ đề.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: LEADERBOARD -->
+        <div id="tab-content-leaderboard" class="hidden space-y-6 slide-up">
+          <div class="bg-white rounded-3xl border border-gray-200 shadow-premium p-6">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-5 mb-6">
+              <div>
+                <h3 class="font-bold text-gray-900 text-lg">Bảng vàng vinh danh</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Xếp hạng các học sinh tích cực nhất hệ thống</p>
+              </div>
+              <div class="w-12 h-12 bg-yellow-50 text-yellow-500 border border-yellow-200 rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                <i class="fa-solid fa-trophy"></i>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="leaderboardTopThree">
+              <!-- Top 3 podium rendered dynamically -->
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th class="p-4 w-16">Hạng</th>
+                    <th class="p-4">Tên Học Sinh</th>
+                    <th class="p-4">Lớp / Trường</th>
+                    <th class="p-4">Tổng câu đúng</th>
+                    <th class="p-4">Điểm trung bình</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboardTableBody" class="divide-y divide-gray-100 text-sm text-gray-700 font-medium">
+                  <!-- Other ranking rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </section>
+
+    <!-- ==================== SCREEN: ACTIVE TESTING CENTER (SPA OVERLAY) ==================== -->
+    <section id="screen-testing" class="fixed inset-0 bg-[#F8FAFC] z-50 overflow-hidden hidden flex flex-col">
+      <!-- Test Header -->
+      <header class="bg-white border-b border-gray-200 h-18 py-3 px-4 sm:px-6 flex items-center justify-between shadow-sm shrink-0">
+        <div class="flex items-center gap-3">
+          <button onclick="confirmExitPlaying()" class="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 flex items-center justify-center text-gray-500 transition-colors">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div>
+            <h3 id="testingTitle" class="font-bold text-gray-900 text-sm sm:text-base tracking-tight leading-none">Tên Bài Thi Đang Lọc</h3>
+            <div class="flex items-center gap-2 mt-1">
+              <span id="testingModeBadge" class="px-2.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200">Luyện Tập</span>
+              <span id="testingQCountBadge" class="text-[10px] font-bold text-gray-400">Câu 1/30</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timer Count and Submit action -->
+        <div class="flex items-center gap-4">
+          <div id="testingTimerBox" class="px-4 py-2 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col items-center min-w-[90px]">
+            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Thời Gian</span>
+            <span id="testingTimeCountdown" class="font-mono text-base font-black text-gray-700 leading-none mt-0.5">30:00</span>
+          </div>
+          <button onclick="handleSubmitExam()" id="topBarSubmitBtn" class="btn-ripple px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md shadow-blue-500/10 active:scale-95 transition-all">
+            Nộp bài thi <i class="fa-solid fa-flag-checkered ml-1.5"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Testing Center Screen Content Area -->
+      <div class="flex-grow flex flex-col md:flex-row items-stretch overflow-hidden">
+        
+        <!-- Center-Left Area: Quiz Viewport & Answers Selection (Scrollable) -->
+        <div class="flex-grow overflow-y-auto p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+          <div class="max-w-3xl w-full mx-auto space-y-6">
+            
+            <!-- Progress Line Indicator -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between items-center text-xs font-bold text-gray-400 uppercase">
+                <span>Tiến trình hoàn thiện</span>
+                <span id="progressText">0%</span>
+              </div>
+              <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden border border-gray-100">
+                <div id="progressBarFill" class="h-full bg-blue-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Quiz Statement Card -->
+            <div class="bg-white rounded-3xl border border-gray-200 shadow-premium p-6 sm:p-8 space-y-6 relative overflow-hidden">
+              <!-- Question number corner overlay badge -->
+              <span id="questIdxCircle" class="absolute top-4 right-4 h-9 w-9 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-black text-xs">1</span>
+              
+              <!-- Core Question statement text -->
+              <div>
+                <span class="text-xs font-bold text-blue-600 uppercase tracking-widest block mb-2">ĐỀ BÀI YÊU CẦU</span>
+                <p id="questionBody" class="text-lg font-bold text-gray-900 leading-relaxed break-words whitespace-normal">Nội dung câu hỏi đang được biên tập...</p>
+              </div>
+
+              <!-- Inline Question Media attachment image if present -->
+              <div id="questionImgContainer" class="hidden border border-gray-100 rounded-2xl bg-gray-50 overflow-hidden flex items-center justify-center p-4">
+                <img id="questionImg" class="max-h-64 max-w-full object-contain rounded-xl shadow-inner" src="" alt="Ảnh câu hỏi" referrerPolicy="no-referrer">
+              </div>
+
+              <!-- Options Selection Interactive grid -->
+              <div class="border-t border-gray-100 pt-6">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-4">Vui lòng lựa chọn các phương án ghép nối hoặc nhấp chọn thích hợp:</span>
+                <div id="questionOptionsContainer" class="space-y-3.5">
+                  <!-- Render options dynamically based on question type -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Complementary Explanations detail box (Shown after evaluation) -->
+            <div id="explanationDetailBox" class="hidden p-5 rounded-3xl bg-blue-50/70 border border-blue-100 text-blue-950 text-sm leading-relaxed slide-up">
+              <h4 class="font-bold text-blue-800 text-sm mb-1.5 flex items-center gap-2">
+                <i class="fa-solid fa-lightbulb"></i> Giải thích kiến thức IC3:
+              </h4>
+              <p id="explanationDetailText" class="font-medium text-gray-600">Đây là nội dung giải thích từ ngân hàng câu hỏi để hỗ trợ học sinh ôn thi.</p>
+            </div>
+
+          </div>
+
+          <!-- Question Viewport Footer Action Toolbar -->
+          <div class="max-w-3xl w-full mx-auto flex justify-between items-center gap-4 mt-8 border-t border-gray-200 pt-5">
+            <button onclick="handleExitPlaying()" id="btnExitTest" class="px-5 py-3 rounded-2xl border border-gray-200 hover:border-red-200 hover:bg-red-50 hover:text-red-500 text-xs sm:text-sm font-bold text-gray-500 transition-all">
+              <i class="fa-solid fa-circle-xmark mr-1"></i> Thoát bài làm
+            </button>
+            <div class="flex items-center gap-3">
+              <button id="btnPrevQuest" onclick="handlePrevQuestion()" class="px-5 py-3 rounded-2xl border border-gray-200 hover:border-blue-500 hover:text-blue-600 text-xs sm:text-sm font-bold text-gray-500 bg-white transition-all hidden">
+                <i class="fa-solid fa-chevron-left mr-1"></i> Câu trước đó
+              </button>
+              <button id="btnNextQuest" onclick="handleNextQuestion()" class="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/10 active:scale-95 transition-all">
+                Kiểm tra đáp án <i class="fa-solid fa-circle-check ml-1.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center-Right Sidebar: Question Navigation Panel (Desktop Grid) -->
+        <div id="testingNavigationSidebar" class="hidden md:flex flex-col w-72 bg-white border-l border-gray-200 p-6 shrink-0 overflow-y-auto justify-between select-none shadow-sm">
+          <div class="space-y-6">
+            <!-- Sidebar Header -->
+            <div class="border-b border-gray-100 pb-4">
+              <div class="flex items-center gap-2.5 mb-2">
+                <span class="text-blue-600 text-base"><i class="fa-solid fa-list-check"></i></span>
+                <h4 class="font-bold text-gray-900 text-xs uppercase tracking-wider">Mục lục câu hỏi</h4>
+              </div>
+              <p id="sidebarProgressPercentText" class="text-[11px] font-bold text-gray-400">Tiến trình làm bài: 0%</p>
+              <div class="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden border border-gray-200/50">
+                <div id="sidebarProgressBarFill" class="h-full bg-blue-600 transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Stats mini indicators -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-gray-50 border border-gray-100 p-2.5 rounded-xl text-center">
+                <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wide">Đã làm</span>
+                <span id="sidebarStatDone" class="text-sm font-black text-blue-600">0</span>
+              </div>
+              <div class="bg-gray-50 border border-gray-100 p-2.5 rounded-xl text-center">
+                <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wide">Chưa làm</span>
+                <span id="sidebarStatTodo" class="text-sm font-black text-gray-500">0</span>
+              </div>
+            </div>
+
+            <!-- Grid container list -->
+            <div class="space-y-2">
+              <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wider">Danh sách câu:</span>
+              <div id="sidebarQuestionListGrid" class="grid grid-cols-5 gap-2">
+                <!-- Question numbers -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Sidebar Legends -->
+          <div class="mt-8 border-t border-gray-100 pt-5 space-y-3">
+            <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wider mb-1">Chú thích trạng thái:</span>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-2.5 text-[10px] font-bold text-gray-500">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span>Đúng</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                <span>Sai</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                <span>Đã làm</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-white border-2 border-blue-600"></span>
+                <span>Đang làm</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== DIALOGUE / OVERLAYS / SCREENS ==================== -->
+
+    <!-- SCORE REPORT CARD MODAL OVERLAY -->
+    <div id="scoreReportModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 hidden">
+      <div class="bg-white border border-gray-200 p-8 sm:p-10 rounded-3xl shadow-hover-premium max-w-md w-full text-center transform scale-95 slide-up flex flex-col items-center relative overflow-hidden">
+        <!-- Top dynamic icon wrapper -->
+        <div id="modalReportIconWrapper" class="w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-md border mb-6 animate-bounce">
+          🏆
+        </div>
+        
+        <h3 id="modalReportTitle" class="text-2xl font-black text-gray-900 leading-none">HOÀN THÀNH BÀI THI</h3>
+        <p id="modalReportTestName" class="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wider">Đề ôn luyện kiểm tra</p>
+        
+        <!-- Score circle widget -->
+        <div class="my-6 w-full py-6 px-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner flex flex-col items-center">
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">KẾT QUẢ ĐIỂM SỐ</span>
+          <div class="text-5xl font-black text-gray-900 mt-1">
+            <span id="modalReportScore">0</span><span class="text-2xl text-gray-300 font-medium">/100</span>
+          </div>
+          <div id="modalReportCorrectDetails" class="text-xs text-gray-500 font-semibold bg-gray-200/50 px-3 py-1 rounded-full mt-2.5">
+            0/0 câu trả lời đúng
+          </div>
+        </div>
+
+        <!-- Secondary analytical properties -->
+        <div class="grid grid-cols-2 gap-4 w-full mb-6">
+          <div class="bg-gray-50 border border-gray-100 p-3 rounded-xl text-center">
+            <span class="text-[9px] font-bold text-gray-400 block uppercase">Thời gian làm</span>
+            <span id="modalReportTimeSpent" class="text-sm font-black text-gray-700 block mt-0.5">00:00</span>
+          </div>
+          <div class="bg-gray-50 border border-gray-100 p-3 rounded-xl text-center">
+            <span class="text-[9px] font-bold text-gray-400 block uppercase">Kết quả chung</span>
+            <span id="modalReportStatus" class="text-sm font-black text-emerald-500 block mt-0.5">ĐẠT ĐỀ NGHỊ</span>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex flex-col gap-2.5 w-full">
+          <button onclick="handleCloseScoreReport()" class="btn-ripple py-3.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md shadow-blue-500/10 text-sm active:scale-95 transition-all w-full">
+            Quay về bảng điều khiển
+          </button>
+          <button id="modalReportBtnReview" onclick="handleStartReviewFromReport()" class="py-3 px-6 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-600 font-bold rounded-2xl text-xs active:scale-95 transition-all w-full">
+            Xem chi tiết câu trả lời <i class="fa-solid fa-eye ml-1"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Database and App Initializers -->
+    <script type="module" src="/assets/js/db-init.js"></script>
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
