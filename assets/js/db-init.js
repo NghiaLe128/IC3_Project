@@ -494,10 +494,15 @@ async function startSessionMonitor() {
         try { if (typeof unsub === 'function') unsub(); } catch (e) {}
       });
       window.SESSION_UNSUBSCRIBERS = [];
+    } else {
+      window.SESSION_UNSUBSCRIBERS = [];
     }
 
     // 1. Listen to global force logout signal
     const unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
+      if (docSnap.metadata && docSnap.metadata.fromCache) {
+        return; // Ignore local cache snapshots to prevent timing bugs on page transition
+      }
       if (docSnap.exists()) {
         const config = docSnap.data();
         const loginTime = localUser.loginTimestamp || 0;
@@ -514,6 +519,11 @@ async function startSessionMonitor() {
 
     // 2. Listen to individual user doc for force logout or concurrent login
     const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.metadata && docSnap.metadata.fromCache) {
+        console.log("ℹ️ Ignoring session monitor cache snapshot for:", localUser.email);
+        return; // Ignore local cache snapshots to prevent timing bugs on page transition
+      }
+
       if (docSnap.exists()) {
         const cloudUser = docSnap.data();
         
@@ -529,7 +539,7 @@ async function startSessionMonitor() {
             'Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!');
         }
       } else {
-        // User doc might have been deleted
+        // User doc might have been deleted (only if confirmed from server)
         performLogout("Tài khoản không tồn tại hoặc đã bị xóa!");
       }
     }, (error) => {

@@ -464,7 +464,8 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
         userData = { 
           ...firestoreUser, 
           currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
-          forceLogout: false 
+          forceLogout: false,
+          loginTimestamp: Date.now()
         };
         await fStore.setDoc(userDocRef, userData);
       } else {
@@ -474,7 +475,8 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
           role: "student", 
           password: inputPassword, 
           currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
-          forceLogout: false 
+          forceLogout: false,
+          loginTimestamp: Date.now()
         };
         await fStore.setDoc(userDocRef, userData);
       }
@@ -504,7 +506,8 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
         userData = { 
           ...firestoreUser, 
           currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
-          forceLogout: false 
+          forceLogout: false,
+          loginTimestamp: Date.now()
         };
       } else {
         userData = { 
@@ -513,7 +516,8 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
           role: "student", 
           password: inputPassword, 
           currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
-          forceLogout: false 
+          forceLogout: false,
+          loginTimestamp: Date.now()
         };
       }
       localStorage.setItem("pendingUserData", JSON.stringify(userData));
