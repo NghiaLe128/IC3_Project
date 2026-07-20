@@ -30,8 +30,67 @@ import {
   signOut, 
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  setPersistence,
+  browserSessionPersistence
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+
+// --- SESSION PERSISTENCE PROXY (STORE IN SESSION STORAGE TO LOG OUT ON TAB/BROWSER CLOSE) ---
+(function() {
+  const SESSION_KEYS = [
+    "ic3_current_user",
+    "pendingStudentData",
+    "pendingUserData"
+  ];
+
+  // Cache original Storage methods to prevent recursion and allow direct manipulation
+  const originalGetItem = localStorage.getItem;
+  const originalSetItem = localStorage.setItem;
+  const originalRemoveItem = localStorage.removeItem;
+  const originalClear = localStorage.clear;
+
+  // Clear any physical localStorage values for session-related keys once on load to prevent leaks
+  SESSION_KEYS.forEach(key => {
+    try {
+      originalRemoveItem.call(localStorage, key);
+    } catch (e) {}
+  });
+
+  try {
+    localStorage.getItem = function(key) {
+      if (SESSION_KEYS.includes(key)) {
+        return sessionStorage.getItem(key);
+      }
+      return originalGetItem.apply(this, arguments);
+    };
+
+    localStorage.setItem = function(key, value) {
+      if (SESSION_KEYS.includes(key)) {
+        sessionStorage.setItem(key, value);
+        return;
+      }
+      originalSetItem.apply(this, arguments);
+    };
+
+    localStorage.removeItem = function(key) {
+      if (SESSION_KEYS.includes(key)) {
+        sessionStorage.removeItem(key);
+        return;
+      }
+      originalRemoveItem.apply(this, arguments);
+    };
+
+    localStorage.clear = function() {
+      SESSION_KEYS.forEach(key => {
+        sessionStorage.removeItem(key);
+      });
+      originalClear.apply(this, arguments);
+    };
+  } catch (e) {
+    console.error("❌ Failed to override localStorage for session keys:", e);
+  }
+})();
+
 
 // Helper to safely get env variables with fallback
 const getEnv = (key, fallback) => {
@@ -78,6 +137,13 @@ try {
   }
   
   auth = getAuth(app);
+  setPersistence(auth, browserSessionPersistence)
+    .then(() => {
+      console.log("🔐 Firebase Auth session persistence set to SESSION (tab closed = logged out)");
+    })
+    .catch((error) => {
+      console.error("❌ Failed to set Firebase Auth session persistence:", error);
+    });
 } catch (error) {
   console.error("❌ Firebase/Firestore Initialization Failed:", error);
 }
