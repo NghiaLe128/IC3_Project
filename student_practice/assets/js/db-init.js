@@ -460,10 +460,9 @@ const handleFirestoreError = (error, operation, path) => {
 // Portal Detection
 const getPortal = () => {
   const path = window.location.pathname;
-  if (path.includes("/admin/")) return "admin";
-  if (path.includes("/teacher/")) return "teacher";
-  if (path.includes("/student/") || path.includes("/student_practice/")) return "student";
-  return "root";
+  if (path.includes("/admin")) return "admin";
+  if (path.includes("/teacher")) return "teacher";
+  return "student"; // Default to student for student_practice standalone
 };
 
 // --- Session Monitoring & Global Logout ---
@@ -517,15 +516,15 @@ function performLogout(message) {
       allowOutsideClick: false,
       allowEscapeKey: false
     }).then(() => {
-      window.location.replace("/index.html");
+      window.location.replace("./index.html");
     });
 
     // Forced fallback redirect
     setTimeout(() => {
-      window.location.replace("/index.html");
+      window.location.replace("./index.html");
     }, 3000);
   } else {
-    window.location.replace("/index.html");
+    window.location.replace("./index.html");
   }
 }
 
@@ -907,7 +906,7 @@ window.logoutUser = async () => {
   }
   
   localStorage.removeItem(IC3_KEYS.CURRENT_USER);
-  window.location.href = "/index.html";
+  window.location.href = "./index.html";
 };
 
 // Global Data Sync Helper
@@ -1070,7 +1069,7 @@ if (window.IC3_DB_INITIALIZED) {
 
 // Import secondary modules that rely on window.fStore/window.db/window.fAuth
 // Using dynamic import to avoid hoisting issues with globals
-import("/assets/js/google-sheets.js").then(() => {
+import("./google-sheets.js").then(() => {
   console.log("✅ Google Sheets module loaded");
 }).catch(err => {
   console.error("❌ Failed to load Google Sheets module:", err);

@@ -1,3 +1,4 @@
+console.log("script.js v2 loaded");
 // Cổng Luyện Thi Học Sinh - IC3 LMS script.js
 
 // 1. App State
