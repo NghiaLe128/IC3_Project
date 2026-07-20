@@ -210,6 +210,7 @@ function switchTab(tabId) {
     ranking: "Bảng xếp hạng tổng năng lực học sinh",
     rewards: "Hệ thống quà tặng quy đổi Coins",
     bosses: "Quản lý Boss Săn Lùng",
+    "lock-tabs": "Khóa / Mở Tab tính năng học sinh theo lớp",
     settings: "Cài đặt & Cấu hình game"
   };
   document.getElementById("currentTabTitle").innerText = titles[tabId] || "Trang quản trị";
@@ -227,6 +228,10 @@ function switchTab(tabId) {
   else if (tabId === "rewards") renderRewardsGrid();
   else if (tabId === "bosses") renderBossesGrid();
   else if (tabId === "settings") renderAdminSettings();
+  else if (tabId === "lock-tabs") {
+    populateAdminLockTabsClasses();
+    renderAdminLockTabsGrid();
+  }
 }
 
 // 4. Dashboard Data rendering
@@ -2252,4 +2257,143 @@ window.switchTab = function(tabId) {
     initPokemonEvoAdmin();
   }
 };
+
+// ==================== TAB: LOCK TABS MANAGEMENT FUNCTIONS (ADMIN) ====================
+function populateAdminLockTabsClasses() {
+  const selector = document.getElementById("adminLockTabsClassSelector");
+  if (!selector) return;
+  
+  const selectedValue = selector.value;
+  
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  
+  selector.innerHTML = `<option value="">-- Chọn Lớp --</option>`;
+  classes.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.innerText = `${c.name} (${c.id})`;
+    selector.appendChild(opt);
+  });
+  
+  if (selectedValue && classes.some(c => c.id === selectedValue)) {
+    selector.value = selectedValue;
+  }
+}
+
+function renderAdminLockTabsGrid() {
+  const selector = document.getElementById("adminLockTabsClassSelector");
+  const container = document.getElementById("admin-lock-tabs-container");
+  if (!selector || !container) return;
+  
+  const classId = selector.value;
+  if (!classId) {
+    container.innerHTML = `
+      <div class="p-8 text-center bg-slate-900 rounded-xl border border-dashed border-slate-800 text-slate-400">
+        <i class="fa-solid fa-users text-3xl mb-3 text-slate-500"></i>
+        <p class="font-bold text-sm">Vui lòng chọn một Lớp học từ danh sách ở trên để quản lý!</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const currentClass = classes.find(c => c.id === classId);
+  if (!currentClass) {
+    container.innerHTML = `
+      <div class="p-8 text-center bg-slate-900 rounded-xl border border-dashed border-slate-800 text-slate-400">
+        <p class="text-sm">Lớp học không hợp lệ hoặc đã bị xóa.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const lockedTabs = currentClass.lockedTabs || [];
+  
+  const tabsList = [
+    { id: 'dashboard', name: 'Bảng Tin', icon: 'fa-chart-pie', desc: 'Trang chủ xem thông tin, hoạt động gần đây.' },
+    { id: 'battle', name: 'Kiểm tra', icon: 'fa-shield-halved', desc: 'Làm bài thi thử, ôn tập các kỹ năng.' },
+    { id: 'bosshunt', name: 'Săn Boss', icon: 'fa-dragon', desc: 'Chế độ đánh boss tích điểm và quà.' },
+    { id: 'leaderboard', name: 'Xếp hạng', icon: 'fa-trophy', desc: 'Bảng xếp hạng thi đua trong lớp.' },
+    { id: 'badges', name: 'Huy hiệu', icon: 'fa-award', desc: 'Nơi xem các danh hiệu, huy chương đã đạt.' },
+    { id: 'inventory', name: 'Túi đồ', icon: 'fa-briefcase', desc: 'Xem rương quà, vật phẩm và tiến hóa Pokemon.' },
+    { id: 'luck', name: 'Vận May', icon: 'fa-clover', desc: 'Rung cây dừa vận may hái chuối, bắt Pokemon.' },
+    { id: 'rewards', name: 'Cửa hàng', icon: 'fa-store', desc: 'Nơi học sinh dùng coin đổi quà và chuối.' }
+  ];
+
+  let html = `
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+  `;
+
+  tabsList.forEach(t => {
+    const isLocked = lockedTabs.includes(t.id);
+    html += `
+      <div class="p-4 rounded-xl border ${isLocked ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/50 border-slate-700/50'} flex flex-col justify-between hover:border-slate-600 transition-all text-left">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-9 h-9 rounded-lg ${isLocked ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/10 text-blue-400'} flex items-center justify-center">
+              <i class="fa-solid ${t.icon} text-base"></i>
+            </div>
+            <span class="text-[10px] font-mono tracking-wider uppercase bg-slate-900 text-slate-400 px-2 py-0.5 rounded-full">${t.id}</span>
+          </div>
+          <h5 class="font-bold text-sm text-white flex items-center gap-2">
+            ${t.name}
+            ${isLocked ? '<span class="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-md flex items-center gap-1"><i class="fa-solid fa-lock"></i> Khóa</span>' : '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-md flex items-center gap-1"><i class="fa-solid fa-lock-open"></i> Mở</span>'}
+          </h5>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">${t.desc}</p>
+        </div>
+        
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+          <span class="text-xs text-slate-400 font-medium">${isLocked ? 'Đang khóa' : 'Đang hoạt động'}</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" value="${t.id}" class="sr-only peer" ${isLocked ? 'checked' : ''} onchange="toggleAdminTabLockState('${t.id}', this.checked)">
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+          </label>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+async function toggleAdminTabLockState(tabId, isLocked) {
+  const selector = document.getElementById("adminLockTabsClassSelector");
+  if (!selector) return;
+  const classId = selector.value;
+  if (!classId) return;
+  
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const classIndex = classes.findIndex(c => c.id === classId);
+  if (classIndex === -1) return;
+  
+  const currentClass = classes[classIndex];
+  let lockedTabs = currentClass.lockedTabs || [];
+  
+  if (isLocked) {
+    if (!lockedTabs.includes(tabId)) {
+      lockedTabs.push(tabId);
+    }
+  } else {
+    lockedTabs = lockedTabs.filter(id => id !== tabId);
+  }
+  
+  currentClass.lockedTabs = lockedTabs;
+  classes[classIndex] = currentClass;
+  
+  try {
+    await window.saveData(window.IC3_KEYS.CLASSES, classes, classId);
+    if (window.showToast) {
+      window.showToast(`Đã ${isLocked ? 'KHÓA' : 'MỞ'} tab [${tabId}] thành công cho lớp ${currentClass.name}!`, isLocked ? 'error' : 'success');
+    }
+    renderAdminLockTabsGrid();
+  } catch (error) {
+    console.error("Failed to update lockedTabs by admin:", error);
+    if (window.showToast) window.showToast("Cập nhật thất bại. Vui lòng thử lại!", "error");
+  }
+}
+
+window.populateAdminLockTabsClasses = populateAdminLockTabsClasses;
+window.renderAdminLockTabsGrid = renderAdminLockTabsGrid;
+window.toggleAdminTabLockState = toggleAdminTabLockState;
 

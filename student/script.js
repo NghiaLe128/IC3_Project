@@ -964,6 +964,42 @@ async function startStudentApp() {
   applySavedTheme();
   switchStudentTab("dashboard");
 
+  // Initial update of student tabs lock UI
+  if (typeof updateStudentTabsLockUI === 'function') {
+    updateStudentTabsLockUI();
+  }
+
+  // Set up real-time listener on student's class document to monitor locked tabs in real-time
+  if (currentStudent && currentStudent.classId) {
+    try {
+      const classDocRef = window.fStore.doc(window.db, window.IC3_KEYS.CLASSES, currentStudent.classId);
+      window.fStore.onSnapshot(classDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const classData = docSnap.data();
+          console.log("🔔 Real-time Class update received on student side:", classData);
+          // Update local cache
+          const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+          const idx = classes.findIndex(c => c.id === currentStudent.classId);
+          if (idx !== -1) {
+            classes[idx] = { ...classes[idx], ...classData, id: currentStudent.classId };
+          } else {
+            classes.push({ id: currentStudent.classId, ...classData });
+          }
+          window.IC3_CACHE[window.IC3_KEYS.CLASSES] = classes;
+          
+          // Update UI in real-time!
+          if (typeof updateStudentTabsLockUI === 'function') {
+            updateStudentTabsLockUI();
+          }
+        }
+      }, (error) => {
+        console.error("Error listening to student class updates:", error);
+      });
+    } catch (err) {
+      console.error("Error subscribing to student class snapshot:", err);
+    }
+  }
+
   // Real-time re-rendering on database updates
   window.addEventListener('ic3-students-updated', () => {
     if (typeof renderStudentDashboard === 'function' && document.getElementById('student-tab-dashboard') && !document.getElementById('student-tab-dashboard').classList.contains('hidden')) {
@@ -1312,6 +1348,23 @@ function switchStudentTab(tabId) {
     handleCheatDetected("Cố tình chuyển tab");
     return;
   }
+
+  // Check if tab is locked for student's class
+  if (currentStudent && currentStudent.classId) {
+    const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+    const studentClass = classes.find(c => c.id === currentStudent.classId);
+    if (studentClass && studentClass.lockedTabs && studentClass.lockedTabs.includes(tabId)) {
+      Swal.fire({
+        title: 'Tính năng đang khóa!',
+        html: `Thầy cô giáo đã tạm thời khóa tính năng này đối với lớp <strong class="text-rose-500">${studentClass.name}</strong>.<br>Vui lòng thử lại sau nhé!`,
+        icon: 'warning',
+        confirmButtonText: 'Đã hiểu',
+        confirmButtonColor: '#e11d48'
+      });
+      return;
+    }
+  }
+
   document.querySelectorAll(".student-view-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".student-tab-btn").forEach(el => el.classList.remove("active"));
 
@@ -7575,9 +7628,65 @@ function handleThrowPokeballAnimated() {
   }
 }
 
+// ==================== STUDENT TABS LOCKING ENGINE ====================
+function updateStudentTabsLockUI() {
+  if (!currentStudent || !currentStudent.classId) return;
+  
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const studentClass = classes.find(c => c.id === currentStudent.classId);
+  const lockedTabs = (studentClass && studentClass.lockedTabs) || [];
+  
+  const tabs = [
+    { id: 'dashboard', name: 'Bảng Tin', iconClass: 'fa-chart-pie' },
+    { id: 'battle', name: 'Kiểm tra', iconClass: 'fa-shield-halved' },
+    { id: 'bosshunt', name: 'Săn Boss', iconClass: 'fa-dragon' },
+    { id: 'leaderboard', name: 'Xếp hạng', iconClass: 'fa-trophy' },
+    { id: 'badges', name: 'Huy hiệu', iconClass: 'fa-award' },
+    { id: 'inventory', name: 'Túi đồ', iconClass: 'fa-briefcase' },
+    { id: 'luck', name: 'Vận May', iconClass: 'fa-clover text-emerald-400' },
+    { id: 'rewards', name: 'Cửa hàng', iconClass: 'fa-store' }
+  ];
+  
+  tabs.forEach(t => {
+    const btn = document.getElementById(`btn-tab-${t.id}`);
+    if (!btn) return;
+    
+    const isLocked = lockedTabs.includes(t.id);
+    
+    if (isLocked) {
+      btn.classList.add('tab-locked', 'opacity-60', 'border-red-500/30');
+      btn.innerHTML = `<i class="fa-solid ${t.iconClass}"></i> ${t.name} <i class="fa-solid fa-lock text-red-500 text-[10px] ml-1.5 animate-pulse"></i>`;
+      btn.title = "Tính năng này đã bị khóa bởi giáo viên";
+    } else {
+      btn.classList.remove('tab-locked', 'opacity-60', 'border-red-500/30');
+      btn.innerHTML = `<i class="fa-solid ${t.iconClass}"></i> ${t.name}`;
+      btn.title = "";
+    }
+  });
+
+  // If student is currently on a tab that just got locked, boot them to the first unlocked tab
+  const activeBtn = document.querySelector(".student-tab-btn.active");
+  if (activeBtn) {
+    const activeTabId = activeBtn.id.replace("btn-tab-", "");
+    if (lockedTabs.includes(activeTabId)) {
+      // Find first unlocked tab (default dashboard)
+      const unlockedTab = tabs.find(t => !lockedTabs.includes(t.id)) || { id: 'dashboard' };
+      switchStudentTab(unlockedTab.id);
+      Swal.fire({
+        title: 'Tính năng vừa bị khóa',
+        text: 'Thầy cô giáo vừa khóa truy cập vào tính năng này. Bạn đã được chuyển hướng về trang chủ.',
+        icon: 'info',
+        confirmButtonText: 'Đồng ý',
+        confirmButtonColor: '#e11d48'
+      });
+    }
+  }
+}
+
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo, renderLuckTab, handleShakeTree, handlePickBanana, closeCatchScreen, startCatchPokemonSequence, handleThrowPokeballAnimated
+  applySavedTheme, buyStoreItem, changeBossTableMatchSelect, changeTableMatchSelect, checkStudentAuth, clearBossDraggedImageText, clearBossDraggedText, clearDraggedImageText, clearDraggedText, closeExitConfirmationModal, closePokemonSelectorModal, closeProfileCustomizationModal, closeReviewingExam, closeSubmitConfirmationModal, closeTestModeModal, closeVictoryScreen, confirmExitBossHunt, confirmExitBossHuntDirectly, confirmExitGamePlaying, confirmExitGamePlayingDirectly, confirmSubmitExamDirectly, convertDriveUrl, enterAntiCheatMode, executeSubmitExamCalculation, exitAntiCheatMode, finishBossHunt, finishTest, flipCard, getBlockIdFromClass, getBossHuntDayKey, handleCheatDetected, initBattleSceneVisuals, isAnswerCorrect, isSameStudent, loadStudentProfile, logoutStudent, nextBossQuestion, nextGameQuestion, openPokemonSelectorModal, openProfileCustomizationModal, openTestModeSelection, placeBossDraggedImageText, placeBossDraggedText, placeDraggedImageText, placeDraggedText, prevGameQuestion, renderBadges, renderBattleArena, renderBossHuntTab, renderBossQuestion, renderEvolutionInInventory, renderGameQuestion, renderInventory, renderLeaderboard, renderProfileCustomizationContent, renderRewardsStore, renderScoresHistory, renderSkillTree, renderWorldMap, renderZoneQuizzes, reviewExamAnswers, revivePokemonInBossHunt, runBossTimer, runGameTimer, saveBlankInput, saveBossBlankInput, saveStudentBlockInMemoryAndFirestore, selectCustomItem, selectGameOption, selectInventoryCompanion, selectPokemonAvatar, selectSkillTreeNode, selectTestMode, setPokemonEncourager, showCheatToast, showVictoryScreen, shuffleArray, startBossHunt, startStudentApp, startTest, submitExam, submitSkillQuiz, switchInventoryTab, switchProfileCustomTab, switchStoreTab, switchStudentTab, toggleTheme, triggerBossBattleAnimation, triggerGameBattleEffect, updateZoneLockUI, useInventoryItem, watchLessonVideo, renderLuckTab, handleShakeTree, handlePickBanana, closeCatchScreen, startCatchPokemonSequence, handleThrowPokeballAnimated,
+  updateStudentTabsLockUI
 });
 
 function finishCatchSequence(success) {

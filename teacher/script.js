@@ -291,6 +291,7 @@ function switchTab(tabId) {
     results: "Xem kết quả bài kiểm tra học sinh",
     ranking: "Bảng vàng vinh danh thi đua học tập",
     rewards: "Quản lý Cửa hàng Quà tặng",
+    "lock-tabs": "Khóa / Mở Tab tính năng học sinh",
     "google-sheets": "Cấu hình liên kết Google Sheets"
   };
   document.getElementById("currentTabTitle").innerText = titles[tabId] || "Cổng giáo viên";
@@ -303,6 +304,7 @@ function switchTab(tabId) {
   else if (tabId === "ranking") renderClassRanking();
   else if (tabId === "rewards") renderTeacherRewards();
   else if (tabId === "google-sheets") initGoogleSheetsTab();
+  else if (tabId === "lock-tabs") renderLockTabsTab();
 }
 
 // ==================== OVERVIEW RENDERING ====================
@@ -818,6 +820,15 @@ function closeStudentDetailsModal() {
   document.getElementById("studentDetailsModal").classList.add("hidden");
 }
 
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
 
 // ==================== UNIFIED MANAGE TESTS & QUESTIONS TAB ====================
 
@@ -847,6 +858,113 @@ function getBlocks() {
 
 function saveBlocks(blocks) {
   localStorage.setItem("ic3_blocks", JSON.stringify(blocks));
+}
+
+function openBlockModal(action) {
+  const modal = document.getElementById("blockModal");
+  if (!modal) return;
+  const actionInput = document.getElementById("block-form-action");
+  const titleEl = document.getElementById("block-modal-title");
+  const idInput = document.getElementById("blockIdInput");
+  const nameInput = document.getElementById("blockNameInput");
+
+  if (action === "add") {
+    if (actionInput) actionInput.value = "add";
+    if (titleEl) titleEl.innerText = "Tạo khối lớp mới";
+    if (idInput) {
+      idInput.value = "";
+      idInput.disabled = false;
+      idInput.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+    if (nameInput) nameInput.value = "";
+    modal.classList.remove("hidden");
+  } else if (action === "edit") {
+    const selector = document.getElementById("m-blockSelector");
+    const activeBlockId = selector ? selector.value : "";
+    if (!activeBlockId) {
+      if (window.showToast) window.showToast("Vui lòng chọn khối lớp cần sửa!", "error");
+      return;
+    }
+    const blocks = getBlocks();
+    const block = blocks.find(b => b.id === activeBlockId);
+    if (!block) return;
+
+    if (actionInput) actionInput.value = "edit";
+    if (titleEl) titleEl.innerText = "Chỉnh sửa khối lớp";
+    if (idInput) {
+      idInput.value = block.id;
+      idInput.disabled = true;
+      idInput.classList.add("opacity-50", "cursor-not-allowed");
+    }
+    if (nameInput) nameInput.value = block.name;
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeBlockModal() {
+  const modal = document.getElementById("blockModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function handleBlockFormSubmit(e) {
+  e.preventDefault();
+  const action = document.getElementById("block-form-action").value;
+  const id = document.getElementById("blockIdInput").value.trim().toLowerCase();
+  const name = document.getElementById("blockNameInput").value.trim();
+
+  if (!id || !name) {
+    if (window.showToast) window.showToast("Vui lòng điền đầy đủ thông tin!", "error");
+    return;
+  }
+
+  const blocks = getBlocks();
+
+  if (action === "add") {
+    if (blocks.some(b => b.id === id)) {
+      if (window.showToast) window.showToast("Mã khối lớp đã tồn tại!", "error");
+      return;
+    }
+    blocks.push({ id, name });
+    saveBlocks(blocks);
+    if (window.showToast) window.showToast("Thêm khối lớp mới thành công!", "success");
+  } else {
+    // edit
+    const idx = blocks.findIndex(b => b.id === id);
+    if (idx > -1) {
+      blocks[idx].name = name;
+      saveBlocks(blocks);
+      if (window.showToast) window.showToast("Cập nhật khối lớp thành công!", "success");
+    }
+  }
+
+  closeBlockModal();
+  initManageTestsTab();
+  const selector = document.getElementById("m-blockSelector");
+  if (selector) {
+    selector.value = id;
+    onBlockSelectionChange();
+  }
+}
+
+function deleteCurrentBlock() {
+  const selector = document.getElementById("m-blockSelector");
+  const activeBlockId = selector ? selector.value : "";
+  if (!activeBlockId) {
+    if (window.showToast) window.showToast("Vui lòng chọn khối lớp cần xóa!", "error");
+    return;
+  }
+
+  showConfirmModal(
+    "Xác nhận xóa khối lớp",
+    "Bạn có chắc chắn muốn xóa khối lớp này? Mọi thông tin khối lớp sẽ bị loại bỏ khỏi danh sách cục bộ.",
+    () => {
+      const blocks = getBlocks();
+      const updatedBlocks = blocks.filter(b => b.id !== activeBlockId);
+      saveBlocks(updatedBlocks);
+      if (window.showToast) window.showToast("Đã xóa khối lớp thành công!", "success");
+      initManageTestsTab();
+    }
+  );
 }
 
 function initManageTestsTab() {
@@ -939,25 +1057,26 @@ function renderQuestionsList() {
   const testId = document.getElementById("m-testSelector").value;
   const typeFilter = document.getElementById("m-questionTypeFilter").value;
   const listContainer = document.getElementById("m-questionsList");
+  if (!listContainer) return;
   listContainer.innerHTML = "";
 
-  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const test = tests.find(t => t.id === testId);
   if (!test) return;
 
-  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   const searchQuery = document.getElementById("m-questionSearch").value.toLowerCase();
   
   const missing = test.questions.filter(id => !questions.some(q => q.id === id));
   if (missing.length > 0) {
-    listContainer.innerHTML += `<p class="p-4 text-center text-[11px] text-red-500 italic">Cảnh báo: Có ${missing.length} câu hỏi không tìm thấy! IDs: ${missing.join(', ')}</p>`;
+    listContainer.innerHTML += `<p class="p-2 text-center text-[10px] text-red-500 italic">Cảnh báo: Có ${missing.length} câu hỏi thiếu!</p>`;
   }
   
   const testQuestions = questions.filter(q => test.questions.includes(q.id));
 
   const filteredQuestions = testQuestions.filter(q => 
     (typeFilter === "" || q.type === typeFilter) &&
-    ((q.text || "").toLowerCase().includes(searchQuery))
+    ((q.question || q.text || "").toLowerCase().includes(searchQuery))
   );
 
   const paginationContainerId = 'questions-pagination';
@@ -975,8 +1094,47 @@ function renderQuestionsList() {
 
   pagedQuestions.forEach((q, idxOnPage) => {
     const idx = (currentPage - 1) * ITEMS_PER_PAGE + idxOnPage;
+    const isSelected = activeQuestionId === q.id;
+    const item = document.createElement("div");
+    item.className = `grid grid-cols-12 gap-2 px-3 py-2.5 cursor-pointer items-center transition-colors select-none border-b border-indigo-500/5 last:border-0 hover:bg-indigo-500/10 ${isSelected ? 'bg-indigo-500/20 border-l-4 border-l-purple-500' : ''}`;
+    item.onclick = () => selectActiveQuestion(q.id);
+    item.innerHTML = `
+      <div class="col-span-1 text-center text-[10px] font-mono text-indigo-400">${idx + 1}</div>
+      <div class="col-span-9 text-xs text-indigo-50 line-clamp-2 pr-2">${q.question || q.text || "(Không có nội dung)"}</div>
+      <div class="col-span-2 text-center">
+        <span class="text-[8px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/10 uppercase font-bold">${q.type || "N/A"}</span>
+      </div>
+    `;
+    listContainer.appendChild(item);
+  });
+}
+
+function renderCustomTestQuestionsList() {
+  const listContainer = document.getElementById("customTestQuestionsListContainer");
+  if (!listContainer) return;
+  listContainer.innerHTML = "";
+
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+  const searchQuery = (document.getElementById("customTestSearch")?.value || "").toLowerCase();
+  const blockSelector = document.getElementById("m-blockSelector");
+  const activeBlockId = blockSelector ? blockSelector.value : "";
+
+  let filteredQuestions = questions.filter(q => q.blockId === activeBlockId || q.blockId === "all");
+
+  if (searchQuery) {
+    filteredQuestions = filteredQuestions.filter(q => 
+      (q.question || q.text || "").toLowerCase().includes(searchQuery)
+    );
+  }
+
+  if (filteredQuestions.length === 0) {
+    listContainer.innerHTML = `<div class="p-4 text-center text-xs text-indigo-300">Không có câu hỏi nào phù hợp.</div>`;
+    return;
+  }
+
+  filteredQuestions.forEach((q, idx) => {
     const item = document.createElement("label");
-    item.className = "grid grid-cols-12 gap-2 px-4 py-2.5 hover:bg-white/5 cursor-pointer items-center transition-colors select-none border-b border-indigo-500/5 last:border-0";
+    item.className = "grid grid-cols-12 gap-2 px-4 py-2.5 hover:bg-white/5 cursor-pointer items-center transition-colors select-none";
     item.innerHTML = `
       <div class="col-span-1 flex justify-center">
         <input type="checkbox" name="customTestQCheck" value="${q.id}" onchange="updateCustomTestSelectedCount()" class="accent-emerald-500 h-4 w-4 cursor-pointer">
@@ -987,9 +1145,9 @@ function renderQuestionsList() {
         <span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/10 uppercase font-bold">${q.type || "N/A"}</span>
       </div>
     `;
-    container.appendChild(item);
+    listContainer.appendChild(item);
   });
-  
+
   updateCustomTestSelectedCount();
 }
 
@@ -1110,6 +1268,45 @@ async function handleCustomTestFormSubmit(e) {
   }
 }
 
+function openCombineTestsModal() {
+  const modal = document.getElementById("combineTestsModal");
+  if (!modal) return;
+
+  // Reset inputs
+  document.getElementById("combineTestTitleInput").value = "Đề ôn tập tổng hợp";
+  document.getElementById("combineTestDurationInput").value = "45";
+  document.getElementById("combineTestDifficultyInput").value = "medium";
+
+  const container = document.getElementById("combineTestsListContainer");
+  if (!container) return;
+
+  const activeBlockId = document.getElementById("m-blockSelector") ? document.getElementById("m-blockSelector").value : "";
+  if (!activeBlockId) {
+    container.innerHTML = `<p class="text-[11px] text-red-400 italic text-center py-2">Vui lòng chọn Khối lớp trước.</p>`;
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+  const filteredTests = tests.filter(t => t.blockId === activeBlockId);
+
+  if (filteredTests.length === 0) {
+    container.innerHTML = `<p class="text-[11px] text-indigo-300 italic text-center py-2">Không có bộ đề nào khả dụng trong khối này.</p>`;
+  } else {
+    container.innerHTML = filteredTests.map(test => {
+      const qCount = test.questionCount || (test.questions ? test.questions.length : 0);
+      return `
+        <label class="flex items-center gap-2 text-xs text-indigo-200 cursor-pointer hover:text-indigo-100 p-1.5 rounded hover:bg-[#1e293b]/50 transition-colors">
+          <input type="checkbox" name="combineTestCheck" value="${test.id}" class="rounded border-indigo-500/30 text-indigo-500 bg-[#131424]">
+          <span class="truncate">${test.title} <span class="text-indigo-400 font-mono">(${qCount} câu)</span></span>
+        </label>
+      `;
+    }).join('');
+  }
+
+  modal.classList.remove("hidden");
+}
+
 function closeCombineTestsModal() {
   document.getElementById("combineTestsModal").classList.add("hidden");
 }
@@ -1193,6 +1390,159 @@ function handleCombineTestsFormSubmit(e) {
 window.openCombineTestsModal = openCombineTestsModal;
 window.closeCombineTestsModal = closeCombineTestsModal;
 window.handleCombineTestsFormSubmit = handleCombineTestsFormSubmit;
+
+function openTestSetModal(action) {
+  const modal = document.getElementById("testSetModal");
+  if (!modal) return;
+  const actionInput = document.getElementById("test-set-form-action");
+  const titleEl = document.getElementById("test-set-modal-title");
+  const idInput = document.getElementById("testSetIdInput");
+  const difficultyInput = document.getElementById("testSetDifficultyInput");
+  const titleInput = document.getElementById("testSetTitleInput");
+  const durationInput = document.getElementById("testSetDurationInput");
+  const bossPokeInput = document.getElementById("testSetBossPokeInput");
+
+  const activeBlockId = document.getElementById("m-blockSelector") ? document.getElementById("m-blockSelector").value : "";
+  if (!activeBlockId) {
+    if (window.showToast) window.showToast("Vui lòng chọn khối lớp trước!", "error");
+    return;
+  }
+
+  if (action === "add") {
+    if (actionInput) actionInput.value = "add";
+    if (titleEl) titleEl.innerText = "Tạo bộ đề thám hiểm mới";
+    if (idInput) idInput.value = "";
+    if (difficultyInput) difficultyInput.value = "easy";
+    if (titleInput) titleInput.value = "";
+    if (durationInput) durationInput.value = "15";
+    if (bossPokeInput) bossPokeInput.value = "trevenant";
+    modal.classList.remove("hidden");
+  } else if (action === "edit") {
+    const selector = document.getElementById("m-testSelector");
+    const activeTestId = selector ? selector.value : "";
+    if (!activeTestId) {
+      if (window.showToast) window.showToast("Vui lòng chọn bộ đề cần sửa!", "error");
+      return;
+    }
+    const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+    const test = tests.find(t => t.id === activeTestId);
+    if (!test) return;
+
+    if (actionInput) actionInput.value = "edit";
+    if (titleEl) titleEl.innerText = "Chỉnh sửa bộ đề thám hiểm";
+    if (idInput) idInput.value = test.id;
+    if (difficultyInput) difficultyInput.value = test.difficulty || "easy";
+    if (titleInput) titleInput.value = test.title || "";
+    if (durationInput) durationInput.value = test.duration || "15";
+    if (bossPokeInput) bossPokeInput.value = test.bossPoke || "trevenant";
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeTestSetModal() {
+  const modal = document.getElementById("testSetModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function handleTestSetFormSubmit(e) {
+  e.preventDefault();
+  const action = document.getElementById("test-set-form-action").value;
+  const idInput = document.getElementById("testSetIdInput");
+  const id = action === "add" ? `test_${Date.now().toString().slice(-6)}` : idInput.value;
+  
+  const difficulty = document.getElementById("testSetDifficultyInput").value;
+  const title = document.getElementById("testSetTitleInput").value.trim();
+  const duration = parseInt(document.getElementById("testSetDurationInput").value) || 15;
+  const bossPoke = document.getElementById("testSetBossPokeInput").value;
+
+  if (!title) {
+    if (window.showToast) window.showToast("Vui lòng điền đầy đủ tiêu đề!", "error");
+    return;
+  }
+
+  const activeBlockId = document.getElementById("m-blockSelector") ? document.getElementById("m-blockSelector").value : "";
+  if (!activeBlockId) {
+    if (window.showToast) window.showToast("Vui lòng chọn khối lớp!", "error");
+    return;
+  }
+
+  let calculatedLevel = "level_1";
+  if (activeBlockId.includes("level_2") || activeBlockId.includes("2")) {
+    calculatedLevel = "level_2";
+  } else if (activeBlockId.includes("level_3") || activeBlockId.includes("3")) {
+    calculatedLevel = "level_3";
+  }
+
+  const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+  const currentUser = getTeacherUser() || { email: "teacher@gmail.com" };
+
+  let testObj;
+  if (action === "add") {
+    testObj = {
+      id,
+      title,
+      blockId: activeBlockId,
+      level: calculatedLevel,
+      difficulty,
+      duration,
+      questions: [],
+      questionCount: 0,
+      scoreVal: 100,
+      bossPoke,
+      createdBY: currentUser.email
+    };
+    tests.push(testObj);
+  } else {
+    // edit
+    const existingIndex = tests.findIndex(t => t.id === id);
+    if (existingIndex > -1) {
+      testObj = {
+        ...tests[existingIndex],
+        title,
+        difficulty,
+        duration,
+        bossPoke
+      };
+      tests[existingIndex] = testObj;
+    } else {
+      testObj = {
+        id,
+        title,
+        blockId: activeBlockId,
+        level: calculatedLevel,
+        difficulty,
+        duration,
+        questions: [],
+        questionCount: 0,
+        scoreVal: 100,
+        bossPoke,
+        createdBY: currentUser.email
+      };
+      tests.push(testObj);
+    }
+  }
+
+  // Save to Firestore
+  window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, id), testObj, { merge: true })
+    .then(() => {
+      if (window.showToast) window.showToast(action === "add" ? "Đã tạo bộ đề thám hiểm mới thành công!" : "Đã cập nhật bộ đề thám hiểm thành công!", "success");
+      closeTestSetModal();
+
+      // Reload block tests
+      onBlockSelectionChange();
+
+      // Auto-select modified/created test
+      const testSelector = document.getElementById("m-testSelector");
+      if (testSelector) {
+        testSelector.value = id;
+        onTestSelectionChange();
+      }
+    })
+    .catch((err) => {
+      console.error("Error saving test: ", err);
+      if (window.showToast) window.showToast("Lưu bộ đề thất bại, vui lòng thử lại!", "error");
+    });
+}
 
 function deleteCurrentTestSet() {
   const testId = document.getElementById("m-testSelector").value;
@@ -1990,8 +2340,864 @@ function handleConfirmAction() {
   closeConfirmModal();
 }
 
+// ==================== TAB: LOCK TABS MANAGEMENT FUNCTIONS ====================
+function renderLockTabsTab() {
+  const container = document.getElementById("lock-tabs-container");
+  if (!container) return;
+  
+  if (!activeClassId) {
+    container.innerHTML = `
+      <div class="p-8 text-center bg-indigo-950/20 rounded-xl border border-dashed border-indigo-500/20 text-indigo-300">
+        <i class="fa-solid fa-graduation-cap text-3xl mb-3 text-indigo-400"></i>
+        <p class="font-bold text-sm">Vui lòng chọn một Lớp học ở góc trên bên phải để quản lý khóa/mở tab!</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const currentClass = classes.find(c => c.id === activeClassId);
+  if (!currentClass) {
+    container.innerHTML = `
+      <div class="p-8 text-center bg-indigo-950/20 rounded-xl border border-dashed border-indigo-500/20 text-indigo-300">
+        <p class="text-sm">Lớp học không hợp lệ hoặc đã bị xóa.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const lockedTabs = currentClass.lockedTabs || [];
+  
+  const tabsList = [
+    { id: 'dashboard', name: 'Bảng Tin', icon: 'fa-chart-pie', desc: 'Trang chủ xem thông tin, hoạt động gần đây.' },
+    { id: 'battle', name: 'Kiểm tra', icon: 'fa-shield-halved', desc: 'Làm bài thi thử, ôn tập các kỹ năng.' },
+    { id: 'bosshunt', name: 'Săn Boss', icon: 'fa-dragon', desc: 'Chế độ đánh boss tích điểm và quà.' },
+    { id: 'leaderboard', name: 'Xếp hạng', icon: 'fa-trophy', desc: 'Bảng xếp hạng thi đua trong lớp.' },
+    { id: 'badges', name: 'Huy hiệu', icon: 'fa-award', desc: 'Nơi xem các danh hiệu, huy chương đã đạt.' },
+    { id: 'inventory', name: 'Túi đồ', icon: 'fa-briefcase', desc: 'Xem rương quà, vật phẩm và tiến hóa Pokemon.' },
+    { id: 'luck', name: 'Vận May', icon: 'fa-clover', desc: 'Rung cây dừa vận may hái chuối, bắt Pokemon.' },
+    { id: 'rewards', name: 'Cửa hàng', icon: 'fa-store', desc: 'Nơi học sinh dùng coin đổi quà và chuối.' }
+  ];
+
+  let html = `
+    <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-sm text-indigo-50">Lớp đang quản lý: <span class="text-emerald-400 text-base font-black">${currentClass.name}</span></h4>
+          <p class="text-xs text-indigo-200">Mã lớp: <span class="font-mono text-emerald-400">${currentClass.id}</span> • Chỉ những học sinh thuộc lớp này mới bị áp dụng cấu hình khóa bên dưới.</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+  `;
+
+  tabsList.forEach(t => {
+    const isLocked = lockedTabs.includes(t.id);
+    html += `
+      <div class="p-4 rounded-xl border ${isLocked ? 'bg-red-500/10 border-red-500/30' : 'bg-[#131424]/80 border-indigo-500/20'} flex flex-col justify-between hover:border-indigo-500/40 transition-all">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-9 h-9 rounded-lg ${isLocked ? 'bg-red-500/20 text-red-400' : 'bg-indigo-500/10 text-indigo-400'} flex items-center justify-center">
+              <i class="fa-solid ${t.icon} text-base"></i>
+            </div>
+            <span class="text-[10px] font-mono tracking-wider uppercase bg-[#1e293b] text-indigo-300 px-2 py-0.5 rounded-full">${t.id}</span>
+          </div>
+          <h5 class="font-bold text-sm text-indigo-50 flex items-center gap-2">
+            ${t.name}
+            ${isLocked ? '<span class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-md flex items-center gap-1"><i class="fa-solid fa-lock"></i> Khóa</span>' : '<span class="text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-md flex items-center gap-1"><i class="fa-solid fa-lock-open"></i> Mở</span>'}
+          </h5>
+          <p class="text-xs text-indigo-300/80 mt-1 leading-relaxed">${t.desc}</p>
+        </div>
+        
+        <div class="mt-4 pt-3 border-t border-indigo-500/10 flex items-center justify-between">
+          <span class="text-xs text-indigo-300 font-medium">${isLocked ? 'Đang khóa' : 'Đang hoạt động'}</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" value="${t.id}" class="sr-only peer" ${isLocked ? 'checked' : ''} onchange="toggleTabLockState('${t.id}', this.checked)">
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+          </label>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+async function toggleTabLockState(tabId, isLocked) {
+  if (!activeClassId) return;
+  
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const classIndex = classes.findIndex(c => c.id === activeClassId);
+  if (classIndex === -1) return;
+  
+  const currentClass = classes[classIndex];
+  let lockedTabs = currentClass.lockedTabs || [];
+  
+  if (isLocked) {
+    if (!lockedTabs.includes(tabId)) {
+      lockedTabs.push(tabId);
+    }
+  } else {
+    lockedTabs = lockedTabs.filter(id => id !== tabId);
+  }
+  
+  currentClass.lockedTabs = lockedTabs;
+  classes[classIndex] = currentClass;
+  
+  try {
+    // Save updated class config to DB
+    await window.saveData(window.IC3_KEYS.CLASSES, classes, activeClassId);
+    if (window.showToast) {
+      window.showToast(`Đã ${isLocked ? 'KHÓA' : 'MỞ'} tab [${tabId}] thành công cho lớp ${currentClass.name}!`, isLocked ? 'error' : 'success');
+    }
+    // Re-render
+    renderLockTabsTab();
+  } catch (error) {
+    console.error("Failed to update lockedTabs:", error);
+    if (window.showToast) window.showToast("Cập nhật thất bại. Vui lòng thử lại!", "error");
+  }
+}
+
+// ==================== QUESTION FORM MANAGEMENT ====================
+
+function renderDynamicFormFields(type) {
+  const container = document.getElementById("dynamic-form-fields");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const typeHints = {
+    choice: "Học sinh sẽ được chọn một trong 4 phương án liệt kê bên dưới.",
+    multi_choice: "Học sinh có thể chọn một hoặc nhiều phương án đúng.",
+    image_choice: "Học sinh chọn hình ảnh đúng dựa trên link URL được cung cấp.",
+    true_false: "Học sinh chọn phương án Đúng hoặc Sai.",
+    hotspot: "Học sinh nhấp chọn khu vực được khoanh vùng trên hình ảnh.",
+    drag_text: "Học sinh kéo thả các từ khóa màu đỏ khớp với vế mô tả bên trái.",
+    drag_image_text: "Học sinh kéo thả từ khóa khớp với hình ảnh mô tả tương ứng.",
+    table_match: "Học sinh nối các câu hỏi theo hàng với các lựa chọn cột tương ứng."
+  };
+
+  const hintEl = document.getElementById("form-q-type-hint");
+  if (hintEl) hintEl.innerText = typeHints[type] || "Thiết lập dạng câu hỏi.";
+
+  const inputClass = "w-full p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm text-xs";
+
+  if (type === "choice" || type === "multi_choice" || type === "image_choice") {
+    const isImage = type === "image_choice";
+    const placeholderText = isImage ? "URL hình ảnh phương án " : "Phương án ";
+    
+    let optionsHtml = `
+      <div class="space-y-3">
+        <label class="block text-xs font-bold text-indigo-300 uppercase">Các phương án lựa chọn:</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input type="text" id="choice-opt-0" required class="${inputClass}" placeholder="${placeholderText}A">
+          <input type="text" id="choice-opt-1" required class="${inputClass}" placeholder="${placeholderText}B">
+          <input type="text" id="choice-opt-2" required class="${inputClass}" placeholder="${placeholderText}C">
+          <input type="text" id="choice-opt-3" required class="${inputClass}" placeholder="${placeholderText}D">
+        </div>
+    `;
+
+    if (type === "multi_choice") {
+      optionsHtml += `
+        <div class="mt-2">
+          <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Chọn các đáp án đúng:</label>
+          <div class="flex gap-4 text-xs text-indigo-200">
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="0"> A</label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="1"> B</label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="2"> C</label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="3"> D</label>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      optionsHtml += `
+        <div class="mt-2">
+          <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Phương án đúng:</label>
+          <select id="choice-correct-idx" class="${inputClass} cursor-pointer">
+            <option value="0">Phương án A</option>
+            <option value="1">Phương án B</option>
+            <option value="2">Phương án C</option>
+            <option value="3">Phương án D</option>
+          </select>
+        </div>
+      </div>`;
+    }
+    container.innerHTML = optionsHtml;
+
+  } else if (type === "true_false") {
+    container.innerHTML = `
+      <div class="space-y-3">
+        <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Đáp án đúng:</label>
+        <select id="choice-correct-idx" class="${inputClass} cursor-pointer">
+          <option value="0">Đúng</option>
+          <option value="1">Sai</option>
+        </select>
+      </div>`;
+
+  } else if (type === "hotspot") {
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Hình ảnh câu hỏi (URL ảnh hoặc tải file):</label>
+            <input type="text" id="hotspot-img-url" required class="${inputClass}" placeholder="https://..." onchange="window.updateHotspotPreview()">
+            <button type="button" onclick="window.triggerHotspotUpload()" class="mt-2 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded cursor-pointer">Tải ảnh lên</button>
+            <input type="file" id="hotspot-img-upload" class="hidden" accept="image/*" onchange="window.handleHotspotImgUpload(this)">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Hướng dẫn vẽ:</label>
+            <p id="hotspot-instruction" class="text-xs text-yellow-400 font-medium">Nhập URL ảnh hoặc tải ảnh lên trước, sau đó ấn "Thêm khu vực" và kéo vẽ trên ảnh.</p>
+            <button type="button" onclick="window.addHotspotArea()" class="mt-2 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded cursor-pointer">Thêm khu vực</button>
+          </div>
+        </div>
+        
+        <div class="relative inline-block border-2 border-indigo-500/30 rounded-2xl bg-slate-950 overflow-hidden mx-auto max-w-full">
+          <img id="hotspot-preview-img" style="display:none; max-width:100%;" draggable="false">
+          <div id="hotspot-overlay" class="absolute inset-0" style="pointer-events: none;"></div>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-[10px] font-bold text-indigo-300 uppercase">Danh sách khu vực đã vẽ:</label>
+          <div id="hotspot-list" class="space-y-1 max-h-40 overflow-y-auto"></div>
+        </div>
+      </div>`;
+    
+    window.hotspotAreas = [];
+    window.initHotspotDrawing();
+
+  } else if (type === "drag_text") {
+    container.innerHTML = `
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <label class="block text-xs font-bold text-indigo-300 uppercase">Các cặp vế trái - vế phải (Kéo thả):</label>
+          <button type="button" onclick="window.addDragTextRow()" class="px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold rounded cursor-pointer">Thêm cặp</button>
+        </div>
+        <div id="drag-text-rows" class="space-y-2"></div>
+      </div>`;
+    window.addDragTextRow();
+
+  } else if (type === "drag_image_text") {
+    container.innerHTML = `
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <label class="block text-xs font-bold text-indigo-300 uppercase">Cặp hình ảnh - từ khóa khớp:</label>
+          <button type="button" onclick="window.addDragImageTextRow()" class="px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold rounded cursor-pointer">Thêm cặp</button>
+        </div>
+        <div id="drag-image-text-rows" class="space-y-2"></div>
+      </div>`;
+    window.addDragImageTextRow();
+
+  } else if (type === "table_match") {
+    container.innerHTML = `
+      <div class="space-y-4" id="tm-container">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tiêu đề Cột trái (Hỏi):</label>
+            <input type="text" id="tm-header-left" required class="${inputClass}" value="Khái niệm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tiêu đề Cột phải (Lựa chọn):</label>
+            <input type="text" id="tm-header-right" required class="${inputClass}" value="Đặc tính">
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-xs font-bold text-indigo-300 uppercase">Các Cột phương án ghép <span id="tm-col-count">(0)</span>:</label>
+            <button type="button" onclick="window.addTmColumn()" class="px-2 py-0.5 bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-bold rounded cursor-pointer">Thêm cột</button>
+          </div>
+          <div id="tm-cols" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-xs font-bold text-indigo-300 uppercase">Các Hàng câu hỏi & Đáp án đúng <span id="tm-row-count">(0)</span>:</label>
+            <button type="button" onclick="window.addTmRow()" class="px-2 py-0.5 bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-bold rounded cursor-pointer">Thêm hàng</button>
+          </div>
+          <div class="border border-indigo-500/20 rounded-xl overflow-hidden bg-slate-950/20">
+            <table class="w-full text-xs">
+              <thead id="tm-rows-thead"></thead>
+              <tbody id="tm-rows-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+    window.tmData = { columns: ["Cột A", "Cột B"], rows: [], correctAnswers: [] };
+    window.renderTableMatchUI();
+  }
+}
+
+function adjustFormQuestionOptions() {
+  const type = document.getElementById("form-q-type").value;
+  renderDynamicFormFields(type);
+}
+
+function setupNewQuestionForm() {
+  const testId = document.getElementById("m-testSelector").value;
+  if (!testId) {
+    if (window.showToast) window.showToast("Vui lòng chọn bộ đề trước khi tạo câu hỏi!", "error");
+    return;
+  }
+
+  // Clear Form
+  document.getElementById("question-edit-form").reset();
+  document.getElementById("form-q-id").value = "";
+  
+  // Show Editor Card
+  document.getElementById("question-view-mode").classList.add("hidden");
+  document.getElementById("question-edit-form").classList.remove("hidden");
+  document.getElementById("right-panel-title").innerText = "Tạo câu hỏi mới";
+
+  // Select default choice type and render
+  document.getElementById("form-q-type").value = "choice";
+  adjustFormQuestionOptions();
+
+  // Hide actions temporarily
+  document.getElementById("btn-edit-question").classList.add("hidden");
+  document.getElementById("btn-delete-question").classList.add("hidden");
+}
+
+function enableQuestionEditing() {
+  if (!activeQuestionId) return;
+
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+  const q = questions.find(item => item.id === activeQuestionId);
+  if (!q) return;
+
+  document.getElementById("question-view-mode").classList.add("hidden");
+  document.getElementById("question-edit-form").classList.remove("hidden");
+  document.getElementById("right-panel-title").innerText = "Chỉnh sửa câu hỏi";
+
+  document.getElementById("form-q-id").value = q.id;
+  document.getElementById("form-q-type").value = q.type || "choice";
+  adjustFormQuestionOptions();
+
+  document.getElementById("form-q-text").value = q.question || q.text || "";
+  document.getElementById("form-q-image").value = q.imageUrl || q.image || "";
+  document.getElementById("form-q-explanation").value = q.explanation || "";
+
+  // Populate dynamic controls
+  const type = q.type || "choice";
+  if (type === "choice" || type === "image_choice") {
+    const opts = q.options || [];
+    for (let i = 0; i < 4; i++) {
+      const input = document.getElementById(`choice-opt-${i}`);
+      if (input) input.value = opts[i] || "";
+    }
+    const select = document.getElementById("choice-correct-idx");
+    if (select) select.value = q.correctIndex !== undefined ? q.correctIndex : 0;
+  } else if (type === "multi_choice") {
+    const opts = q.options || [];
+    for (let i = 0; i < 4; i++) {
+      const input = document.getElementById(`choice-opt-${i}`);
+      if (input) input.value = opts[i] || "";
+    }
+    const checkboxes = document.querySelectorAll(".mc-correct");
+    const correctIndices = q.correctIndices || [];
+    checkboxes.forEach(cb => {
+      cb.checked = correctIndices.includes(parseInt(cb.value));
+    });
+  } else if (type === "true_false") {
+    const select = document.getElementById("choice-correct-idx");
+    if (select) select.value = q.correctIndex !== undefined ? q.correctIndex : (q.answer === "Sai" ? 1 : 0);
+  } else if (type === "hotspot") {
+    document.getElementById("hotspot-img-url").value = q.imageUrl || q.image || "";
+    window.hotspotAreas = q.hotspots || [];
+    window.updateHotspotPreview();
+  } else if (type === "drag_text") {
+    const rowsContainer = document.getElementById("drag-text-rows");
+    if (rowsContainer) {
+      rowsContainer.innerHTML = "";
+      const rows = q.rows || [];
+      const correctAnswers = q.correctAnswers || [];
+      rows.forEach((row, idx) => {
+        const rowLabel = row.label || row.text || row;
+        const correctVal = correctAnswers[idx] || "";
+        
+        const inputClass = "w-full p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm text-xs";
+        const div = document.createElement('div');
+        div.className = "grid grid-cols-2 gap-4";
+        div.innerHTML = `
+          <input type="text" class="dt-left ${inputClass}" placeholder="Từ khóa vế trái" value="${rowLabel}">
+          <input type="text" class="dt-right ${inputClass}" placeholder="Nhãn khớp vế phải" value="${correctVal}">
+        `;
+        rowsContainer.appendChild(div);
+      });
+    }
+  } else if (type === "drag_image_text") {
+    const rowsContainer = document.getElementById("drag-image-text-rows");
+    if (rowsContainer) {
+      rowsContainer.innerHTML = "";
+      const leftImages = q.leftImages || [];
+      const correctAnswers = q.correctAnswers || [];
+      leftImages.forEach((imgUrl, idx) => {
+        const correctVal = correctAnswers[idx] || "";
+        
+        const inputClass = "w-full p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm text-xs";
+        const div = document.createElement('div');
+        div.className = "grid grid-cols-2 gap-4";
+        div.innerHTML = `
+          <input type="text" class="dit-left ${inputClass}" placeholder="URL ảnh..." value="${imgUrl}">
+          <input type="text" class="dit-right ${inputClass}" placeholder="Nhãn khớp" value="${correctVal}">
+        `;
+        rowsContainer.appendChild(div);
+      });
+    }
+  } else if (type === "table_match") {
+    window.tmData = {
+      columns: q.options || [],
+      rows: q.rows || [],
+      correctAnswers: q.correctAnswers || []
+    };
+    if (q.headers) {
+      document.getElementById("tm-header-left").value = q.headers[0] || "Khái niệm";
+      document.getElementById("tm-header-right").value = q.headers[1] || "Đặc tính";
+    }
+    window.renderTableMatchUI();
+  }
+}
+
+function cancelQuestionEditing() {
+  document.getElementById("question-edit-form").classList.add("hidden");
+  document.getElementById("question-view-mode").classList.remove("hidden");
+  document.getElementById("right-panel-title").innerText = "Nội dung câu hỏi";
+
+  if (activeQuestionId) {
+    selectActiveQuestion(activeQuestionId);
+  } else {
+    resetQuestionWorkspace();
+  }
+}
+
+async function handleQuestionFormSubmit(e) {
+  e.preventDefault();
+
+  const testId = document.getElementById("m-testSelector").value;
+  if (!testId) {
+    if (window.showToast) window.showToast("Lỗi: Không tìm thấy bộ đề ôn tập hiện tại!", "error");
+    return;
+  }
+
+  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const activeTest = tests.find(t => t.id === testId);
+  if (!activeTest) {
+    if (window.showToast) window.showToast("Không tìm thấy bộ đề ôn tập!", "error");
+    return;
+  }
+
+  let qId = document.getElementById("form-q-id").value;
+  const isNew = !qId;
+  if (isNew) {
+    qId = `q_teacher_${Date.now().toString().slice(-8)}`;
+  }
+
+  const type = document.getElementById("form-q-type").value;
+  const questionText = document.getElementById("form-q-text").value.trim();
+  const formImage = document.getElementById("form-q-image").value.trim();
+  const explanation = document.getElementById("form-q-explanation").value.trim();
+
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+
+  const qObj = {
+    id: qId,
+    type: type,
+    question: questionText,
+    text: questionText,
+    imageUrl: formImage,
+    image: formImage,
+    explanation: explanation || "Tham khảo kiến thức chuẩn IC3 để giải câu hỏi này.",
+    blockId: activeTest.blockId || "all",
+    level: activeTest.level || "level_1"
+  };
+
+  if (type === "choice" || type === "image_choice") {
+    const opts = [];
+    for (let i = 0; i < 4; i++) {
+      opts.push(document.getElementById(`choice-opt-${i}`).value.trim());
+    }
+    const correctIdx = parseInt(document.getElementById("choice-correct-idx").value);
+    qObj.options = opts;
+    qObj.correctIndex = correctIdx;
+    qObj.answer = opts[correctIdx];
+
+  } else if (type === "multi_choice") {
+    const opts = [];
+    for (let i = 0; i < 4; i++) {
+      opts.push(document.getElementById(`choice-opt-${i}`).value.trim());
+    }
+    const correctIndices = [];
+    document.querySelectorAll(".mc-correct:checked").forEach(cb => {
+      correctIndices.push(parseInt(cb.value));
+    });
+
+    if (correctIndices.length === 0) {
+      if (window.showToast) window.showToast("Vui lòng chọn ít nhất một đáp án đúng!", "error");
+      return;
+    }
+
+    qObj.options = opts;
+    qObj.correctIndices = correctIndices;
+    qObj.answer = correctIndices.map(idx => opts[idx]).join(", ");
+
+  } else if (type === "true_false") {
+    const correctIdx = parseInt(document.getElementById("choice-correct-idx").value);
+    qObj.options = ["Đúng", "Sai"];
+    qObj.correctIndex = correctIdx;
+    qObj.answer = correctIdx === 0 ? "Đúng" : "Sai";
+
+  } else if (type === "hotspot") {
+    const hotspotUrl = document.getElementById("hotspot-img-url").value.trim();
+    if (!hotspotUrl) {
+      if (window.showToast) window.showToast("Vui lòng thiết lập URL ảnh cho hotspot!", "error");
+      return;
+    }
+    if (window.hotspotAreas.length === 0) {
+      if (window.showToast) window.showToast("Vui lòng khoanh vùng ít nhất một khu vực hotspot!", "error");
+      return;
+    }
+    qObj.imageUrl = hotspotUrl;
+    qObj.image = hotspotUrl;
+    qObj.hotspots = window.hotspotAreas;
+    qObj.requiredCount = window.hotspotAreas.length;
+    qObj.answer = `Xác định đúng ${window.hotspotAreas.length} vị trí trên ảnh.`;
+
+  } else if (type === "drag_text") {
+    const leftInputs = document.querySelectorAll(".dt-left");
+    const rightInputs = document.querySelectorAll(".dt-right");
+    const rows = [];
+    const correctAnswers = [];
+    const optionsSet = new Set();
+
+    leftInputs.forEach((inp, idx) => {
+      const leftVal = inp.value.trim();
+      const rightVal = rightInputs[idx].value.trim();
+      if (leftVal && rightVal) {
+        rows.push({ label: leftVal, text: leftVal });
+        correctAnswers.push(rightVal);
+        optionsSet.add(rightVal);
+      }
+    });
+
+    if (rows.length === 0) {
+      if (window.showToast) window.showToast("Vui lòng thêm ít nhất một cặp ghép từ khóa khớp!", "error");
+      return;
+    }
+
+    qObj.rows = rows;
+    qObj.correctAnswers = correctAnswers;
+    qObj.options = Array.from(optionsSet);
+    qObj.answer = "Ghép đúng các cặp từ khóa.";
+
+  } else if (type === "drag_image_text") {
+    const leftInputs = document.querySelectorAll(".dit-left");
+    const rightInputs = document.querySelectorAll(".dit-right");
+    const leftImages = [];
+    const correctAnswers = [];
+    const optionsSet = new Set();
+
+    leftInputs.forEach((inp, idx) => {
+      const leftVal = inp.value.trim();
+      const rightVal = rightInputs[idx].value.trim();
+      if (leftVal && rightVal) {
+        leftImages.push(leftVal);
+        correctAnswers.push(rightVal);
+        optionsSet.add(rightVal);
+      }
+    });
+
+    if (leftImages.length === 0) {
+      if (window.showToast) window.showToast("Vui lòng thêm ít nhất một cặp hình ảnh - nhãn khớp!", "error");
+      return;
+    }
+
+    qObj.leftImages = leftImages;
+    qObj.correctAnswers = correctAnswers;
+    qObj.options = Array.from(optionsSet);
+    qObj.answer = "Khớp đúng nhãn tên cho từng hình ảnh.";
+
+  } else if (type === "table_match") {
+    const headerLeft = document.getElementById("tm-header-left").value.trim() || "Khái niệm";
+    const headerRight = document.getElementById("tm-header-right").value.trim() || "Đặc tính";
+
+    if (window.tmData.columns.length === 0 || window.tmData.rows.length === 0) {
+      if (window.showToast) window.showToast("Vui lòng nhập đầy đủ các cột và các hàng ghép nối bảng!", "error");
+      return;
+    }
+
+    const unassigned = window.tmData.correctAnswers.findIndex(ans => ans === -1);
+    if (unassigned !== -1) {
+      if (window.showToast) window.showToast(`Vui lòng chọn đáp án đúng cho hàng số ${unassigned + 1}!`, "error");
+      return;
+    }
+
+    qObj.headers = [headerLeft, headerRight];
+    qObj.options = window.tmData.columns;
+    qObj.rows = window.tmData.rows;
+    qObj.correctAnswers = window.tmData.correctAnswers;
+    qObj.answer = "Liên kết chính xác bảng ghép nối.";
+  }
+
+  try {
+    await window.saveData(window.IC3_KEYS.QUESTIONS, [...questions.filter(ex => ex.id !== qId), qObj], qId);
+    
+    const existingIdx = questions.findIndex(ex => ex.id === qId);
+    if (existingIdx > -1) questions[existingIdx] = qObj;
+    else questions.push(qObj);
+
+    if (isNew) {
+      if (!activeTest.questions) activeTest.questions = [];
+      activeTest.questions.push(qId);
+      activeTest.questionCount = activeTest.questions.length;
+
+      await window.saveData(window.IC3_KEYS.TESTS, tests, testId);
+    }
+
+    if (window.showToast) window.showToast(isNew ? "Tạo câu hỏi mới thành công!" : "Cập nhật câu hỏi thành công!", "success");
+
+    cancelQuestionEditing();
+    renderQuestionsList();
+    selectActiveQuestion(qId);
+
+  } catch (err) {
+    console.error("Error saving question:", err);
+    if (window.showToast) window.showToast("Lưu câu hỏi thất bại. Vui lòng thử lại!", "error");
+  }
+}
+
+async function deleteCurrentQuestion() {
+  if (!activeQuestionId) return;
+
+  const testId = document.getElementById("m-testSelector").value;
+  if (!testId) return;
+
+  showConfirmModal(
+    "Xác nhận xóa câu hỏi",
+    "Bạn có chắc muốn xóa câu hỏi này khỏi bộ đề hiện tại?",
+    async () => {
+      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+      const testIndex = tests.findIndex(t => t.id === testId);
+      if (testIndex === -1) return;
+
+      const activeTest = tests[testIndex];
+      activeTest.questions = (activeTest.questions || []).filter(qid => qid !== activeQuestionId);
+      activeTest.questionCount = activeTest.questions.length;
+      tests[testIndex] = activeTest;
+
+      let questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+      questions = questions.filter(q => q.id !== activeQuestionId);
+      window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions;
+
+      try {
+        await window.saveData(window.IC3_KEYS.TESTS, tests, testId);
+        await window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, activeQuestionId));
+
+        if (window.showToast) window.showToast("Đã xóa câu hỏi thành công!", "success");
+
+        activeQuestionId = "";
+        cancelQuestionEditing();
+        renderQuestionsList();
+      } catch (err) {
+        console.error("Error deleting question:", err);
+        if (window.showToast) window.showToast("Xóa thất bại, vui lòng thử lại!", "error");
+      }
+    }
+  );
+}
+
+function resetQuestionWorkspace() {
+  activeQuestionId = "";
+  const viewCard = document.getElementById("view-question-card");
+  const placeholder = document.getElementById("view-placeholder");
+  const editForm = document.getElementById("question-edit-form");
+  const editBtn = document.getElementById("btn-edit-question");
+  const deleteBtn = document.getElementById("btn-delete-question");
+  if (viewCard) viewCard.classList.add("hidden");
+  if (placeholder) placeholder.classList.remove("hidden");
+  if (editForm) editForm.classList.add("hidden");
+  if (editBtn) editBtn.classList.add("hidden");
+  if (deleteBtn) deleteBtn.classList.add("hidden");
+  const panelTitle = document.getElementById("right-panel-title");
+  if (panelTitle) panelTitle.innerText = "Nội dung câu hỏi";
+}
+
+function selectActiveQuestion(qId) {
+  activeQuestionId = qId;
+  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+  const q = questions.find(item => item.id === qId);
+  if (!q) return;
+
+  const viewCard = document.getElementById("view-question-card");
+  const placeholder = document.getElementById("view-placeholder");
+  if (viewCard) viewCard.classList.remove("hidden");
+  if (placeholder) placeholder.classList.add("hidden");
+
+  const editBtn = document.getElementById("btn-edit-question");
+  const deleteBtn = document.getElementById("btn-delete-question");
+  if (editBtn) editBtn.classList.remove("hidden");
+  if (deleteBtn) deleteBtn.classList.remove("hidden");
+
+  const typeBadge = document.getElementById("view-q-type-badge");
+  if (typeBadge) typeBadge.innerText = q.type || "choice";
+  const qText = document.getElementById("view-q-text");
+  if (qText) qText.innerText = q.question || q.text || "";
+  
+  const imgContainer = document.getElementById("view-q-image-container");
+  const imgEl = document.getElementById("view-q-image");
+  const imageUrl = q.imageUrl || q.image || "";
+  if (imageUrl) {
+    if (imgEl) imgEl.src = convertDriveUrl(imageUrl);
+    if (imgContainer) imgContainer.classList.remove("hidden");
+  } else {
+    if (imgContainer) imgContainer.classList.add("hidden");
+  }
+
+  const optionsContainer = document.getElementById("view-q-options-container");
+  if (optionsContainer) {
+    optionsContainer.innerHTML = "";
+    
+    if (q.type === "choice" || q.type === "true_false" || q.type === "multiple_choice") {
+      const opts = q.options || [];
+      opts.forEach((opt, idx) => {
+        const isCorrect = idx === q.correctIndex || opt === q.answer || (q.answer === "Đúng" && idx === 0) || (q.answer === "Sai" && idx === 1);
+        const div = document.createElement("div");
+        div.className = `p-3 rounded-xl border text-xs font-semibold ${isCorrect ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-slate-900/60 border-indigo-500/10 text-indigo-100'}`;
+        div.innerText = `${idx + 1}. ${opt}`;
+        optionsContainer.appendChild(div);
+      });
+    } else if (q.type === "multi_choice") {
+      const opts = q.options || [];
+      opts.forEach((opt, idx) => {
+        const isCorrect = (q.correctIndices || []).includes(idx);
+        const div = document.createElement("div");
+        div.className = `p-3 rounded-xl border text-xs font-semibold ${isCorrect ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-slate-900/60 border-indigo-500/10 text-indigo-100'}`;
+        div.innerText = `[${isCorrect ? '✓' : ' '}] ${opt}`;
+        optionsContainer.appendChild(div);
+      });
+    } else if (q.type === "image_choice") {
+      const opts = q.options || [];
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-2 gap-3";
+      opts.forEach((optImg, idx) => {
+        const isCorrect = idx === q.correctIndex;
+        const div = document.createElement("div");
+        div.className = `p-2 rounded-xl border flex flex-col items-center justify-center bg-slate-900/60 ${isCorrect ? 'border-emerald-500 bg-emerald-500/10' : 'border-indigo-500/15'}`;
+        div.innerHTML = `<img src="${convertDriveUrl(optImg)}" class="h-16 w-auto object-contain mb-1">${isCorrect ? '<span class="text-[10px] text-emerald-400 font-bold">Đáp án đúng</span>' : ''}`;
+        grid.appendChild(div);
+      });
+      optionsContainer.appendChild(grid);
+    } else if (q.type === "drag_text") {
+      const rows = q.rows || [];
+      const correctAnswers = q.correctAnswers || [];
+      rows.forEach((row, idx) => {
+        const rowLabel = row.label || row.text || row;
+        const correctVal = correctAnswers[idx] || "";
+        const div = document.createElement("div");
+        div.className = "p-3 rounded-xl bg-slate-900/60 border border-indigo-500/10 text-xs flex justify-between items-center";
+        div.innerHTML = `<span class="text-indigo-100 font-medium">${rowLabel}</span> <span class="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded font-bold">${correctVal}</span>`;
+        optionsContainer.appendChild(div);
+      });
+    } else if (q.type === "drag_image_text") {
+      const leftImages = q.leftImages || [];
+      const correctAnswers = q.correctAnswers || [];
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-2 gap-3";
+      leftImages.forEach((imgUrl, idx) => {
+        const correctVal = correctAnswers[idx] || "";
+        const div = document.createElement("div");
+        div.className = "p-3 rounded-xl bg-slate-900/60 border border-indigo-500/15 flex flex-col items-center";
+        div.innerHTML = `<img src="${convertDriveUrl(imgUrl)}" class="h-16 w-auto object-contain mb-2"><span class="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded text-xs font-bold">${correctVal}</span>`;
+        grid.appendChild(div);
+      });
+      optionsContainer.appendChild(grid);
+    } else if (q.type === "table_match") {
+      const rows = q.rows || [];
+      const correctAnswers = q.correctAnswers || [];
+      const cols = q.options || [];
+      rows.forEach((row, idx) => {
+        const correctColIdx = correctAnswers[idx];
+        const correctColLabel = cols[correctColIdx] || "";
+        const div = document.createElement("div");
+        div.className = "p-3 rounded-xl bg-slate-900/60 border border-indigo-500/10 text-xs flex justify-between items-center";
+        div.innerHTML = `<span class="text-indigo-100 font-medium">${row}</span> <i class="fa-solid fa-arrow-right text-indigo-400"></i> <span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded font-bold">${correctColLabel}</span>`;
+        optionsContainer.appendChild(div);
+      });
+    } else if (q.type === "hotspot") {
+      const imgUrl = q.imageUrl || "";
+      const hotspots = q.hotspots || [];
+      const div = document.createElement("div");
+      div.className = "relative inline-block border border-indigo-500/20 rounded-xl overflow-hidden self-center mx-auto";
+      div.innerHTML = `
+        <img src="${convertDriveUrl(imgUrl)}" class="max-h-60 w-auto object-contain block">
+        <div class="absolute inset-0">
+          ${hotspots.map((area, i) => `
+            <div class="absolute border-2 border-emerald-500 bg-emerald-500/20 flex items-center justify-center text-emerald-300 text-[10px] font-bold" style="left: ${area.x}%; top: ${area.y}%; width: ${area.w}%; height: ${area.h}%;">
+              ${i + 1}
+            </div>
+          `).join("")}
+        </div>
+      `;
+      optionsContainer.appendChild(div);
+    } else {
+      optionsContainer.innerHTML = `<p class="text-xs text-indigo-300 italic">Không có cấu hình phương án hiển thị cho dạng này.</p>`;
+    }
+  }
+
+  const viewAnswer = document.getElementById("view-q-answer");
+  if (viewAnswer) {
+    if (q.type === "choice" || q.type === "true_false") {
+      viewAnswer.innerText = q.answer || (q.correctIndex !== undefined ? (q.options ? q.options[q.correctIndex] : q.correctIndex) : "");
+    } else if (q.type === "multi_choice") {
+      viewAnswer.innerText = (q.correctIndices || []).map(idx => q.options ? q.options[idx] : idx).join(", ");
+    } else if (q.type === "image_choice") {
+      viewAnswer.innerText = `Phương án ảnh số ${q.correctIndex !== undefined ? q.correctIndex + 1 : ""}`;
+    } else {
+      viewAnswer.innerText = "Xem chi tiết phương án ghép khớp ở trên";
+    }
+  }
+
+  const viewExplanation = document.getElementById("view-q-explanation");
+  if (viewExplanation) viewExplanation.innerText = q.explanation || "Không có giải thích chi tiết.";
+
+  const sidebarList = document.getElementById("m-questionsList");
+  if (sidebarList) {
+    const items = sidebarList.children;
+    for (let i = 0; i < items.length; i++) {
+      items[i].classList.remove("bg-indigo-500/20", "border-l-4", "border-l-purple-500");
+    }
+  }
+}
+
+function openCustomTestGeneratorModal() {
+  const blockSelector = document.getElementById("m-blockSelector");
+  if (!blockSelector || !blockSelector.value) {
+    if (window.showToast) window.showToast("Vui lòng chọn khối lớp trước!", "error");
+    return;
+  }
+  const modal = document.getElementById("customTestGeneratorModal");
+  if (modal) {
+    modal.classList.remove("hidden");
+    const titleInput = document.getElementById("customTestTitleInput");
+    if (titleInput) titleInput.value = "";
+    const searchInput = document.getElementById("customTestSearch");
+    if (searchInput) searchInput.value = "";
+    const rangeStart = document.getElementById("rangeStart");
+    if (rangeStart) rangeStart.value = "";
+    const rangeEnd = document.getElementById("rangeEnd");
+    if (rangeEnd) rangeEnd.value = "";
+    renderCustomTestQuestionsList();
+  }
+}
+
+function closeCustomTestGeneratorModal() {
+  const modal = document.getElementById("customTestGeneratorModal");
+  if (modal) modal.classList.add("hidden");
+}
+
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
   adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction,
-  openCustomTestGeneratorModal, closeCustomTestGeneratorModal, renderCustomTestQuestionsList, updateCustomTestSelectedCount, handleSelectRange, handleCustomTestFormSubmit
+  openCustomTestGeneratorModal, closeCustomTestGeneratorModal, renderCustomTestQuestionsList, updateCustomTestSelectedCount, handleSelectRange, handleCustomTestFormSubmit,
+  renderLockTabsTab, toggleTabLockState
 });
