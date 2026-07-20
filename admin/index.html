@@ -94,6 +94,9 @@
           <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn">
             <i class="fa-solid fa-gear w-5"></i> Cài đặt
           </button>
+          <button onclick="switchTab('backup-restore')" id="nav-backup-restore" class="nav-btn">
+            <i class="fa-solid fa-database w-5 text-emerald-400"></i> Sao lưu/Khôi phục
+          </button>
         </nav>
       </div>
 
@@ -741,6 +744,52 @@
 
             <div id="admin-lock-tabs-container">
               <!-- JS Injected Content -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB: BACKUP & RESTORE (ADMIN) ==================== -->
+        <section id="tab-backup-restore" class="tab-content space-y-6 hidden">
+          <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+            <div>
+              <h3 class="font-poppins font-bold text-lg text-white flex items-center gap-2">
+                <i class="fa-solid fa-database text-emerald-500"></i> Sao lưu & Khôi phục dữ liệu hệ thống
+              </h3>
+              <p class="text-xs text-slate-400">Xuất toàn bộ dữ liệu (lớp học, học sinh, đề thi, câu hỏi, điểm số, phần thưởng, cấu hình...) thành 1 file JSON duy nhất để di chuyển sang project khác hoặc lưu trữ an toàn.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Export Card -->
+              <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-5 flex flex-col justify-between space-y-4">
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg"><i class="fa-solid fa-file-export"></i></div>
+                    <h4 class="font-bold text-sm text-slate-200">Xuất dữ liệu (Backup)</h4>
+                  </div>
+                  <p class="text-xs text-slate-400 leading-relaxed">Tải xuống toàn bộ tài nguyên, đề thi, câu hỏi, thông tin lớp học và học sinh của bạn dưới dạng file `.json`. Bạn có thể sử dụng file này để khôi phục hoặc import vào bất kỳ workspace/project nào khác chạy hệ thống này.</p>
+                </div>
+                <button onclick="exportAllData()" class="w-full py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-600/15">
+                  <i class="fa-solid fa-download"></i> Tải xuống file sao lưu (.json)
+                </button>
+              </div>
+
+              <!-- Import Card -->
+              <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-5 flex flex-col justify-between space-y-4">
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg"><i class="fa-solid fa-file-import"></i></div>
+                    <h4 class="font-bold text-sm text-slate-200">Khôi phục dữ liệu (Restore)</h4>
+                  </div>
+                  <p class="text-xs text-slate-400 leading-relaxed">Chọn hoặc kéo thả file sao lưu `.json` đã xuất từ trước đó. Hệ thống sẽ phân tích cú pháp và tự động đồng bộ hóa/ghi đè toàn bộ dữ liệu lên cơ sở dữ liệu Cloud Firestore của project này.</p>
+                </div>
+                
+                <!-- Drag and drop zone -->
+                <div id="import-drag-zone" class="border-2 border-dashed border-slate-800 hover:border-blue-500/50 rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer bg-slate-950/20">
+                  <i class="fa-solid fa-cloud-arrow-up text-blue-400 text-xl animate-bounce"></i>
+                  <span class="text-[11px] text-slate-300 text-center font-medium">Kéo thả file .json tại đây hoặc <span class="text-blue-400 underline font-bold">nhấp để chọn</span></span>
+                  <input type="file" id="import-file-input" accept=".json" class="hidden">
+                </div>
+              </div>
             </div>
           </div>
         </section>

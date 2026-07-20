@@ -87,6 +87,9 @@ function startAdminApp() {
   document.getElementById("testForm").addEventListener("submit", handleTestSubmit);
   document.getElementById("rewardForm").addEventListener("submit", handleRewardSubmit);
   document.getElementById("bossForm").addEventListener("submit", handleBossSubmit);
+
+  // Initialize Backup & Restore
+  initBackupRestoreEvents();
 }
 
 // 1. Auth check
@@ -211,7 +214,8 @@ function switchTab(tabId) {
     rewards: "Hệ thống quà tặng quy đổi Coins",
     bosses: "Quản lý Boss Săn Lùng",
     "lock-tabs": "Khóa / Mở Tab tính năng học sinh theo lớp",
-    settings: "Cài đặt & Cấu hình game"
+    settings: "Cài đặt & Cấu hình game",
+    "backup-restore": "Sao lưu & Khôi phục dữ liệu hệ thống"
   };
   document.getElementById("currentTabTitle").innerText = titles[tabId] || "Trang quản trị";
 
@@ -2393,7 +2397,245 @@ async function toggleAdminTabLockState(tabId, isLocked) {
   }
 }
 
+// ==================== SYSTEM BACKUP & RESTORE MODULE (ADMIN) ====================
+
+async function exportAllData() {
+  if (window.Swal) {
+    window.Swal.fire({
+      title: 'Đang chuẩn bị xuất dữ liệu...',
+      text: 'Hệ thống đang thu thập toàn bộ dữ liệu từ Cloud Firestore, vui lòng đợi.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        window.Swal.showLoading();
+      }
+    });
+  }
+
+  try {
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      localStorage: {
+        ic3_blocks: localStorage.getItem("ic3_blocks")
+      },
+      firestore: {}
+    };
+
+    const collectionsToBackup = [
+      "users",
+      "students",
+      "teachers",
+      "classes",
+      "questions",
+      "tests",
+      "scores",
+      "rewards",
+      "notifications",
+      "bosses",
+      "pokemons",
+      "settings",
+      "system"
+    ];
+
+    const db = window.db;
+    const { collection, getDocs } = window.fStore;
+
+    for (const colName of collectionsToBackup) {
+      try {
+        console.log(`Exporting Firestore collection: ${colName}`);
+        const colRef = collection(db, colName);
+        const snapshot = await getDocs(colRef);
+        const docs = [];
+        snapshot.forEach(docSnap => {
+          docs.push({
+            id: docSnap.id,
+            data: docSnap.data()
+          });
+        });
+        backupData.firestore[colName] = docs;
+      } catch (colErr) {
+        console.warn(`Could not export collection ${colName}:`, colErr);
+        if (window.IC3_CACHE && window.IC3_CACHE[colName]) {
+          backupData.firestore[colName] = window.IC3_CACHE[colName].map(item => ({
+            id: item.id || item.email,
+            data: item
+          }));
+        }
+      }
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `ic3_lms_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    if (window.Swal) {
+      window.Swal.fire({
+        icon: 'success',
+        title: 'Xuất dữ liệu thành công!',
+        text: 'File JSON đã được tải về thiết bị của bạn.',
+        confirmButtonColor: '#3b82f6'
+      });
+    } else if (window.showToast) {
+      window.showToast("Xuất dữ liệu thành công!", "success");
+    }
+  } catch (err) {
+    console.error("Error during export: ", err);
+    if (window.Swal) {
+      window.Swal.fire({
+        icon: 'error',
+        title: 'Xuất dữ liệu thất bại!',
+        text: err.message,
+        confirmButtonColor: '#ef4444'
+      });
+    } else if (window.showToast) {
+      window.showToast("Xuất dữ liệu thất bại: " + err.message, "error");
+    }
+  }
+}
+
+async function importAllData(jsonData) {
+  if (window.Swal) {
+    window.Swal.fire({
+      title: 'Đang nhập dữ liệu...',
+      text: 'Hệ thống đang phục hồi dữ liệu lên Cloud Firestore, vui lòng không tắt trình duyệt.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        window.Swal.showLoading();
+      }
+    });
+  }
+
+  try {
+    const backup = JSON.parse(jsonData);
+    
+    if (!backup || typeof backup !== 'object' || !backup.firestore) {
+      throw new Error("Cấu trúc file JSON không hợp lệ hoặc thiếu dữ liệu Firestore.");
+    }
+
+    const db = window.db;
+    const { doc, setDoc } = window.fStore;
+
+    if (backup.localStorage) {
+      if (backup.localStorage.ic3_blocks) {
+        localStorage.setItem("ic3_blocks", backup.localStorage.ic3_blocks);
+      }
+    }
+
+    let totalImported = 0;
+    const collections = Object.keys(backup.firestore);
+
+    for (const colName of collections) {
+      const docs = backup.firestore[colName];
+      if (!Array.isArray(docs)) continue;
+
+      console.log(`Importing ${docs.length} documents into collection: ${colName}`);
+      for (const docObj of docs) {
+        if (!docObj.id || !docObj.data) continue;
+        
+        const docRef = doc(db, colName, docObj.id);
+        await setDoc(docRef, docObj.data, { merge: true });
+        totalImported++;
+      }
+    }
+
+    if (window.Swal) {
+      await window.Swal.fire({
+        icon: 'success',
+        title: 'Nhập dữ liệu thành công!',
+        text: `Đã khôi phục thành công ${totalImported} bản ghi dữ liệu. Trang web sẽ tự động tải lại sau giây lát để cập nhật dữ liệu mới nhất.`,
+        confirmButtonColor: '#3b82f6'
+      });
+      window.location.reload();
+    } else {
+      if (window.showToast) window.showToast(`Đã khôi phục thành công ${totalImported} bản ghi! Tải lại trang...`, "success");
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  } catch (err) {
+    console.error("Error during import: ", err);
+    if (window.Swal) {
+      window.Swal.fire({
+        icon: 'error',
+        title: 'Nhập dữ liệu thất bại!',
+        text: err.message,
+        confirmButtonColor: '#ef4444'
+      });
+    } else if (window.showToast) {
+      window.showToast("Nhập dữ liệu thất bại: " + err.message, "error");
+    }
+  }
+}
+
+function initBackupRestoreEvents() {
+  const dragZone = document.getElementById("import-drag-zone");
+  const fileInput = document.getElementById("import-file-input");
+
+  if (!dragZone || !fileInput) return;
+
+  dragZone.onclick = (e) => {
+    if (e.target !== fileInput) {
+      fileInput.click();
+    }
+  };
+
+  ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+    dragZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+  });
+
+  ["dragenter", "dragover"].forEach(eventName => {
+    dragZone.addEventListener(eventName, () => {
+      dragZone.classList.add("border-blue-500", "bg-slate-800");
+    }, false);
+  });
+
+  ["dragleave", "drop"].forEach(eventName => {
+    dragZone.addEventListener(eventName, () => {
+      dragZone.classList.remove("border-blue-500", "bg-slate-800");
+    }, false);
+  });
+
+  dragZone.addEventListener("drop", (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+      handleFileSelected(files[0]);
+    }
+  });
+
+  fileInput.onchange = (e) => {
+    if (fileInput.files.length > 0) {
+      handleFileSelected(fileInput.files[0]);
+    }
+  };
+
+  function handleFileSelected(file) {
+    if (!file) return;
+    if (file.type !== "application/json" && !file.name.endsWith(".json")) {
+      if (window.showToast) {
+        window.showToast("Định dạng file không hợp lệ! Vui lòng chọn file .json", "error");
+      }
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      importAllData(content);
+    };
+    reader.readAsText(file);
+  }
+}
+
 window.populateAdminLockTabsClasses = populateAdminLockTabsClasses;
 window.renderAdminLockTabsGrid = renderAdminLockTabsGrid;
 window.toggleAdminTabLockState = toggleAdminTabLockState;
+window.exportAllData = exportAllData;
+window.importAllData = importAllData;
+window.initBackupRestoreEvents = initBackupRestoreEvents;
+window.switchTab = switchTab;
 
