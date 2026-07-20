@@ -3,37 +3,118 @@
  * Migrated from LocalStorage to Firestore.
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { 
-  getFirestore, 
-  initializeFirestore, 
-  enableIndexedDbPersistence, 
-  collection, 
-  doc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
-  query, 
-  where, 
-  limit, 
-  orderBy, 
-  arrayUnion, 
-  arrayRemove, 
-  onSnapshot,
-  writeBatch
-} from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  setPersistence,
-  browserSessionPersistence
-} from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+// Firebase Compat SDK Wrapper equivalents for Modular API
+const initializeApp = (config) => firebase.initializeApp(config);
+const getFirestore = (app) => firebase.firestore(app);
+const initializeFirestore = (app) => firebase.firestore(app);
+const enableIndexedDbPersistence = (db) => db.enablePersistence();
+
+function collection(db, path) {
+  return db.collection(path);
+}
+
+function doc(db, colPath, docId) {
+  if (docId) {
+    return db.collection(colPath).doc(docId);
+  }
+  return db.doc(colPath);
+}
+
+function wrapDocSnapshot(snap) {
+  if (!snap) return snap;
+  if (typeof snap.exists !== 'function') {
+    const existsVal = !!snap.exists;
+    snap.exists = function() { return existsVal; };
+  }
+  return snap;
+}
+
+function wrapQuerySnapshot(querySnap) {
+  if (!querySnap) return querySnap;
+  const originalDocs = querySnap.docs || [];
+  querySnap.docs = originalDocs.map(wrapDocSnapshot);
+  
+  const originalForEach = querySnap.forEach;
+  if (originalForEach) {
+    querySnap.forEach = function(callback, thisArg) {
+      return originalForEach.call(this, (snap, index) => {
+        callback.call(thisArg, wrapDocSnapshot(snap), index);
+      });
+    };
+  }
+  return querySnap;
+}
+
+function getDocs(queryOrCol) {
+  return queryOrCol.get().then(wrapQuerySnapshot);
+}
+
+function getDoc(docRef) {
+  return docRef.get().then(wrapDocSnapshot);
+}
+
+function setDoc(docRef, data, options) {
+  return docRef.set(data, options);
+}
+
+function updateDoc(docRef, data) {
+  return docRef.update(data);
+}
+
+function deleteDoc(docRef) {
+  return docRef.delete();
+}
+
+function where(field, op, value) {
+  return (q) => q.where(field, op, value);
+}
+
+function orderBy(field, direction) {
+  return (q) => q.orderBy(field, direction);
+}
+
+function limit(number) {
+  return (q) => q.limit(number);
+}
+
+function query(queryOrCol, ...constraints) {
+  let q = queryOrCol;
+  for (const constraint of constraints) {
+    if (typeof constraint === 'function') {
+      q = constraint(q);
+    }
+  }
+  return q;
+}
+
+const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
+const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
+const writeBatch = (db) => db.batch();
+
+function onSnapshot(ref, onNext, onError) {
+  return ref.onSnapshot((snap) => {
+    if (snap.docs) {
+      onNext(wrapQuerySnapshot(snap));
+    } else {
+      onNext(wrapDocSnapshot(snap));
+    }
+  }, onError);
+}
+
+const getAuth = (app) => firebase.auth(app);
+const signInWithEmailAndPassword = (auth, email, password) => auth.signInWithEmailAndPassword(email, password);
+const signOut = (auth) => auth.signOut();
+const onAuthStateChanged = (auth, callback) => auth.onAuthStateChanged(callback);
+const GoogleAuthProvider = firebase.auth.GoogleAuthProvider;
+const signInWithPopup = (auth, provider) => auth.signInWithPopup(provider);
+
+const browserSessionPersistence = 'session';
+function setPersistence(auth, persistence) {
+  const compatPersistence = persistence === 'session' 
+    ? firebase.auth.Auth.Persistence.SESSION 
+    : firebase.auth.Auth.Persistence.LOCAL;
+  return auth.setPersistence(compatPersistence);
+}
 
 // --- SESSION PERSISTENCE PROXY (STORE IN SESSION STORAGE TO LOG OUT ON TAB/BROWSER CLOSE) ---
 (function() {
@@ -94,11 +175,6 @@ import {
 
 // Helper to safely get env variables with fallback
 const getEnv = (key, fallback) => {
-  try {
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-      return import.meta.env[key];
-    }
-  } catch (e) {}
   return fallback;
 };
 
@@ -126,14 +202,14 @@ try {
   if (dbId && dbId !== "" && dbId !== "(default)") {
     console.log("📂 Attempting to use named Firestore database:", dbId);
     try {
-      db = getFirestore(app, dbId);
+      db = firebase.app().firestore(dbId);
     } catch (e) {
       console.warn("⚠️ Named database initialization failed, falling back to default:", e);
-      db = getFirestore(app);
+      db = firebase.firestore();
     }
   } else {
     console.log("📂 Using default Firestore database");
-    db = getFirestore(app);
+    db = firebase.firestore();
   }
   
   auth = getAuth(app);
@@ -1067,10 +1143,5 @@ if (window.IC3_DB_INITIALIZED) {
     window.addEventListener('ic3-db-ready', window.loadPokemonEvolutions);
 }
 
-// Import secondary modules that rely on window.fStore/window.db/window.fAuth
-// Using dynamic import to avoid hoisting issues with globals
-import("./google-sheets.js").then(() => {
-  console.log("✅ Google Sheets module loaded");
-}).catch(err => {
-  console.error("❌ Failed to load Google Sheets module:", err);
-});
+// Google Sheets is loaded statically via standard script tags in index.html to support local file:// protocols
+console.log("✅ Google Sheets module initialized from index.html");

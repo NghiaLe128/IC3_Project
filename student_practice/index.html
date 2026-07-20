@@ -629,7 +629,14 @@
         document.body.innerHTML += `<div style="position:fixed;top:0;left:0;right:0;background:orange;color:white;z-index:9999;padding:20px;font-family:monospace;white-space:pre-wrap;">Unhandled Promise Rejection: ${event.reason && event.reason.message ? event.reason.message : event.reason}\n\n${event.reason && event.reason.stack ? event.reason.stack : ''}</div>`;
       });
     </script>
-    <script type="module" src="./assets/js/db-init.js"></script>
-    <script type="module" src="script.js?v=2"></script>
+    <!-- Firebase Compat SDKs (Standard UMD scripts to avoid CORS issues on file:// protocol) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+
+    <!-- Application scripts -->
+    <script src="./assets/js/db-init.js"></script>
+    <script src="./assets/js/google-sheets.js"></script>
+    <script src="script.js?v=2"></script>
   </body>
 </html>
