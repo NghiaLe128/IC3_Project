@@ -2,12 +2,18 @@
  * IC3 LMS - Google Sheets API & Auth Integration
  */
 
-import { GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
-import { doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+// We use window.fAuth and window.fStore provided by db-init.js to ensure consistent Firebase instances
+const getFAuth = () => window.fAuth || {};
 
 // Setup Google Auth Provider with Google Sheets Scope
-const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+let provider;
+const getProvider = () => {
+  if (!provider && window.fAuth && window.fAuth.GoogleAuthProvider) {
+    provider = new window.fAuth.GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+  }
+  return provider;
+};
 
 /**
  * Perform Google Login for Student (Popup)
@@ -15,11 +21,13 @@ provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 window.googleSignInStudent = async () => {
   try {
     console.log("🔑 Initializing student Google OAuth with Sheets scope...");
-    if (!window.auth) {
-      throw new Error("Firebase Auth chưa được khởi tạo!");
+    const fAuth = getFAuth();
+    const currentProvider = getProvider();
+    if (!window.auth || !fAuth.signInWithPopup || !currentProvider) {
+      throw new Error("Hệ thống Google Auth chưa sẵn sàng, vui lòng thử lại sau vài giây!");
     }
-    const result = await signInWithPopup(window.auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const result = await fAuth.signInWithPopup(window.auth, currentProvider);
+    const credential = fAuth.GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
       throw new Error("Không lấy được mã Google Access Token!");
     }
@@ -37,9 +45,14 @@ window.googleSignInStudent = async () => {
 
 window.getGoogleSheetsConfig = async () => {
   try {
-    if (!window.db) return null;
-    const docRef = doc(window.db, "settings", "google_sheets");
-    const docSnap = await getDoc(docRef);
+    const db = window.db;
+    const fStore = window.fStore;
+    if (!db || !fStore) {
+      console.warn("⚠️ window.db or window.fStore is not ready when calling getGoogleSheetsConfig");
+      return null;
+    }
+    const docRef = fStore.doc(db, "settings", "google_sheets");
+    const docSnap = await fStore.getDoc(docRef);
     if (docSnap.exists()) {
       return docSnap.data();
     }
@@ -52,9 +65,11 @@ window.getGoogleSheetsConfig = async () => {
 
 window.saveGoogleSheetsConfig = async (config) => {
   try {
-    if (!window.db) throw new Error("Database is not ready!");
-    const docRef = doc(window.db, "settings", "google_sheets");
-    await setDoc(docRef, {
+    const db = window.db;
+    const fStore = window.fStore;
+    if (!db || !fStore) throw new Error("Database is not ready!");
+    const docRef = fStore.doc(db, "settings", "google_sheets");
+    await fStore.setDoc(docRef, {
       ...config,
       updatedAt: new Date().toISOString()
     }, { merge: true });
@@ -343,10 +358,14 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
     const generatedEmail = `${studentId}@ic3lms.edu.vn`;
 
     const db = window.db;
+    const fStore = window.fStore;
+    if (!db || !fStore) {
+        throw new Error("Hệ thống Database chưa sẵn sàng, vui lòng thử lại sau vài giây!");
+    }
 
     // Check if user already exists in Firestore "users" collection
-    const userDocRef = doc(db, "users", generatedEmail);
-    const userDocSnap = await getDoc(userDocRef);
+    const userDocRef = fStore.doc(db, "users", generatedEmail);
+    const userDocSnap = await fStore.getDoc(userDocRef);
     let firestoreUser = null;
 
     if (userDocSnap.exists()) {
@@ -395,8 +414,8 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
     let classesList = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
     
     if (classesList.length === 0) {
-      const classesRef = collection(db, "classes");
-      const classesSnap = await getDocs(classesRef);
+      const classesRef = fStore.collection(db, "classes");
+      const classesSnap = await fStore.getDocs(classesRef);
       classesList = classesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       window.IC3_CACHE[window.IC3_KEYS.CLASSES] = classesList;
     }
@@ -416,13 +435,13 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
         sheetClassName: className,
         createdAt: new Date().toISOString()
       };
-      await setDoc(doc(db, "classes", targetClassId), newClass);
+      await fStore.setDoc(fStore.doc(db, "classes", targetClassId), newClass);
       if (!window.IC3_CACHE["classes"]) window.IC3_CACHE["classes"] = [];
       window.IC3_CACHE["classes"].push(newClass);
     }
 
-    const studentDocRef = doc(db, "students", generatedEmail);
-    const studentDocSnap = await getDoc(studentDocRef);
+    const studentDocRef = fStore.doc(db, "students", generatedEmail);
+    const studentDocSnap = await fStore.getDoc(studentDocRef);
     let studentData = {};
     let userData = {};
 
@@ -437,7 +456,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
       
       // ONLY update if they already have a Pokémon (meaning they finished setup)
       if (studentData.pokemon) {
-        await setDoc(studentDocRef, studentData, { merge: true });
+        await fStore.setDoc(studentDocRef, studentData, { merge: true });
       }
       localStorage.setItem("pendingStudentData", "");
 
@@ -447,7 +466,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
           currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
           forceLogout: false 
         };
-        await setDoc(userDocRef, userData);
+        await fStore.setDoc(userDocRef, userData);
       } else {
         userData = { 
           email: generatedEmail, 
@@ -457,7 +476,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
           currentSessionToken: Math.random().toString(36).substring(2) + Date.now(), 
           forceLogout: false 
         };
-        await setDoc(userDocRef, userData);
+        await fStore.setDoc(userDocRef, userData);
       }
     } else {
       studentData = {
@@ -499,7 +518,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
       }
       localStorage.setItem("pendingUserData", JSON.stringify(userData));
       // Create user doc immediately to satisfy session monitor
-      await setDoc(userDocRef, userData);
+      await fStore.setDoc(userDocRef, userData);
     }
 
     // Only set the user in local storage for session management, don't create doc in DB yet

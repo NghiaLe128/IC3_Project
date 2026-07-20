@@ -15,6 +15,17 @@ window.adminPagination = {
 };
 const ITEMS_PER_PAGE = 8;
 
+function getAdminUser() {
+  try {
+    const key = (window.IC3_KEYS && window.IC3_KEYS.CURRENT_USER) ? window.IC3_KEYS.CURRENT_USER : "ic3_current_user";
+    const userStr = localStorage.getItem(key);
+    return userStr ? JSON.parse(userStr) : null;
+  } catch (e) {
+    console.error("Error parsing admin user:", e);
+    return null;
+  }
+}
+
 function renderPagination(totalItems, currentPage, containerId, sectionKey) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -65,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function startAdminApp() {
-  checkAdminAuth();
+  if (!checkAdminAuth()) return;
   initClock();
   initDashboard();
 
@@ -80,15 +91,16 @@ function startAdminApp() {
 
 // 1. Auth check
 function checkAdminAuth() {
-  const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  let currentUser = getAdminUser();
   if (!currentUser || currentUser.role !== "admin") {
     window.showToast("Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản Admin!", 'error');
     window.location.href = "../index.html";
-    return;
+    return false;
   }
   // Display name
   document.getElementById("adminName").innerText = currentUser.name || "Quản trị viên";
   document.getElementById("adminEmail").innerText = currentUser.email;
+  return true;
 }
 
 // 2. Real-time Live Clock
@@ -105,8 +117,72 @@ function initClock() {
 }
 
 // Logout
-function logoutAdmin() {
-  window.logoutUser();
+async function logoutAdmin() {
+  const result = await window.Swal.fire({
+    title: 'Đăng xuất',
+    text: "Bạn có muốn đăng xuất khỏi tất cả các thiết bị đang đăng nhập không?",
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Đăng xuất tất cả',
+    cancelButtonText: 'Chỉ máy này'
+  });
+
+  if (result.isConfirmed) {
+    const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      await window.forceLogoutUser(user.email);
+    }
+    window.location.href = "/index.html";
+  } else if (result.dismiss === window.Swal.DismissReason.cancel) {
+    window.logoutUser();
+  }
+}
+
+async function adminForceLogoutEveryone() {
+  const result = await window.Swal.fire({
+    title: 'ĐĂNG XUẤT TOÀN HỆ THỐNG',
+    text: `BẠN CÓ CHẮC CHẮN muốn đăng xuất TẤT CẢ người dùng (bao gồm Giáo viên và Học sinh) trên TOÀN BỘ các thiết bị? Hành động này không thể hoàn tác!`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Xác nhận ĐĂNG XUẤT TẤT CẢ',
+    cancelButtonText: 'Hủy lệnh'
+  });
+
+  if (result.isConfirmed) {
+    const res = await window.forceLogoutEveryone();
+    if (res.success) {
+      window.Swal.fire('Thành công', 'Đã gửi lệnh đăng xuất đến toàn bộ thiết bị trong hệ thống!', 'success');
+    } else {
+      window.Swal.fire('Lỗi', res.message, 'error');
+    }
+  }
+}
+
+async function adminForceLogoutUser(email) {
+  const result = await window.Swal.fire({
+    title: 'Xác nhận đăng xuất',
+    text: `Bạn có chắc chắn muốn đăng xuất tài khoản ${email} trên tất cả các thiết bị?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Đăng xuất ngay',
+    cancelButtonText: 'Hủy'
+  });
+
+  if (result.isConfirmed) {
+    const res = await window.forceLogoutUser(email);
+    if (res.success) {
+      window.showToast("Đã gửi lệnh đăng xuất đến tất cả thiết bị của người dùng này!");
+    } else {
+      window.showToast("Lỗi: " + res.message, "error");
+    }
+  }
 }
 
 // 3. Tab Switching Navigation
@@ -335,6 +411,7 @@ function renderStudentsTable() {
       </td>
       <td class="px-5 py-4 text-center font-bold text-xs text-emerald-400">${passedCount} bài đạt</td>
       <td class="px-5 py-4 text-right space-x-1.5 space-y-1.5 sm:space-y-0">
+        <button onclick="adminForceLogoutUser('${std.email}')" class="px-2 py-1 text-[11px] font-bold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-all cursor-pointer" title="Đăng xuất tất cả thiết bị"><i class="fa-solid fa-right-from-bracket"></i></button>
         <button onclick="editStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
         <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-arrows-rotate"></i> Reset Lượt</button>
         <button onclick="deleteStudent('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-all cursor-pointer"><i class="fa-solid fa-trash-can"></i> Xóa</button>
@@ -588,7 +665,10 @@ function renderTeachersGrid() {
           </div>
         </div>
       </div>
-      <div class="flex justify-end pt-3 border-t border-slate-800">
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button onclick="adminForceLogoutUser('${tc.email}')" class="px-3 py-1.5 text-xs font-semibold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg transition-all" title="Đăng xuất tất cả thiết bị">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
         <button onclick="deleteTeacher('${tc.email}')" class="px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-all">
           <i class="fa-solid fa-user-minus mr-1"></i> Xóa giáo viên
         </button>
@@ -998,7 +1078,7 @@ function handleTestSubmit(e) {
     questionCount: selectedQuestions.length,
     questions: selectedQuestions,
     scoreVal: 100,
-    createdBY: JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)).email
+    createdBY: (getAdminUser() || {}).email || "admin@gmail.com"
   };
 
   tests.push(newTest);
@@ -1784,6 +1864,8 @@ window.openBossModal = openBossModal;
 window.closeBossModal = closeBossModal;
 window.deleteBoss = deleteBoss;
 window.resetDatabaseToDefault = resetDatabaseToDefault;
+window.adminForceLogoutEveryone = adminForceLogoutEveryone;
+window.adminForceLogoutUser = adminForceLogoutUser;
 window.saveAdminSettings = saveAdminSettings;
 
 function downloadSheetTemplate() {
@@ -1809,7 +1891,7 @@ window.downloadSheetTemplate = downloadSheetTemplate;
 
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  adjustQuestionAnswers, checkAdminAuth, closeBossModal, closeQuestionModal, closeRewardModal, closeStudentModal, closeTeacherModal, closeTestModal, deleteBoss, deleteQuestion, deleteReward, deleteStudent, deleteTeacher, deleteTest, downloadSheetTemplate, editStudent, filterQuestionsForTestSelection, getBossHuntDayKey, handleBossSubmit, handleQuestionSubmit, handleRewardSubmit, handleStudentSubmit, handleTeacherSubmit, handleTestSubmit, initClock, initDashboard, logoutAdmin, openBossModal, openQuestionModal, openRewardModal, openStudentModal, openTeacherModal, openTestModal, renderAdminSettings, renderBossesGrid, renderDashboardRecentScores, renderDashboardTopStudents, renderQuestionsTable, renderRankingList, renderRewardsGrid, renderStudentsTable, renderTeachersGrid, renderTestsGrid, resetDatabaseToDefault, saveAdminSettings, startAdminApp, switchTab, updateLevelsQuestionCount, toggleRewardPokeKeySelect, updateRewardFieldsFromPokeKey
+  adjustQuestionAnswers, adminForceLogoutUser, adminForceLogoutEveryone, checkAdminAuth, closeBossModal, closeQuestionModal, closeRewardModal, closeStudentModal, closeTeacherModal, closeTestModal, deleteBoss, deleteQuestion, deleteReward, deleteStudent, deleteTeacher, deleteTest, downloadSheetTemplate, editStudent, filterQuestionsForTestSelection, getBossHuntDayKey, handleBossSubmit, handleQuestionSubmit, handleRewardSubmit, handleStudentSubmit, handleTeacherSubmit, handleTestSubmit, initClock, initDashboard, logoutAdmin, openBossModal, openQuestionModal, openRewardModal, openStudentModal, openTeacherModal, openTestModal, renderAdminSettings, renderBossesGrid, renderDashboardRecentScores, renderDashboardTopStudents, renderQuestionsTable, renderRankingList, renderRewardsGrid, renderStudentsTable, renderTeachersGrid, renderTestsGrid, resetDatabaseToDefault, saveAdminSettings, startAdminApp, switchTab, updateLevelsQuestionCount, toggleRewardPokeKeySelect, updateRewardFieldsFromPokeKey
 });
 
 // ==========================================

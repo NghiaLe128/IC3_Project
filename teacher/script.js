@@ -26,6 +26,17 @@ let activeClassId = "";
 let activeQuestionId = ""; // Track selected question in manage-tests tab
 
 const ITEMS_PER_PAGE = 8;
+const typeLabels = {
+  choice: "Trắc nghiệm 1 đáp án",
+  drag_text: "Kéo thả chữ",
+  drag_image_text: "Kéo thả hình + chữ",
+  table_match: "Nối bảng / Ghép cặp",
+  multi_choice: "Chọn nhiều đáp án",
+  image_choice: "Chọn bằng hình ảnh",
+  multiple_choice: "Trắc nghiệm cũ (Legacy)",
+  true_false: "Đúng / Sai",
+  fill_blank: "Đáp án điền từ ngắn"
+};
 window.teacherPagination = {
   students: 1,
   results: 1,
@@ -33,6 +44,17 @@ window.teacherPagination = {
   rewards: 1,
   questions: 1
 };
+
+function getTeacherUser() {
+  try {
+    const key = (window.IC3_KEYS && window.IC3_KEYS.CURRENT_USER) ? window.IC3_KEYS.CURRENT_USER : "ic3_current_user";
+    const userStr = localStorage.getItem(key);
+    return userStr ? JSON.parse(userStr) : null;
+  } catch (e) {
+    console.error("Error parsing teacher user:", e);
+    return null;
+  }
+}
 
 function renderPagination(totalItems, currentPage, containerId, tabId) {
   const container = document.getElementById(containerId);
@@ -80,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function startTeacherApp() {
-  checkTeacherAuth();
+  if (!checkTeacherAuth()) return;
   initClock();
   initClassSelector();
 
@@ -151,14 +173,15 @@ async function autoSyncSheetClasses() {
 
 // 1. Auth Validation
 function checkTeacherAuth() {
-  const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  let currentUser = getTeacherUser();
   if (!currentUser || currentUser.role !== "teacher") {
     window.showToast("Bạn không có quyền truy cập trang Giáo viên. Vui lòng đăng nhập bằng tài khoản Giáo viên!", 'error');
     window.location.href = "../index.html";
-    return;
+    return false;
   }
   document.getElementById("teacherName").innerText = currentUser.name || "Giáo viên";
   document.getElementById("teacherEmail").innerText = currentUser.email;
+  return true;
 }
 
 // 2. Real-time Live Clock
@@ -199,7 +222,8 @@ function syncTeacherDataToCollections(teacher) {
 
 function initClassSelector() {
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
-  let teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  let teacher = getTeacherUser();
+  if (!teacher) return;
   
   // Sync with teachers collection if available
   const teachersInDb = window.IC3_CACHE[window.IC3_KEYS.TEACHERS] || [];
@@ -321,7 +345,8 @@ function renderOverview() {
 
 function renderClassesGrid() {
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
-  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  const teacher = getTeacherUser();
+  if (!teacher) return;
   const teacherClasses = classes.filter(c => teacher.classes && teacher.classes.includes(c.id));
   
   const gridEl = document.getElementById("teacher-classes-grid");
@@ -432,7 +457,7 @@ function renderClassStudentsTable() {
   if (paginationEl) paginationEl.innerHTML = "";
 
   if (filteredStudents.length === 0) {
-    body.innerHTML = `<tr><td colspan="8" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
     return;
   }
 
@@ -471,6 +496,10 @@ function renderClassStudentsTable() {
       }
     }
 
+    const loginStatusBadge = (std.isFirstLogin === false)
+      ? `<span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold whitespace-nowrap inline-block">Đã đăng nhập</span>`
+      : `<span class="px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold whitespace-nowrap inline-block">Chưa đăng nhập</span>`;
+
     const tr = document.createElement("tr");
     tr.className = "hover:bg-[#131424]/80 transition-all text-xs";
     tr.innerHTML = `
@@ -478,9 +507,9 @@ function renderClassStudentsTable() {
         <button onclick="openStudentDetailsModal('${std.email}')" class="text-indigo-600 hover:text-indigo-800 font-bold hover:underline text-left flex items-center gap-1 cursor-pointer">
           <i class="fa-solid fa-circle-user text-indigo-300"></i> ${std.name}
         </button>
+        <div class="text-[11px] text-indigo-400 font-mono font-normal mt-0.5 break-all max-w-[200px]">${std.email}</div>
       </td>
-      <td class="px-5 py-3.5 font-mono text-indigo-300">${std.email}</td>
-      <td class="px-5 py-3.5 font-mono font-medium text-emerald-400">${std.password || 'Chưa thiết lập'}</td>
+      <td class="px-5 py-3.5 font-medium whitespace-nowrap">${loginStatusBadge}</td>
       <td class="px-5 py-3.5 font-medium text-indigo-200"><i class="fa-solid fa-paw mr-1 text-indigo-400"></i> ${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon || "Chưa có"}</td>
       <td class="px-5 py-3.5 font-mono font-bold text-yellow-500"><i class="fa-solid fa-coins mr-1"></i> ${std.coins || 0}</td>
       <td class="px-5 py-3.5 font-mono font-bold text-yellow-600">
@@ -489,15 +518,15 @@ function renderClassStudentsTable() {
       </td>
       <td class="px-5 py-3.5 text-center font-bold text-emerald-600">${passedCount} bài đạt</td>
       <td class="px-5 py-3.5 text-right">
-        <div class="flex justify-end gap-1.5 flex-wrap sm:flex-nowrap">
-          <button onclick="openStudentDetailsModal('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 rounded transition-all cursor-pointer">
-            <i class="fa-solid fa-eye"></i> Lịch sử
+        <div class="flex justify-end gap-2">
+          <button onclick="openStudentDetailsModal('${std.email}')" title="Xem lịch sử học tập" class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer text-sm">
+            <i class="fa-solid fa-eye"></i>
           </button>
-          <button onclick="resetBossHunts('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/20 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded transition-all cursor-pointer">
-            <i class="fa-solid fa-arrows-rotate"></i> Reset Lượt Săn
+          <button onclick="resetBossHunts('${std.email}')" title="Đặt lại (reset) lượt săn Boss hôm nay" class="w-8 h-8 flex items-center justify-center rounded-full bg-amber-500/20 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-all cursor-pointer text-sm">
+            <i class="fa-solid fa-arrows-rotate"></i>
           </button>
-          <button onclick="removeStudentFromClass('${std.email}')" class="px-2.5 py-1 text-[11px] font-bold bg-red-500/20 text-red-600 hover:bg-red-100 border border-red-200 rounded transition-all cursor-pointer">
-            <i class="fa-solid fa-user-minus"></i> Xóa
+          <button onclick="removeStudentFromClass('${std.email}')" title="Xóa học sinh khỏi lớp học này" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500/20 text-red-600 hover:bg-red-100 border border-red-200 transition-all cursor-pointer text-sm">
+            <i class="fa-solid fa-user-minus"></i>
           </button>
         </div>
       </td>
@@ -794,20 +823,26 @@ function closeStudentDetailsModal() {
 
 // Local storage blocks loader helper
 function getBlocks() {
+  const defaultBlocks = [
+    { id: "block_3", name: "Khối 3" },
+    { id: "block_4", name: "Khối 4" },
+    { id: "block_5", name: "Khối 5" },
+    { id: "block_6", name: "Khối 6" },
+    { id: "block_7", name: "Khối 7" },
+    { id: "block_8", name: "Khối 8" }
+  ];
   const blocksData = localStorage.getItem("ic3_blocks");
   if (!blocksData || blocksData.includes("block_level_1") || !blocksData.includes("block_3")) {
-    const defaultBlocks = [
-      { id: "block_3", name: "Khối 3" },
-      { id: "block_4", name: "Khối 4" },
-      { id: "block_5", name: "Khối 5" },
-      { id: "block_6", name: "Khối 6" },
-      { id: "block_7", name: "Khối 7" },
-      { id: "block_8", name: "Khối 8" }
-    ];
     localStorage.setItem("ic3_blocks", JSON.stringify(defaultBlocks));
     return defaultBlocks;
   }
-  return JSON.parse(blocksData);
+  try {
+    return JSON.parse(blocksData);
+  } catch (e) {
+    console.error("Error parsing blocks data:", e);
+    localStorage.setItem("ic3_blocks", JSON.stringify(defaultBlocks));
+    return defaultBlocks;
+  }
 }
 
 function saveBlocks(blocks) {
@@ -922,7 +957,7 @@ function renderQuestionsList() {
 
   const filteredQuestions = testQuestions.filter(q => 
     (typeFilter === "" || q.type === typeFilter) &&
-    (q.text.toLowerCase().includes(searchQuery))
+    ((q.text || "").toLowerCase().includes(searchQuery))
   );
 
   const paginationContainerId = 'questions-pagination';
@@ -940,1202 +975,139 @@ function renderQuestionsList() {
 
   pagedQuestions.forEach((q, idxOnPage) => {
     const idx = (currentPage - 1) * ITEMS_PER_PAGE + idxOnPage;
-    const item = document.createElement("button");
-    item.id = `q-list-item-${q.id}`;
-    item.onclick = () => selectActiveQuestion(q.id);
-    item.className = "w-full text-left p-3 hover:bg-[#131424]/80 flex flex-col gap-1 transition-all border-b border-indigo-500/30/30 cursor-pointer";
+    const item = document.createElement("label");
+    item.className = "grid grid-cols-12 gap-2 px-4 py-2.5 hover:bg-white/5 cursor-pointer items-center transition-colors select-none border-b border-indigo-500/5 last:border-0";
     item.innerHTML = `
-      <div class="flex justify-between items-center w-full">
-        <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600">${typeLabels[q.type] || q.type}</span>
-        <span class="text-[9px] text-indigo-300 font-mono">ID: ${q.id}</span>
+      <div class="col-span-1 flex justify-center">
+        <input type="checkbox" name="customTestQCheck" value="${q.id}" onchange="updateCustomTestSelectedCount()" class="accent-emerald-500 h-4 w-4 cursor-pointer">
       </div>
-      <p class="text-xs font-semibold text-indigo-100 truncate w-full">${idx + 1}. ${q.question}</p>
+      <div class="col-span-1 text-center text-[10px] font-mono text-indigo-400">${idx + 1}</div>
+      <div class="col-span-8 text-xs text-indigo-50 line-clamp-2 pr-2">${q.question || q.text || "(Không có nội dung)"}</div>
+      <div class="col-span-2 text-center">
+        <span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/10 uppercase font-bold">${q.type || "N/A"}</span>
+      </div>
     `;
-    listContainer.appendChild(item);
+    container.appendChild(item);
   });
+  
+  updateCustomTestSelectedCount();
 }
 
-function selectActiveQuestion(qId) {
-  activeQuestionId = qId;
+function updateCustomTestSelectedCount() {
+  const checkboxes = document.querySelectorAll('input[name="customTestQCheck"]:checked');
+  const count = checkboxes ? checkboxes.length : 0;
+  const countEl = document.getElementById("customTestSelectedCount");
+  if (countEl) countEl.innerText = count;
+}
+
+function handleSelectRange() {
+  const startInput = document.getElementById("rangeStart");
+  const endInput = document.getElementById("rangeEnd");
+  if (!startInput || !endInput) return;
+
+  const start = parseInt(startInput.value);
+  const end = parseInt(endInput.value);
   
-  // Highlight in left list
-  document.querySelectorAll("#m-questionsList button").forEach(btn => {
-    btn.classList.remove("bg-indigo-50/50", "border-indigo-100");
+  if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
+    if (window.showToast) window.showToast("Phạm vi không hợp lệ!", "error");
+    return;
+  }
+
+  const checkboxes = document.querySelectorAll('input[name="customTestQCheck"]');
+  checkboxes.forEach((cb, idx) => {
+    const stt = idx + 1;
+    if (stt >= start && stt <= end) {
+      cb.checked = true;
+    }
   });
-  const activeBtn = document.getElementById(`q-list-item-${qId}`);
-  if (activeBtn) {
-    activeBtn.classList.add("bg-indigo-50/50", "border-indigo-100");
-  }
-
-  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
-  const q = questions.find(item => item.id === qId);
-  if (!q) return;
-
-  // Render view mode
-  document.getElementById("view-placeholder").classList.add("hidden");
-  document.getElementById("view-question-card").classList.remove("hidden");
-  document.getElementById("question-edit-form").classList.add("hidden");
-
-  const typeLabels = {
-    choice: "Trắc nghiệm 1 đáp án",
-    drag_text: "Kéo thả chữ",
-    drag_image_text: "Kéo thả hình + chữ",
-    table_match: "Nối bảng / Ghép cặp",
-    multi_choice: "Chọn nhiều đáp án",
-    image_choice: "Chọn bằng hình ảnh",
-    multiple_choice: "Trắc nghiệm cũ (Legacy)",
-    true_false: "Đúng / Sai",
-    fill_blank: "Đáp án điền từ ngắn"
-  };
-  document.getElementById("view-q-type-badge").innerText = typeLabels[q.type] || q.type.toUpperCase();
-  document.getElementById("view-q-text").innerText = q.question;
   
-  // Show image if available
-  const qImgContainer = document.getElementById("view-q-image-container");
-  const qImgElement = document.getElementById("view-q-image");
-  if (qImgContainer && qImgElement) {
-    if (q.image) {
-      qImgElement.src = convertDriveUrl(q.image);
-      qImgContainer.classList.remove("hidden");
-    } else {
-      qImgElement.src = "";
-      qImgContainer.classList.add("hidden");
-    }
-  }
-
-  // Get options container
-  const optionsContainer = document.getElementById("view-q-options-container");
-  if (optionsContainer) {
-    optionsContainer.innerHTML = "";
-  }
-  
-  // 1. Calculate display answer
-  let displayAnswer = q.answer || "";
-  if (q.type === "choice" && q.options) {
-    displayAnswer = `${String.fromCharCode(65 + (q.correctIndex || 0))}. ${q.options[q.correctIndex || 0]}`;
-  } else if (q.type === "drag_text" || q.type === "drag_image_text") {
-    displayAnswer = (q.correctAnswers || []).join(" | ");
-  } else if (q.type === "table_match") {
-    displayAnswer = (q.correctAnswers || []).map((ansIdx, rIdx) => `${(q.rows || [])[rIdx] || ""} -> ${(q.options || [])[ansIdx] || ""}`).join(" | ");
-  } else if (q.type === "multi_choice" && q.options) {
-    displayAnswer = (q.correctIndices || []).map(idx => `${String.fromCharCode(65 + idx)}. ${q.options[idx]}`).join(" | ");
-  } else if (q.type === "hotspot") {
-    displayAnswer = `Xác định ${q.requiredCount || 1} khu vực trên ảnh`;
-  } else if (q.type === "image_choice" && q.options) {
-    displayAnswer = `Lựa chọn ${q.correctIndex + 1}`;
-  } else if (q.type === "true_false") {
-    displayAnswer = q.answer === "true" || q.answer === true || q.answer === "đúng" || q.answer === "Đúng" ? "Đúng" : "Sai";
-  }
-  
-  document.getElementById("view-q-answer").innerText = displayAnswer;
-  document.getElementById("view-q-explanation").innerText = q.explanation || "Không có giải thích.";
-
-  // 2. Render options visualization
-  if (optionsContainer) {
-    if (q.type === "choice" && q.options) {
-      q.options.forEach((opt, idx) => {
-        const isCorrect = idx === q.correctIndex;
-        optionsContainer.innerHTML += `
-          <div class="p-2.5 rounded-xl border ${isCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'} text-xs flex justify-between items-center transition-all">
-            <div class="flex items-center gap-2">
-              <span class="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${isCorrect ? 'border-emerald-500 bg-emerald-500 text-white font-bold' : 'border-indigo-400 bg-[#1a1c2e]'}">${String.fromCharCode(65 + idx)}</span>
-              <span>${opt}</span>
-            </div>
-            ${isCorrect ? '<span class="text-emerald-400 font-bold flex items-center gap-1 text-[10px]"><i class="fa-solid fa-circle-check"></i> ĐÁP ÁN ĐÚNG</span>' : ''}
-          </div>
-        `;
-      });
-    } else if (q.type === "drag_text") {
-      optionsContainer.innerHTML = `
-        <div class="space-y-3">
-          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-tags mr-1"></i>Thẻ từ khóa kéo thả (Options):</div>
-          <div class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[#131424]/80 border border-indigo-500/30">
-            ${(q.options || []).map(opt => `
-              <span class="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold font-mono">${opt}</span>
-            `).join("")}
-          </div>
-          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mt-3"><i class="fa-solid fa-arrows-to-dot mr-1"></i>Ô trống & Đáp án đúng:</div>
-          <div class="space-y-2">
-            ${(q.rows || []).map((row, idx) => `
-              <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex justify-between items-center text-xs">
-                <span class="font-bold text-indigo-100">${row.label || row}</span>
-                <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-      `;
-    } else if (q.type === "hotspot") {
-        optionsContainer.innerHTML = `
-          <div class="space-y-3">
-            <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-image mr-1"></i>Khu vực đáp án:</div>
-            <div class="relative inline-block border border-gray-600 rounded bg-black/20" style="max-width: 100%;">
-               <img src="${q.imageUrl || ''}" style="max-width: 100%; display: ${q.imageUrl ? 'block' : 'none'}; pointer-events: none;" draggable="false">
-               <div class="absolute inset-0">
-                 ${(q.hotspots || []).map((area, i) => `<div class="absolute border-2 border-green-500 bg-green-500/20 flex items-center justify-center text-green-300 font-bold text-xs" style="left: ${area.x}%; top: ${area.y}%; width: ${area.w}%; height: ${area.h}%;">${i + 1}</div>`).join('')}
-               </div>
-            </div>
-            <div class="text-xs text-indigo-200">Số điểm cần nhấp đúng: <span class="font-bold text-purple-400">${q.requiredCount || 1}</span></div>
-          </div>
-        `;
-    } else if (q.type === "drag_image_text") {
-      optionsContainer.innerHTML = `
-        <div class="space-y-3">
-          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-tags mr-1"></i>Nhãn chữ kéo thả (Options):</div>
-          <div class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[#131424]/80 border border-indigo-500/30">
-            ${(q.options || []).map(opt => `
-              <span class="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold font-mono">${opt}</span>
-            `).join("")}
-          </div>
-          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mt-3"><i class="fa-solid fa-images mr-1"></i>Ghép nối hình ảnh & Đáp án đúng:</div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            ${(q.leftImages || []).map((img, idx) => `
-              <div class="p-3 bg-[#131424]/80 rounded-xl border border-indigo-500/30 flex flex-col items-center gap-2 text-xs">
-                <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
-                <span class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-200 text-emerald-400 font-bold font-mono text-[11px] flex items-center gap-1">✓ ${q.correctAnswers[idx] || ""}</span>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-      `;
-    } else if (q.type === "table_match") {
-      const headers = q.headers || ["Cột trái", "Cột phải"];
-      optionsContainer.innerHTML = `
-        <div class="space-y-3">
-          <div class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-table-list mr-1"></i>Bảng nối cặp đúng (Table Match):</div>
-          <div class="overflow-hidden border border-indigo-500/30 rounded-xl shadow-sm">
-            <table class="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr class="bg-[#131424]/80 border-b border-indigo-500/30 text-[10px] font-bold text-indigo-300 uppercase tracking-wider">
-                  <th class="p-3">${headers[0]}</th>
-                  <th class="p-3">${headers[1]}</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(q.rows || []).map((row, idx) => `
-                  <tr class="border-b border-indigo-500/10 hover:bg-[#131424]/80/50 transition-colors">
-                    <td class="p-3 font-semibold text-indigo-100">${row}</td>
-                    <td class="p-3"><span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-150 text-emerald-400 font-bold text-[11px] flex items-center gap-1 w-fit">✓ ${(q.options || [])[q.correctAnswers[idx]] || ""}</span></td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    } else if (q.type === "multi_choice" && q.options) {
-      q.options.forEach((opt, idx) => {
-        const isCorrect = (q.correctIndices || []).includes(idx);
-        optionsContainer.innerHTML += `
-          <div class="p-2.5 rounded-xl border ${isCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold shadow-sm shadow-emerald-500/5' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'} text-xs flex justify-between items-center transition-all">
-            <div class="flex items-center gap-2">
-              <span class="w-4 h-4 rounded border flex items-center justify-center text-[10px] ${isCorrect ? 'border-emerald-500 bg-emerald-500 text-white font-bold' : 'border-indigo-400 bg-[#1a1c2e]'}"><i class="fa-solid fa-check"></i></span>
-              <span>${opt}</span>
-            </div>
-            ${isCorrect ? '<span class="text-emerald-400 font-bold flex items-center gap-1 text-[10px]"><i class="fa-solid fa-circle-check"></i> ĐÁP ÁN ĐÚNG</span>' : ''}
-          </div>
-        `;
-      });
-    } else if (q.type === "image_choice" && q.options) {
-      optionsContainer.innerHTML = `
-        <div class="grid grid-cols-2 gap-3 w-full">
-          ${q.options.map((img, idx) => {
-            const isCorrect = idx === q.correctIndex;
-            return `
-              <div class="p-3 bg-[#131424]/80 border-2 rounded-xl flex flex-col items-center gap-2 relative overflow-hidden transition-all duration-200 ${isCorrect ? 'border-emerald-500 bg-emerald-500/20' : 'border-indigo-500/30'}">
-                <img src="${convertDriveUrl(img)}" class="h-20 w-auto object-contain rounded bg-[#1a1c2e] p-1.5 border border-indigo-500/30" referrerPolicy="no-referrer">
-                <span class="text-[10px] font-bold text-indigo-300">Lựa chọn ${idx+1}</span>
-                ${isCorrect ? '<span class="absolute top-1 right-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black rounded shadow flex items-center gap-0.5"><i class="fa-solid fa-check"></i> ĐÚNG</span>' : ''}
-              </div>
-            `;
-          }).join("")}
-        </div>
-      `;
-    } else if (q.type === "true_false") {
-      const isTrueCorrect = q.answer === "true" || q.answer === true || q.answer === "đúng" || q.answer === "Đúng";
-      optionsContainer.innerHTML = `
-        <div class="grid grid-cols-2 gap-3 w-full">
-          <div class="p-3 rounded-xl border text-center transition-all ${isTrueCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'}">
-            <p class="text-sm">Đúng</p>
-            ${isTrueCorrect ? '<span class="text-[10px] text-emerald-400 font-bold">✓ ĐÁP ÁN ĐÚNG</span>' : ''}
-          </div>
-          <div class="p-3 rounded-xl border text-center transition-all ${!isTrueCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold' : 'border-indigo-500/30 bg-[#131424]/80 text-indigo-100'}">
-            <p class="text-sm">Sai</p>
-            ${!isTrueCorrect ? '<span class="text-[10px] text-emerald-400 font-bold">✓ ĐÁP ÁN ĐÚNG</span>' : ''}
-          </div>
-        </div>
-      `;
-    } else if (q.type === "fill_blank") {
-      optionsContainer.innerHTML = `
-        <div class="p-3.5 bg-[#131424]/80 border border-indigo-500/30 rounded-xl text-xs text-indigo-200">
-          <p class="font-bold text-indigo-100 mb-1">Dạng điền từ vào ô trống:</p>
-          <p>Học sinh nhập câu trả lời trực tiếp: <span class="font-bold text-emerald-400 underline font-mono text-sm">${q.answer}</span></p>
-        </div>
-      `;
-    } else if (q.options) {
-      q.options.forEach(opt => {
-        optionsContainer.innerHTML += `
-          <div class="p-2.5 rounded-lg border border-indigo-500/30 bg-[#131424]/80 text-xs text-indigo-100">
-            ${opt}
-          </div>
-        `;
-      });
-    }
-  }
-
-  // Set action buttons
-  document.getElementById("btn-edit-question").classList.remove("hidden");
-  document.getElementById("btn-delete-question").classList.remove("hidden");
-  document.getElementById("right-panel-title").innerText = "Nội dung câu hỏi";
+  updateCustomTestSelectedCount();
+  if (window.showToast) window.showToast(`Đã chọn câu hỏi từ ${start} đến ${end}`);
 }
 
-function resetQuestionWorkspace() {
-  activeQuestionId = "";
-  document.getElementById("view-placeholder").classList.remove("hidden");
-  document.getElementById("view-question-card").classList.add("hidden");
-  document.getElementById("question-edit-form").classList.add("hidden");
-  document.getElementById("btn-edit-question").classList.add("hidden");
-  document.getElementById("btn-delete-question").classList.add("hidden");
-  document.getElementById("right-panel-title").innerText = "Nội dung câu hỏi";
+async function handleCustomTestFormSubmit(e) {
+  e.preventDefault();
   
-  // Reset image
-  const imgInput = document.getElementById("form-q-image");
-  if(imgInput) imgInput.value = "";
-}
-
-function setupNewQuestionForm() {
-  const testId = document.getElementById("m-testSelector").value;
-  if (!testId) {
-    window.showToast("Vui lòng chọn bộ đề thám hiểm trước!", 'error');
+  const titleInput = document.getElementById("customTestTitleInput");
+  const durationInput = document.getElementById("customTestDurationInput");
+  const blockSelector = document.getElementById("m-blockSelector");
+  
+  if (!titleInput || !durationInput || !blockSelector) return;
+  
+  const title = titleInput.value.trim();
+  const duration = parseInt(durationInput.value) || 45;
+  const selectedCheckboxes = document.querySelectorAll('input[name="customTestQCheck"]:checked');
+  
+  if (!selectedCheckboxes || selectedCheckboxes.length === 0) {
+    if (window.showToast) window.showToast("Vui lòng chọn ít nhất một câu hỏi!", "error");
     return;
   }
 
-  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
-  const test = tests.find(t => t.id === testId);
-
-  document.getElementById("view-placeholder").classList.add("hidden");
-  document.getElementById("view-question-card").classList.add("hidden");
-  document.getElementById("question-edit-form").classList.remove("hidden");
-
-  // Reset inputs
-  document.getElementById("form-q-id").value = "";
-  document.getElementById("form-q-type").value = "choice";
-  document.getElementById("form-q-text").value = "";
-  const ansInput = document.getElementById("form-q-answer");
-  if (ansInput) ansInput.value = "";
-  document.getElementById("form-q-explanation").value = "";
+  const selectedQuestionIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+  const activeBlockId = blockSelector.value;
   
-  // Reset image
-  const imgInput = document.getElementById("form-q-image");
-  if(imgInput) imgInput.value = "";
-
-  adjustFormQuestionOptions();
-  document.getElementById("right-panel-title").innerText = "Tạo câu hỏi mới";
-  
-  // Hide viewer action buttons
-  document.getElementById("btn-edit-question").classList.add("hidden");
-  document.getElementById("btn-delete-question").classList.add("hidden");
-}
-
-function enableQuestionEditing() {
-  if (!activeQuestionId) return;
-
-  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
-  const q = questions.find(item => item.id === activeQuestionId);
-  if (!q) return;
-
-  document.getElementById("view-placeholder").classList.add("hidden");
-  document.getElementById("view-question-card").classList.add("hidden");
-  document.getElementById("question-edit-form").classList.remove("hidden");
-
-  // Populate form fields
-  document.getElementById("form-q-id").value = q.id;
-  document.getElementById("form-q-type").value = q.type;
-  document.getElementById("form-q-text").value = q.question;
-  document.getElementById("form-q-explanation").value = q.explanation || "";
-
-  const imgInput = document.getElementById("form-q-image");
-  if(imgInput) imgInput.value = q.image || "";
-
-  renderDynamicFormFields(q.type, q);
-  const ansInput = document.getElementById("form-q-answer");
-  if (ansInput) ansInput.value = q.answer;
-  document.getElementById("right-panel-title").innerText = "Chỉnh sửa câu hỏi";
-}
-
-function cancelQuestionEditing() {
-  if (activeQuestionId) {
-    selectActiveQuestion(activeQuestionId);
-  } else {
-    resetQuestionWorkspace();
-  }
-}
-
-function renderDynamicFormFields(type, qData = {}) {
-  const container = document.getElementById("dynamic-form-fields");
-  container.innerHTML = ""; // Clear existing
-
-  let html = "";
-  const inputClass = "w-full p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm";
-  const labelClass = "block text-xs font-bold text-indigo-300 uppercase mb-2 tracking-wider";
-
-  if (type === "choice") {
-    html = `
-      <div class="p-5 rounded-2xl border border-purple-500/30 bg-[#1a1c2e]">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-bold text-purple-400">Cấu hình các đáp án trắc nghiệm:</h3>
-          <button type="button" onclick="window.addMultiChoiceOption('choice')" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors flex items-center gap-1">
-             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm đáp án
-          </button>
-        </div>
-        <div id="form-multi-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    `;
-    
-    const opts = qData.options || ["", "", "", ""];
-    opts.forEach((opt, i) => {
-        const letter = String.fromCharCode(65 + i);
-        const optVal = opt ? opt.replace(/"/g, '&quot;') : '';
-        const isChecked = (qData.correctIndex === i) || (i===0 && qData.correctIndex === undefined);
-        html += `
-          <div class="multi-opt-row flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300 relative group">
-             <input type="radio" name="form-correct-choice" value="${i}" ${isChecked ? 'checked' : ''} class="mt-2.5 w-4 h-4 text-purple-400 focus:ring-purple-500 border-indigo-400 cursor-pointer">
-             <div class="flex-1">
-               <div class="flex items-center justify-between mb-1.5 pl-1">
-                 <div class="flex items-center gap-2">
-                   <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold letter-indicator">${letter}</div>
-                   <label class="text-xs font-bold text-indigo-100 label-indicator">Phương án ${letter}:</label>
-                 </div>
-                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters('choice');" class="text-indigo-300 hover:text-red-500 transition-colors">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                 </button>
-               </div>
-               <input type="text" class="form-opt-multi input-indicator w-full p-2.5 rounded-lg border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm outline-none placeholder:text-indigo-300" placeholder="Nội dung phương án ${letter}..." value="${optVal}">
-             </div>
-          </div>
-        `;
-    });
-
-    html += `
-        </div>
-        <div class="flex items-start md:items-center justify-between mt-4 flex-col md:flex-row gap-3">
-            <div class="flex items-center gap-2 text-xs font-bold text-purple-400">
-              <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-500"></i>
-              Hãy tích chọn chấm tròn ở đáp án chính xác nhất để hệ thống nhận diện.
-            </div>
-            <button type="button" onclick="window.addMultiChoiceOption('choice')" class="px-4 py-2 rounded-xl border border-purple-200 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors flex items-center gap-2 bg-[#1a1c2e] shadow-sm whitespace-nowrap">
-                <i data-lucide="plus" class="w-4 h-4"></i> Tạo thêm đáp án mới
-            </button>
-        </div>
-      </div>
-    `;
-  } else if (type === "multi_choice") {
-    html = `
-      <div class="p-5 rounded-2xl border border-purple-500/30 bg-[#1a1c2e]">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-bold text-purple-400">Cấu hình các đáp án trắc nghiệm CHỌN NHIỀU ĐÁP ÁN:</h3>
-          <button type="button" onclick="window.addMultiChoiceOption('multi_choice')" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors flex items-center gap-1">
-             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm đáp án
-          </button>
-        </div>
-        <div id="form-multi-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    `;
-    
-    const opts = qData.options || ["", "", "", ""];
-    const indices = qData.correctIndices || [];
-    opts.forEach((opt, i) => {
-        const letter = String.fromCharCode(65 + i);
-        const optVal = opt.replace(/"/g, '&quot;');
-        const isChecked = indices.includes(i);
-        html += `
-          <div class="multi-opt-row flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300 relative group">
-             <input type="checkbox" name="form-correct-multi" value="${i}" ${isChecked ? 'checked' : ''} class="mt-2.5 w-4 h-4 text-blue-400 focus:ring-blue-500 border-indigo-400 rounded cursor-pointer">
-             <div class="flex-1">
-               <div class="flex items-center justify-between mb-1.5 pl-1">
-                 <div class="flex items-center gap-2">
-                   <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold letter-indicator">${letter}</div>
-                   <label class="text-xs font-bold text-indigo-100 label-indicator">Phương án ${letter}:</label>
-                 </div>
-                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters();" class="text-indigo-300 hover:text-red-500 transition-colors">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                 </button>
-               </div>
-               <input type="text" class="form-opt-multi input-indicator w-full p-2.5 rounded-lg border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm outline-none placeholder:text-indigo-300" placeholder="Nội dung phương án ${letter}..." value="${optVal}">
-             </div>
-          </div>
-        `;
-    });
-    
-    html += `
-        </div>
-        <div class="flex items-start md:items-center justify-between mt-4 flex-col md:flex-row gap-3">
-            <div class="flex items-start gap-2 text-xs font-bold text-purple-400">
-              <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-500 mt-0.5 md:mt-0"></i>
-              Hãy tích chọn các ô vuông ở những ĐÁP ÁN ĐÚNG (chọn được nhiều đáp án) để<br class="hidden md:block"> hệ thống nhận diện.
-            </div>
-            <button type="button" onclick="window.addMultiChoiceOption('multi_choice')" class="px-4 py-2 rounded-xl border border-purple-200 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors flex items-center gap-2 bg-[#1a1c2e] shadow-sm whitespace-nowrap">
-                <i data-lucide="plus" class="w-4 h-4"></i> Tạo thêm đáp án mới
-            </button>
-        </div>
-      </div>
-    `;
-  } else if (type === "image_choice") {
-    html = `
-      <div class="p-5 rounded-2xl border border-purple-500/30 bg-[#1a1c2e]">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-bold text-purple-400">Cấu hình các đáp án trắc nghiệm CHỌN HÌNH ẢNH:</h3>
-          <button type="button" onclick="window.addMultiChoiceOption('image_choice')" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors flex items-center gap-1">
-             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm đáp án hình ảnh
-          </button>
-        </div>
-        <div id="form-multi-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    `;
-    
-    const opts = qData.options || ["", "", "", ""];
-    const indices = qData.correctIndices || [];
-    opts.forEach((opt, i) => {
-        const letter = String.fromCharCode(65 + i);
-        const optVal = opt.replace(/"/g, '&quot;');
-        const isChecked = indices.includes(i);
-        html += `
-          <div class="multi-opt-row flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300 relative group">
-             <input type="checkbox" name="form-correct-multi" value="${i}" ${isChecked ? 'checked' : ''} class="mt-2.5 w-4 h-4 text-blue-400 focus:ring-blue-500 border-indigo-400 rounded cursor-pointer">
-             <div class="flex-1">
-               <div class="flex items-center justify-between mb-1.5 pl-1">
-                 <div class="flex items-center gap-2">
-                   <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold letter-indicator">${letter}</div>
-                   <label class="text-xs font-bold text-indigo-100 label-indicator">Đáp án đúng ${letter}</label>
-                 </div>
-                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters();" class="text-indigo-300 hover:text-red-500 transition-colors">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                 </button>
-               </div>
-               <input type="text" class="form-opt-multi input-indicator w-full p-2.5 rounded-lg border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm outline-none placeholder:text-indigo-300" placeholder="Ví dụ: /favicon.png hoặc đường dẫn ảnh..." value="${optVal}">
-             </div>
-          </div>
-        `;
-    });
-    
-    html += `
-        </div>
-        <div class="flex items-start md:items-center justify-between mt-4 flex-col md:flex-row gap-3">
-            <div class="flex items-start gap-2 text-xs font-bold text-purple-400">
-              <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-500 mt-0.5 md:mt-0"></i>
-              Hãy tích chọn vào ô của những HÌNH ẢNH ĐÚNG để học sinh kiểm tra đáp án.
-            </div>
-            <button type="button" onclick="window.addMultiChoiceOption('image_choice')" class="px-4 py-2 rounded-xl border border-purple-200 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors flex items-center gap-2 bg-[#1a1c2e] shadow-sm whitespace-nowrap">
-                <i data-lucide="plus" class="w-4 h-4"></i> Tạo thêm đáp án mới
-            </button>
-        </div>
-      </div>
-    `;
-  } else if (type === "table_match") {
-    window.tmData = {
-        columns: qData.options || ["Đúng", "Sai"],
-        rows: qData.rows || ["Bàn phím", "Scanner", "Màn hình"],
-        correctAnswers: qData.correctAnswers || [0, 0, 1]
-    };
-    
-    html = `
-      <div class="space-y-4 p-5 bg-[#131424]/80/80 rounded-2xl border border-indigo-500/30 shadow-sm" id="tm-container">
-        <h4 class="font-bold text-sm text-purple-400">Cấu hình Bảng nối cột (Lưới khớp ô):</h4>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] mt-4">
-            <div>
-                <label class="block text-xs font-bold text-indigo-200 mb-2">Cỡ chữ trong bảng:</label>
-                <select class="${inputClass} py-2">
-                    <option>👁 Vừa (md) - Chuẩn mặc định</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-indigo-200 mb-2">Độ rộng bảng:</label>
-                <select class="${inputClass} py-2">
-                    <option>💻 Bình thường (Normal)</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="p-4 rounded-xl border border-purple-500/20 bg-[#1a1c2e] mt-4">
-            <div class="flex justify-between items-center mb-4">
-                <h5 class="font-bold text-sm text-indigo-100">Danh sách các CỘT <span id="tm-col-count"></span></h5>
-                <button type="button" onclick="window.addTmColumn()" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1 transition-colors"><i class="fa-solid fa-plus"></i> THÊM CỘT</button>
-            </div>
-            <div id="tm-cols" class="flex flex-wrap gap-3"></div>
-        </div>
-
-        <div class="p-4 rounded-xl border border-blue-500/20 bg-[#1a1c2e] mt-4">
-            <div class="flex justify-between items-center mb-4">
-                <h5 class="font-bold text-sm text-indigo-100">Danh sách các HÀNG & Click trỏ đáp án đúng <span id="tm-row-count"></span></h5>
-                <button type="button" onclick="window.addTmRow()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 transition-colors"><i class="fa-solid fa-plus"></i> THÊM HÀNG</button>
-            </div>
-            <div class="overflow-x-auto border border-indigo-500/30 rounded-xl">
-                <table class="w-full">
-                    <thead id="tm-rows-thead"></thead>
-                    <tbody id="tm-rows-tbody"></tbody>
-                </table>
-            </div>
-        </div>
-      </div>
-    `;
-    setTimeout(() => { window.renderTableMatchUI(); }, 50);
-} else if (type === "hotspot") {
-    html = `
-      <div class="p-5 rounded-2xl border border-purple-500/30 bg-[#1a1c2e]">
-         <div class="flex items-center justify-between mb-4">
-             <h3 class="text-sm font-bold text-purple-400">Cấu hình Xác định khu vực (Hotspot):</h3>
-         </div>
-         <div class="mb-4">
-            <label class="${labelClass}">Hình ảnh gốc (URL hoặc Tải lên):</label>
-            <div class="flex gap-2">
-                <input type="text" id="hotspot-img-url" class="${inputClass}" placeholder="Nhập URL hình ảnh..." value="${qData.imageUrl || ''}" onchange="window.updateHotspotPreview()">
-                <button type="button" onclick="window.updateHotspotPreview()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap text-sm flex items-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4"></i>Load</button>
-                <button type="button" onclick="window.triggerHotspotUpload()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap text-sm flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i>Tải lên</button>
-            </div>
-            <input type="file" id="hotspot-img-upload" accept="image/*" class="hidden" onchange="window.handleHotspotImgUpload(this)">
-         </div>
-         <div class="mb-4">
-            <label class="${labelClass}">Số lượng khu vực cần xác định đúng (Số lần click của học sinh):</label>
-            <input type="number" id="hotspot-req-count" class="${inputClass} w-32" value="${qData.requiredCount || 1}" min="1">
-         </div>
-         
-         <div class="flex justify-between items-center mb-2">
-             <label class="${labelClass} mb-0">Các khu vực đáp án:</label>
-             <button type="button" onclick="window.addHotspotArea()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors">
-                <i data-lucide="plus" class="w-3.5 h-3.5 inline-block mb-0.5"></i> Vẽ khu vực mới
-             </button>
-         </div>
-         <p class="text-[11px] text-yellow-400 mb-4" id="hotspot-instruction">Nhấn "Vẽ khu vực mới" rồi kéo chuột trên ảnh dưới đây để tạo vùng chọn đúng.</p>
-
-         <div id="hotspot-img-container" class="relative inline-block border border-gray-600 bg-black/20 rounded max-w-full overflow-hidden" style="min-height: 100px;">
-             <img id="hotspot-preview-img" src="${qData.imageUrl || ''}" style="max-width: 100%; display: ${qData.imageUrl ? 'block' : 'none'}; pointer-events: none;" draggable="false">
-             <div id="hotspot-overlay" class="absolute inset-0 cursor-crosshair"></div>
-         </div>
-         
-         <div id="hotspot-list" class="mt-4 flex flex-col gap-2">
-         </div>
-      </div>
-    `;
-    setTimeout(() => { 
-        window.hotspotAreas = qData.hotspots ? JSON.parse(JSON.stringify(qData.hotspots)) : [];
-        window.renderHotspotAreas(); 
-        window.initHotspotDrawing();
-        if (window.lucide) window.lucide.createIcons();
-    }, 50);
-
-} else if (type === "drag_text") {
-      html = `
-      <div class="space-y-4 p-5 bg-[#131424]/80/80 rounded-2xl border border-indigo-500/30 shadow-sm">
-        <h4 class="font-bold text-sm text-purple-400">Cấu hình Kéo thả Khớp các Cặp Chữ:</h4>
-        <p class="text-[11px] text-indigo-300 italic mb-4">Thực hiện ghép vế Trái khớp với định nghĩa vế Phải tương ứng. Hệ thống sẽ tự đảo ngẫu nhiên khi hiển thị.</p>
-        
-        <div class="grid grid-cols-2 gap-4 mb-2">
-            <span class="text-xs font-bold text-indigo-200">Từ Khóa Vế Trái (Cố định)</span>
-            <span class="text-xs font-bold text-indigo-200">Nhãn Khớp Vế Phải (Kéo thả)</span>
-        </div>
-        <div id="drag-text-rows" class="space-y-3 border-t border-indigo-500/30 border-dashed pt-3">
-            ${(qData.rows && qData.rows.length ? qData.rows : ['', '', '', '']).map((row, idx) => `
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" class="dt-left ${inputClass}" placeholder="Ví dụ: RAM" value="${row}">
-                    <input type="text" class="dt-right ${inputClass}" placeholder="Khớp: Bộ nhớ truy cập ngẫu nhiên" value="${(qData.correctAnswers || [])[idx] || ''}">
-                </div>
-            `).join('')}
-        </div>
-        <button type="button" onclick="addDragTextRow()" class="mt-3 px-4 py-2 rounded-xl border border-purple-200 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors bg-[#1a1c2e] shadow-sm">+ Thêm cặp</button>
-      </div>
-    `;
-  } else if (type === "drag_image_text") {
-      html = `
-      <div class="space-y-4 p-5 bg-[#131424]/80/80 rounded-2xl border border-indigo-500/30 shadow-sm">
-        <h4 class="font-bold text-sm text-purple-400">Cấu hình Kéo thả Khớp Ảnh - Chữ:</h4>
-        <p class="text-[11px] text-indigo-300 italic mb-4">Nhập đường dẫn hình ảnh cột vế Trái khớp với đáp án chữ vế Phải tương ứng.</p>
-        
-        <div class="grid grid-cols-2 gap-4 mb-2">
-            <span class="text-xs font-bold text-indigo-200">Đường dẫn ảnh Trái (Link URL)</span>
-            <span class="text-xs font-bold text-indigo-200">Nhãn Khớp Chữ Phải</span>
-        </div>
-        <div id="drag-image-text-rows" class="space-y-3 border-t border-indigo-500/30 border-dashed pt-3">
-            ${(qData.rows && qData.rows.length ? qData.rows : ['', '', '', '']).map((row, idx) => `
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" class="dit-left ${inputClass}" placeholder="/favicon.png hoặc URL ảnh..." value="${row}">
-                    <input type="text" class="dit-right ${inputClass}" placeholder="Nhãn khớp: e.g. Thùng rác máy tính" value="${(qData.correctAnswers || [])[idx] || ''}">
-                </div>
-            `).join('')}
-        </div>
-        <button type="button" onclick="addDragImageTextRow()" class="mt-3 px-4 py-2 rounded-xl border border-purple-200 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors bg-[#1a1c2e] shadow-sm">+ Thêm cặp</button>
-      </div>
-    `;
-  } else if (type === "true_false") {
-      html = `
-      <div class="space-y-4 p-5 bg-[#131424]/80/80 rounded-2xl border border-indigo-500/30 shadow-sm">
-        <div>
-          <label class="${labelClass}">Đáp án đúng</label>
-          <select id="form-q-answer" class="${inputClass}">
-              <option value="Đúng" ${qData.answer === "Đúng" ? 'selected' : ''}>Đúng</option>
-              <option value="Sai" ${qData.answer === "Sai" ? 'selected' : ''}>Sai</option>
-          </select>
-        </div>
-        
-      </div>
-    `;
-  } else if (type === "multiple_choice") {
-      html = `
-      <div class="space-y-4 p-5 bg-[#131424]/80/80 rounded-2xl border border-indigo-500/30 shadow-sm">
-        <div>
-          <label class="${labelClass}">Các lựa chọn (A, B, C, D)</label>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="relative"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-indigo-300 font-bold">A</span></div><input type="text" id="form-optA" class="${inputClass} pl-8" placeholder="Đáp án A" value="${(qData.options && qData.options[0] || '').replace('A. ', '')}"></div>
-            <div class="relative"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-indigo-300 font-bold">B</span></div><input type="text" id="form-optB" class="${inputClass} pl-8" placeholder="Đáp án B" value="${(qData.options && qData.options[1] || '').replace('B. ', '')}"></div>
-            <div class="relative"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-indigo-300 font-bold">C</span></div><input type="text" id="form-optC" class="${inputClass} pl-8" placeholder="Đáp án C" value="${(qData.options && qData.options[2] || '').replace('C. ', '')}"></div>
-            <div class="relative"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-indigo-300 font-bold">D</span></div><input type="text" id="form-optD" class="${inputClass} pl-8" placeholder="Đáp án D" value="${(qData.options && qData.options[3] || '').replace('D. ', '')}"></div>
-          </div>
-        </div>
-        <div>
-          <label class="${labelClass}">Đáp án đúng (A/B/C/D)</label>
-          <input type="text" id="form-q-answer" class="${inputClass}" placeholder="Ví dụ: A" value="${qData.answer || ''}">
-        </div>
-        
-      </div>
-    `;
-  }
-  
-  container.innerHTML = html;
-
-  // Ensure icons are rendered
-  if (window.lucide) {
-      window.lucide.createIcons();
-  }
-}
-
-window.addMultiChoiceOption = function(type) {
-    const container = document.getElementById('form-multi-options');
-    if (!container) return;
-    const index = container.children.length;
-    const letter = String.fromCharCode(65 + index);
-    
-    const div = document.createElement('div');
-    div.className = "multi-opt-row flex items-start gap-3 p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] transition-colors hover:border-purple-300 relative group";
-    
-    const isImage = type === 'image_choice';
-    const isChoice = type === 'choice';
-    const labelPrefix = isImage ? 'Đáp án đúng' : 'Phương án';
-    const placeholderText = isImage ? 'Ví dụ: /favicon.png hoặc đường dẫn ảnh...' : `Nội dung phương án ${letter}...`;
-    const inputType = isChoice ? 'radio' : 'checkbox';
-    const inputName = isChoice ? 'form-correct-choice' : 'form-correct-multi';
-    const inputColorClass = isChoice ? 'text-purple-400 focus:ring-purple-500' : 'text-blue-400 focus:ring-blue-500 rounded';
-    
-    div.innerHTML = `
-             <input type="${inputType}" name="${inputName}" value="${index}" class="mt-2.5 w-4 h-4 ${inputColorClass} border-indigo-400 cursor-pointer">
-             <div class="flex-1">
-               <div class="flex items-center justify-between mb-1.5 pl-1">
-                 <div class="flex items-center gap-2">
-                   <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold letter-indicator">${letter}</div>
-                   <label class="text-xs font-bold text-indigo-100 label-indicator">${labelPrefix} ${letter}</label>
-                 </div>
-                 <button type="button" onclick="this.closest('.multi-opt-row').remove(); window.updateMultiChoiceLetters('${type}');" class="text-indigo-300 hover:text-red-500 transition-colors">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                 </button>
-               </div>
-               <input type="text" class="form-opt-multi w-full p-2.5 rounded-lg border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm outline-none placeholder:text-indigo-300 input-indicator" placeholder="${placeholderText}">
-             </div>
-    `;
-    container.appendChild(div);
-    window.updateMultiChoiceLetters(type);
-    if (window.lucide) { window.lucide.createIcons(); }
-};
-
-window.updateMultiChoiceLetters = function(type) {
-    const container = document.getElementById('form-multi-options');
-    if(!container) return;
-    const rows = container.querySelectorAll('.multi-opt-row');
-    rows.forEach((row, index) => {
-        const letter = String.fromCharCode(65 + index);
-        const radioOrCheckbox = row.querySelector('input[type="radio"], input[type="checkbox"]');
-        if(radioOrCheckbox) radioOrCheckbox.value = index;
-
-        
-        const letterInd = row.querySelector('.letter-indicator');
-        if(letterInd) letterInd.innerText = letter;
-        
-        const labelInd = row.querySelector('.label-indicator');
-        if(labelInd) {
-            const isImage = labelInd.innerText.startsWith('Đáp án');
-            labelInd.innerText = isImage ? `Đáp án đúng ${letter}` : `Phương án ${letter}:`;
-        }
-        
-        const inputInd = row.querySelector('.input-indicator');
-        if(inputInd && inputInd.placeholder.startsWith('Nội dung')) {
-            inputInd.placeholder = `Nội dung phương án ${letter}...`;
-        }
-    });
-};
-
-function adjustFormQuestionOptions() {
-  const type = document.getElementById("form-q-type").value;
-  renderDynamicFormFields(type);
-  
-  const hintEl = document.getElementById("form-q-type-hint");
-  if(hintEl) {
-      if(type === "choice") hintEl.innerText = "Học sinh sẽ được chọn một trong 4 phương án liệt kê bên dưới.";
-      else if(type === "multi_choice") hintEl.innerText = "Học sinh có thể tích chọn một hoặc nhiều đáp án đúng tùy ý, sau đó nhấn nút xác nhận để kiểm tra kết quả.";
-      else if(type === "image_choice") hintEl.innerText = "Các đáp án là hình ảnh (URL/Links). Học sinh sẽ tích chọn các hình ảnh đúng (hỗ trợ cả dạng chọn một hay chọn nhiều hình ảnh đúng).";
-      else if(type === "hotspot") hintEl.innerText = "Học sinh sẽ nhấp chuột vào các khu vực trên hình ảnh để đánh dấu (Ví dụ: Tìm điểm sai).";
-      else if(type === "drag_text") hintEl.innerText = "Học sinh sẽ kéo các từ/cụm từ vào các ô trống tương ứng trên màn hình.";
-      else if(type === "table_match") hintEl.innerText = "Học sinh sẽ ghép nối các mục ở cột trái với các mục tương ứng ở cột phải.";
-      else if(type === "true_false") hintEl.innerText = "Học sinh sẽ chọn Đúng hoặc Sai cho nhận định được đưa ra.";
-      else hintEl.innerText = "Học sinh sẽ tương tác với câu hỏi theo định dạng đã chọn.";
-  }
-}
-
-function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-async function handleQuestionFormSubmit(e) {
-  e.preventDefault();
-
-  const id = document.getElementById("form-q-id").value;
-  const type = document.getElementById("form-q-type").value;
-  const questionText = document.getElementById("form-q-text").value.trim();
-  const answer = document.getElementById("form-q-answer") ? document.getElementById("form-q-answer").value.trim() : "";
-  const explanation = document.getElementById("form-q-explanation").value.trim();
-
-  const imageInput = document.getElementById("form-q-image");
-  let imageBase64 = imageInput ? imageInput.value.trim() : null;
-  const level = "level_1"; // Default to level_1 as we removed the level selector
-
-  const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [] || [];
-  const testId = document.getElementById("m-testSelector").value;
-
-  let finalId = id;
-  let isNew = false;
-
-  if (!finalId) {
-    const blockId = document.getElementById("m-blockSelector").value || "block";
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-    const test = tests.find(t => t.id === testId);
-    let count = 1;
-    if (test && test.questions) {
-      count = test.questions.length + 1;
-    }
-    const paddedCount = count.toString().padStart(3, '0');
-    finalId = `q_${blockId}_${testId}_${paddedCount}_${Date.now().toString().slice(-4)}`;
-    isNew = true;
-  }
-
-  const qObj = {
-    id: finalId,
-    type,
-    level,
-    question: questionText,
-    answer,
-    explanation: explanation || "Tham khảo giải thích đáp án chuẩn từ Giáo viên.",
-    image: imageBase64
-  };
-
-  if (type === "choice") {
-    const opts = Array.from(document.querySelectorAll(".form-opt-multi")).map(i => i.value.trim());
-    qObj.options = opts;
-    const checkedRadio = document.querySelector('input[name="form-correct-choice"]:checked');
-    qObj.correctIndex = checkedRadio ? parseInt(checkedRadio.value) : 0;
-    qObj.answer = qObj.options[qObj.correctIndex] || "";
-  } else if (type === "multi_choice" || type === "image_choice") {
-    const opts = Array.from(document.querySelectorAll(".form-opt-multi")).map(i => i.value.trim());
-    qObj.options = opts;
-    const checkedBoxes = document.querySelectorAll('input[name="form-correct-multi"]:checked');
-    qObj.correctIndices = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
-    qObj.answer = qObj.correctIndices.map(i => opts[i]).join(', ');
-  } else if (type === "table_match") {
-    qObj.rows = [...window.tmData.rows];
-    qObj.options = [...window.tmData.columns];
-    qObj.correctAnswers = [...window.tmData.correctAnswers];
-    qObj.answer = "Nối bảng";
-  } else if (type === "drag_text") {
-    const leftInputs = Array.from(document.querySelectorAll('.dt-left')).map(el => el.value.trim());
-    const rightInputs = Array.from(document.querySelectorAll('.dt-right')).map(el => el.value.trim());
-    const validPairs = leftInputs.map((l, i) => ({ l, r: rightInputs[i] })).filter(p => p.l && p.r);
-    
-    qObj.rows = validPairs.map(p => p.l);
-    qObj.options = [...validPairs.map(p => p.r)].sort(() => Math.random() - 0.5); // Shuffle options
-    qObj.correctAnswers = validPairs.map(p => p.r);
-    qObj.answer = "Kéo thả chữ";
-  } else if (type === "drag_image_text") {
-    const leftInputs = Array.from(document.querySelectorAll('.dit-left')).map(el => convertDriveUrl(el.value.trim()));
-    const rightInputs = Array.from(document.querySelectorAll('.dit-right')).map(el => el.value.trim());
-    const validPairs = leftInputs.map((l, i) => ({ l, r: rightInputs[i] })).filter(p => p.l && p.r);
-    
-    qObj.rows = validPairs.map(p => p.l);
-    qObj.leftImages = validPairs.map(p => p.l); // add leftImages for view compatibility
-    qObj.options = [...validPairs.map(p => p.r)].sort(() => Math.random() - 0.5); // Shuffle options
-    qObj.correctAnswers = validPairs.map(p => p.r);
-    qObj.answer = "Kéo thả hình ảnh";
-  } else if (type === "hotspot") {
-    qObj.imageUrl = document.getElementById('hotspot-img-url').value.trim();
-    qObj.requiredCount = parseInt(document.getElementById('hotspot-req-count').value) || 1;
-    qObj.hotspots = window.hotspotAreas;
-    qObj.answer = "Xác định khu vực trên ảnh";
-  } else if (type === "true_false") {
-    qObj.options = ["Đúng", "Sai"];
-    qObj.answer = document.getElementById("form-q-answer").value;
-  } else if (type === "multiple_choice") {
-    qObj.options = [
-      "A. " + document.getElementById("form-optA").value.trim(),
-      "B. " + document.getElementById("form-optB").value.trim(),
-      "C. " + document.getElementById("form-optC").value.trim(),
-      "D. " + document.getElementById("form-optD").value.trim()
-    ];
-  }
-
-  if (isNew) {
-    questions.push(qObj);
-    // Link to active test set
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-    const idx = tests.findIndex(t => t.id === testId);
-    if (idx !== -1) {
-      try {
-        const testRef = window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId);
-        const testSnap = await window.fStore.getDoc(testRef);
-        if (testSnap.exists()) {
-          const latestTest = testSnap.data();
-          latestTest.questions = latestTest.questions || [];
-          if (!latestTest.questions.includes(finalId)) {
-            latestTest.questions.push(finalId);
-            latestTest.questionCount = latestTest.questions.length;
-            await window.fStore.setDoc(testRef, latestTest, { merge: true });
-            
-            // Sync local cache
-            tests[idx].questions = latestTest.questions;
-            tests[idx].questionCount = latestTest.questionCount;
-          }
-        }
-      } catch (e) {
-        window.showToast("Lỗi khi lưu câu hỏi vào bộ đề: "  + e.message, 'error');
-        return;
-      }
-    }
-    onBlockSelectionChange();
-    document.getElementById("m-testSelector").value = testId;
-    onTestSelectionChange();
-  } else {
-    const idx = questions.findIndex(item => item.id === finalId);
-    if (idx !== -1) {
-      questions[idx] = qObj;
-    } else {
-      questions.push(qObj);
-    }
-  }
-
-  try {
-    await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, finalId), qObj, { merge: true });
-  } catch (err) {
-    window.showToast("Lỗi khi lưu câu hỏi: "  + err.message, 'error');
-    return;
-  }
-  
-  window.showToast("Lưu câu hỏi thám hiểm thành công!");
-
-  renderQuestionsList();
-  selectActiveQuestion(finalId);
-}
-
-function deleteCurrentQuestion() {
-  if (!activeQuestionId) return;
-
-  showConfirmModal(
-    "Xác nhận xóa câu hỏi",
-    "Bạn có chắc chắn muốn xóa câu hỏi này ra khỏi bộ đề thám hiểm?",
-    async () => {
-      const targetQId = activeQuestionId;
-      
-      // 1. Update local cache for QUESTIONS first
-      const questions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
-      window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] = questions.filter(q => q.id !== targetQId);
-      
-      // 2. Update local cache for TESTS first
-      const testId = document.getElementById("m-testSelector").value;
-      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-      const tIdx = tests.findIndex(t => t.id === testId);
-      if (tIdx !== -1) {
-        tests[tIdx].questions = (tests[tIdx].questions || []).filter(id => id !== targetQId);
-        tests[tIdx].questionCount = tests[tIdx].questions.length;
-      }
-
-      // 3. Render list, update counts in selectors, and reset details workspace immediately
-      window.showToast("Đã xóa câu hỏi thành công!");
-      onBlockSelectionChange();
-
-      // 4. Asynchronously sync deletions with Firestore
-      try {
-        await window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.QUESTIONS, targetQId));
-        
-        if (tIdx !== -1) {
-          const snap = await window.fStore.getDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId));
-          if (snap.exists()) {
-            const latestTest = snap.data();
-            latestTest.questions = latestTest.questions || [];
-            latestTest.questions = latestTest.questions.filter(id => id !== targetQId);
-            latestTest.questionCount = latestTest.questions.length;
-            
-            await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId), latestTest, { merge: true });
-          }
-        }
-      } catch (error) {
-        console.error("❌ Cloud sync error during question deletion:", error);
-        window.showToast("Lỗi đồng bộ đám mây: " + error.message, "error");
-      }
-    }
-  );
-}
-
-
-// ==================== BLOCKS & TEST SETS (CRUD MODALS) ====================
-
-function openBlockModal(action) {
-  const modal = document.getElementById("blockModal");
-  const form = document.getElementById("blockForm");
-  form.reset();
-
-  document.getElementById("block-form-action").value = action;
-  
-  if (action === "add") {
-    document.getElementById("block-modal-title").innerText = "Tạo khối lớp mới";
-    document.getElementById("blockIdInput").disabled = false;
-  } else {
-    const blockId = document.getElementById("m-blockSelector").value;
-    if (!blockId) {
-      window.showToast("Vui lòng chọn khối lớp cần sửa!", 'error');
-      return;
-    }
-    const blocks = getBlocks();
-    const block = blocks.find(b => b.id === blockId);
-    if (!block) return;
-
-    document.getElementById("block-modal-title").innerText = "Chỉnh sửa khối lớp";
-    document.getElementById("blockIdInput").value = block.id;
-    document.getElementById("blockIdInput").disabled = true;
-    document.getElementById("blockNameInput").value = block.name;
-  }
-
-  modal.classList.remove("hidden");
-}
-
-function closeBlockModal() {
-  document.getElementById("blockModal").classList.add("hidden");
-}
-
-function handleBlockFormSubmit(e) {
-  e.preventDefault();
-
-  const action = document.getElementById("block-form-action").value;
-  const id = document.getElementById("blockIdInput").value.trim().toLowerCase();
-  const name = document.getElementById("blockNameInput").value.trim();
-
-  const blocks = getBlocks();
-
-  if (action === "add") {
-    if (blocks.some(b => b.id === id)) {
-      window.showToast("Mã định danh khối lớp này đã tồn tại!", 'error');
-      return;
-    }
-    blocks.push({ id, name });
-  } else {
-    const idx = blocks.findIndex(b => b.id === id);
-    if (idx !== -1) {
-      blocks[idx].name = name;
-    }
-  }
-
-  saveBlocks(blocks);
-  closeBlockModal();
-  initManageTestsTab();
-
-  // Auto-select modified block
-  document.getElementById("m-blockSelector").value = id;
-  onBlockSelectionChange();
-}
-
-function deleteCurrentBlock() {
-  const blockId = document.getElementById("m-blockSelector").value;
-  if (!blockId) {
-    window.showToast("Vui lòng chọn khối lớp cần xóa!", 'error');
+  if (!activeBlockId) {
+    if (window.showToast) window.showToast("Lỗi: Không xác định được khối lớp!", "error");
     return;
   }
 
-  showConfirmModal(
-    "Xóa khối lớp",
-    "CẢNH BÁO: Bạn có chắc chắn muốn xóa khối lớp này? Mọi bộ đề liên kết với khối này cũng sẽ bị xóa bỏ!",
-    () => {
-      const blocks = getBlocks().filter(b => b.id !== blockId);
-      saveBlocks(blocks);
-
-      // Delete associated tests
-      const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-      const testsToDelete = tests.filter(t => t.blockId === blockId);
-      window.IC3_CACHE[window.IC3_KEYS.TESTS] = tests.filter(t => t.blockId !== blockId);
-      
-      // Actually delete the docs from Firestore
-      testsToDelete.forEach(t => {
-        window.fStore.deleteDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, t.id));
-      });
-
-      window.showToast("Đã xóa khối lớp thành công!");
-      initManageTestsTab();
-    }
-  );
-}
-
-function openTestSetModal(action) {
-  const modal = document.getElementById("testSetModal");
-  const form = document.getElementById("testSetForm");
-  form.reset();
-
-  document.getElementById("test-set-form-action").value = action;
-
-  if (action === "add") {
-    document.getElementById("test-set-modal-title").innerText = "Tạo bộ đề thám hiểm mới";
-    document.getElementById("testSetIdInput").value = "";
-    document.getElementById("testSetDifficultyInput").value = "easy";
-  } else {
-    const testId = document.getElementById("m-testSelector").value;
-    if (!testId) {
-      window.showToast("Vui lòng chọn bộ đề cần sửa!", 'error');
-      return;
-    }
-    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
-    const test = tests.find(t => t.id === testId);
-    if (!test) return;
-
-    document.getElementById("test-set-modal-title").innerText = "Chỉnh sửa bộ đề thám hiểm";
-    document.getElementById("testSetIdInput").value = test.id;
-    document.getElementById("testSetTitleInput").value = test.title;
-    document.getElementById("testSetDurationInput").value = test.duration || 15;
-    document.getElementById("testSetDifficultyInput").value = test.difficulty || "easy";
-    document.getElementById("testSetBossPokeInput").value = test.bossPoke || "trevenant";
-  }
-
-  modal.classList.remove("hidden");
-}
-
-function closeTestSetModal() {
-  document.getElementById("testSetModal").classList.add("hidden");
-}
-
-function handleTestSetFormSubmit(e) {
-  e.preventDefault();
-
-  const action = document.getElementById("test-set-form-action").value;
-  let id = document.getElementById("testSetIdInput").value.trim().toLowerCase();
-  
-  if (action === "add") {
-     id = `test_${Date.now().toString().slice(-6)}`;
-  }
-  
-  const title = document.getElementById("testSetTitleInput").value.trim();
-  const duration = parseInt(document.getElementById("testSetDurationInput").value) || 15;
-  const difficulty = document.getElementById("testSetDifficultyInput").value;
-  const bossPoke = document.getElementById("testSetBossPokeInput").value;
-
-  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [] || [];
-  const activeBlockId = document.getElementById("m-blockSelector").value;
-
-  // Map block level identifiers for backward compatibility inside student zones
   let calculatedLevel = "level_1";
-  if (activeBlockId.includes("level_2") || activeBlockId.includes("2")) {
+  if (activeBlockId.toLowerCase().includes("level_2") || activeBlockId.includes("2")) {
     calculatedLevel = "level_2";
-  } else if (activeBlockId.includes("level_3") || activeBlockId.includes("3")) {
+  } else if (activeBlockId.toLowerCase().includes("level_3") || activeBlockId.includes("3")) {
     calculatedLevel = "level_3";
   }
 
-  let testObj = null;
-  if (action === "add") {
-    testObj = {
-      id,
-      title,
-      blockId: activeBlockId,
-      level: calculatedLevel,
-      difficulty,
-      duration,
-      bossPoke,
-      questions: [],
-      questionCount: 0,
-      scoreVal: 100,
-      createdBY: JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)).email
-    };
+  const id = `test_${Date.now().toString().slice(-8)}`;
+  const currentUser = (typeof getTeacherUser === 'function' ? getTeacherUser() : null) || { email: "teacher@gmail.com" };
+
+  const testObj = {
+    id,
+    title,
+    blockId: activeBlockId,
+    level: calculatedLevel,
+    difficulty: "medium",
+    duration,
+    questions: selectedQuestionIds,
+    questionCount: selectedQuestionIds.length,
+    scoreVal: 100,
+    createdBY: currentUser.email,
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    if (!window.IC3_CACHE || !window.IC3_KEYS) throw new Error("Dữ liệu chưa sẵn sàng");
+
+    const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
     tests.push(testObj);
-  } else {
-    const idx = tests.findIndex(t => t.id === id);
-    if (idx !== -1) {
-      tests[idx].title = title;
-      tests[idx].duration = duration;
-      tests[idx].level = calculatedLevel;
-      tests[idx].difficulty = difficulty;
-      tests[idx].bossPoke = bossPoke;
-      testObj = tests[idx];
+    
+    if (window.fStore && window.db) {
+      await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, id), testObj, { merge: true });
+    } else {
+      throw new Error("Dịch vụ Firebase chưa khởi tạo");
     }
+    
+    if (window.showToast) window.showToast("Tạo bộ đề tự chọn thành công!");
+    closeCustomTestGeneratorModal();
+
+    if (typeof onBlockSelectionChange === 'function') {
+      onBlockSelectionChange();
+    }
+
+    setTimeout(() => {
+      const testSelector = document.getElementById("m-testSelector");
+      if (testSelector) {
+        testSelector.value = id;
+        if (typeof onTestSelectionChange === 'function') {
+          onTestSelectionChange();
+        }
+      }
+    }, 200);
+
+  } catch (err) {
+    console.error("Error creating custom test:", err);
+    if (window.showToast) window.showToast("Tạo bộ đề thất bại: " + err.message, "error");
   }
-
-  if (testObj) {
-    // Only update this specific test to prevent concurrent overwrite
-    window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, id), testObj, { merge: true });
-  }
-
-  closeTestSetModal();
-  
-  // Reload block tests
-  onBlockSelectionChange();
-  
-  // Auto-select modified test
-  document.getElementById("m-testSelector").value = id;
-  onTestSelectionChange();
-}
-
-function openCombineTestsModal() {
-  const activeBlockId = document.getElementById("m-blockSelector").value;
-  if (!activeBlockId) {
-    window.showToast("Vui lòng chọn khối lớp trước khi gộp đề!", "error");
-    return;
-  }
-
-  const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-  const blockTests = tests.filter(t => t.blockId === activeBlockId);
-
-  const container = document.getElementById("combineTestsListContainer");
-  if (!container) return;
-
-  if (blockTests.length === 0) {
-    container.innerHTML = `<p class="text-[11px] text-slate-400 italic text-center py-2">Khối lớp này chưa có bộ đề nào khả dụng.</p>`;
-  } else {
-    container.innerHTML = "";
-    blockTests.forEach(t => {
-      let diffIcon = "🟢 Dễ";
-      if (t.difficulty === "medium") diffIcon = "🟡 Trung bình";
-      if (t.difficulty === "hard") diffIcon = "🔴 Khó";
-
-      const itemDiv = document.createElement("label");
-      itemDiv.className = "flex items-start gap-3 p-2.5 rounded-lg bg-slate-950/40 hover:bg-slate-950/80 border border-indigo-500/10 cursor-pointer transition-colors select-none";
-      itemDiv.innerHTML = `
-        <input type="checkbox" name="combineTestCheck" value="${t.id}" class="mt-1 accent-indigo-500 cursor-pointer">
-        <div class="flex-1 text-xs text-left">
-          <div class="font-bold text-slate-200">${t.title}</div>
-          <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
-            <span>Độ khó: ${diffIcon}</span>
-            <span>•</span>
-            <span class="text-indigo-300 font-bold">${(t.questions || []).length} câu hỏi</span>
-          </div>
-        </div>
-      `;
-      container.appendChild(itemDiv);
-    });
-  }
-
-  document.getElementById("combineTestTitleInput").value = "Đề ôn tập tổng hợp";
-  document.getElementById("combineTestDurationInput").value = "45";
-  document.getElementById("combineTestDifficultyInput").value = "medium";
-
-  document.getElementById("combineTestsModal").classList.remove("hidden");
 }
 
 function closeCombineTestsModal() {
@@ -2182,7 +1154,7 @@ function handleCombineTestsFormSubmit(e) {
   }
 
   const id = `test_${Date.now().toString().slice(-6)}`;
-  const currentUser = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER)) || { email: "teacher@gmail.com" };
+  const currentUser = getTeacherUser() || { email: "teacher@gmail.com" };
 
   const testObj = {
     id,
@@ -2415,8 +1387,8 @@ document.getElementById("btnConfirmDeleteClass")?.addEventListener("click", func
   const updatedClasses = classes.filter(c => c.id !== classId);
   window.saveData(window.IC3_KEYS.CLASSES, updatedClasses);
   
-  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
-  if (teacher.classes) {
+  const teacher = getTeacherUser();
+  if (teacher && teacher.classes) {
     teacher.classes = teacher.classes.filter(id => id !== classId);
     localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
     syncTeacherDataToCollections(teacher);
@@ -2520,7 +1492,8 @@ document.getElementById("classSheetForm").addEventListener("submit", function(e)
   const currentClasses = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
   const existingClass = currentClasses.find(c => c.id === classId);
 
-  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  const teacher = getTeacherUser();
+  if (!teacher) return;
 
   if (!existingClass) {
     const newClass = {
@@ -2591,7 +1564,8 @@ function handleClassSubmit(e) {
   e.preventDefault();
   const id = document.getElementById("classIdInput").value.trim().toLowerCase();
   const name = document.getElementById("classNameInput").value.trim();
-  const teacher = JSON.parse(localStorage.getItem(window.IC3_KEYS.CURRENT_USER));
+  const teacher = getTeacherUser();
+  if (!teacher) return;
 
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [] || [];
   if (classes.some(c => c.id === id)) {
@@ -3018,5 +1992,6 @@ function handleConfirmAction() {
 
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction
+  adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction,
+  openCustomTestGeneratorModal, closeCustomTestGeneratorModal, renderCustomTestQuestionsList, updateCustomTestSelectedCount, handleSelectRange, handleCustomTestFormSubmit
 });

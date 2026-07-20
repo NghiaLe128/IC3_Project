@@ -500,7 +500,9 @@ window.feedBananaToPokemon = async function() {
         localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
         if (res.success) {
             window.showToast(`Ngon quá! 🍌 Pokémon đã ăn 1 quả Chuối Vàng (${currentStudent.pokemonFedBananasMap[pokeKey]}/${targetBananas})`);
-            window.confetti({ particleCount: 30, spread: 40 });
+            if (typeof window.confetti === "function") {
+                window.confetti({ particleCount: 30, spread: 40 });
+            }
             loadStudentProfile();
             
             // Refresh UI
@@ -587,7 +589,9 @@ window.triggerEvolvePokemon = async function() {
         localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(currentStudent));
         if (res.success) {
             window.showToast(`Chúc mừng! Pokémon của bạn đã tiến hóa thành thành công! 🎉`);
-            window.confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            if (typeof window.confetti === "function") {
+                window.confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            }
             
             loadStudentProfile();
             window.renderEvolutionSlideshow();
@@ -955,7 +959,7 @@ async function startStudentApp() {
     console.error("Error loading pokemonEvolutions on student side:", e);
   }
 
-  await checkStudentAuth();
+  if (!await checkStudentAuth()) return;
   loadStudentProfile();
   applySavedTheme();
   switchStudentTab("dashboard");
@@ -982,13 +986,18 @@ async function startStudentApp() {
 
 // 1. Auth & Profile Loading
 async function checkStudentAuth() {
-  const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
-  const user = userStr ? JSON.parse(userStr) : null;
+  let user = null;
+  try {
+    const userStr = localStorage.getItem(window.IC3_KEYS ? window.IC3_KEYS.CURRENT_USER : "ic3_current_user");
+    user = userStr ? JSON.parse(userStr) : null;
+  } catch (e) {
+    console.error("Error parsing user in checkStudentAuth:", e);
+  }
   
   if (!user || user.role !== "student") {
     window.showToast("Vui lòng đăng nhập bằng tài khoản học sinh!", 'error');
     window.location.href = "../index.html";
-    return;
+    return false;
   }
   
   try {
@@ -1015,17 +1024,18 @@ async function checkStudentAuth() {
       // If student exists but has no pokemon or has not completed first login setup, redirect to selection
       if (!currentStudent.pokemon || currentStudent.isFirstLogin === true) {
         window.location.href = "../pokemon-select.html";
-        return;
+        return false;
       }
     } else {
       // Fallback for demo accounts or missing profile
       window.location.href = "../pokemon-select.html";
-      return;
+      return false;
     }
+    return true;
   } catch (error) {
     console.error("Error loading student profile:", error);
     window.location.href = "../index.html";
-    return;
+    return false;
   }
 }
 

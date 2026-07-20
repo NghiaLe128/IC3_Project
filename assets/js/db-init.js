@@ -3,10 +3,35 @@
  * Migrated from LocalStorage to Firestore.
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-import { getFirestore, enableIndexedDbPersistence, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
-import "./google-sheets.js";
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  enableIndexedDbPersistence, 
+  collection, 
+  doc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDoc, 
+  query, 
+  where, 
+  limit, 
+  orderBy, 
+  arrayUnion, 
+  arrayRemove, 
+  onSnapshot,
+  writeBatch
+} from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup
+} from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 
 // Helper to safely get env variables with fallback
 const getEnv = (key, fallback) => {
@@ -28,27 +53,85 @@ const firebaseConfig = {
   firestoreDatabaseId: getEnv("VITE_FIRESTORE_DATABASE_ID", "ai-studio-ic3lms-1878ba81-d83e-464c-9cd6-2f63243b2865")
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+console.log("🔥 Initializing Firebase with config:", firebaseConfig);
+
+let app;
+let db;
+let auth;
+
+try {
+  app = initializeApp(firebaseConfig);
+  
+  // Initialize Firestore with specific database ID if provided
+  const dbId = firebaseConfig.firestoreDatabaseId;
+  if (dbId && dbId !== "" && dbId !== "(default)") {
+    console.log("📂 Attempting to use named Firestore database:", dbId);
+    try {
+      db = getFirestore(app, dbId);
+    } catch (e) {
+      console.warn("⚠️ Named database initialization failed, falling back to default:", e);
+      db = getFirestore(app);
+    }
+  } else {
+    console.log("📂 Using default Firestore database");
+    db = getFirestore(app);
+  }
+  
+  auth = getAuth(app);
+} catch (error) {
+  console.error("❌ Firebase/Firestore Initialization Failed:", error);
+}
+
+console.log("📂 Firestore instance state:", db ? "INITIALIZED" : "FAILED");
 
 // Enable Offline Persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn("Firestore Persistence failed: Multiple tabs open. Persistence can only be enabled in one tab at a time.");
-  } else if (err.code === 'unimplemented-browser') {
-    console.warn("Firestore Persistence failed: The current browser does not support all of the features required to enable persistence.");
-  } else {
-    console.warn("Firestore Persistence error:", err.message);
-  }
-});
-
-const auth = getAuth(app);
+if (db) {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn("Firestore Persistence failed: Multiple tabs open.");
+    } else if (err.code === 'unimplemented-browser') {
+      console.warn("Firestore Persistence failed: Browser not supported.");
+    } else {
+      console.warn("Firestore Persistence error:", err.message);
+    }
+  });
+}
 
 // Expose Firebase services and methods to window for global access
 window.db = db;
 window.auth = auth;
-window.fStore = { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, onSnapshot };
-window.fAuth = { signInWithEmailAndPassword, signOut, onAuthStateChanged };
+window.fStore = { 
+  getFirestore, initializeFirestore, enableIndexedDbPersistence, 
+  collection, doc, getDocs, setDoc, updateDoc, deleteDoc, 
+  getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, 
+  onSnapshot 
+};
+window.fAuth = {
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+  GoogleAuthProvider, signInWithPopup
+};
+
+// Also expose individually for scripts that expect them in global scope
+window.collection = collection;
+window.doc = doc;
+window.getDocs = getDocs;
+window.setDoc = setDoc;
+window.updateDoc = updateDoc;
+window.deleteDoc = deleteDoc;
+window.getDoc = getDoc;
+window.query = query;
+window.where = where;
+window.limit = limit;
+window.orderBy = orderBy;
+window.arrayUnion = arrayUnion;
+window.arrayRemove = arrayRemove;
+window.onSnapshot = onSnapshot;
+
+window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+window.signOut = signOut;
+window.onAuthStateChanged = onAuthStateChanged;
+window.GoogleAuthProvider = GoogleAuthProvider;
+window.signInWithPopup = signInWithPopup;
 
 window.pokemonAvatars = {
     pichu: "🍼",
@@ -163,6 +246,7 @@ const IC3_KEYS = {
   BOSSES: "bosses",
   POKEMONS: "pokemons",
   SETTINGS: "settings",
+  SYSTEM: "system",
   CURRENT_USER: "ic3_current_user"
 };
 window.IC3_KEYS = IC3_KEYS;
@@ -180,6 +264,115 @@ window.cleanupFirebaseListeners = () => {
   });
   window.ACTIVE_LISTENERS = [];
 };
+
+// --- Dynamic Loading Overlay injection ---
+const initLoader = () => {
+  if (document.getElementById('ic3-global-loader')) return;
+
+  const loaderStyle = document.createElement('style');
+  loaderStyle.innerHTML = `
+    @keyframes ic3-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes ic3-pulse {
+      0%, 100% { opacity: 0.6; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+    @keyframes ic3-shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+    .ic3-animate-spin {
+      animation: ic3-spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .ic3-animate-pulse {
+      animation: ic3-pulse 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .ic3-animate-shimmer {
+      animation: ic3-shimmer 1.5s ease-in-out infinite;
+    }
+
+    /* Global dynamic screen entry & tab transitions */
+    @keyframes ic3-slide-up-fade {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .student-view-content:not(.hidden),
+    .tab-content:not(.hidden) {
+      animation: ic3-slide-up-fade 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+  `;
+  document.head.appendChild(loaderStyle);
+
+  const loaderOverlay = document.createElement('div');
+  loaderOverlay.id = 'ic3-global-loader';
+  loaderOverlay.className = 'fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#090d16] transition-all duration-500 opacity-100 pointer-events-auto';
+  loaderOverlay.innerHTML = `
+    <div class="relative flex flex-col items-center px-8 py-10 rounded-3xl bg-white/[0.02] border border-white/5 backdrop-blur-xl shadow-2xl">
+      <!-- Rotating Ring -->
+      <div class="w-24 h-24 rounded-full border-[3px] border-indigo-500/10 border-t-indigo-400 ic3-animate-spin shadow-[0_0_20px_rgba(129,140,248,0.15)]"></div>
+      
+      <!-- Central Icon with Pulsing glow -->
+      <div class="absolute top-16 w-12 h-12 flex items-center justify-center text-4xl ic3-animate-pulse drop-shadow-[0_0_12px_rgba(234,179,8,0.4)]">
+        ⚡
+      </div>
+      
+      <!-- Title -->
+      <h3 class="mt-8 text-sm font-black text-white tracking-[0.2em] uppercase ic3-animate-pulse text-center">
+        Đang tải dữ liệu
+      </h3>
+      
+      <!-- Subtitle -->
+      <p class="mt-2 text-[11px] text-indigo-300 font-semibold tracking-wider uppercase opacity-80 text-center">
+        Hệ thống học tập đang đồng bộ...
+      </p>
+      
+      <!-- Dynamic Progress Bar -->
+      <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden mt-5 border border-white/5 relative">
+        <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full absolute top-0 left-0 w-32 ic3-animate-shimmer" style="transform-origin: left;"></div>
+      </div>
+      
+      <!-- Slogan/Context info -->
+      <div class="mt-6 flex items-center gap-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+        <i class="fa-solid fa-bolt text-yellow-500"></i>
+        <span>IC3 Sparks LMS</span>
+      </div>
+    </div>
+  `;
+
+  if (document.body) {
+    document.body.appendChild(loaderOverlay);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.appendChild(loaderOverlay);
+    });
+  }
+
+  // Fail-safe timeout (e.g. 8 seconds) in case of connection failure or offline issues
+  setTimeout(hideGlobalLoader, 8000);
+};
+
+const hideGlobalLoader = () => {
+  const loader = document.getElementById('ic3-global-loader');
+  if (loader) {
+    loader.classList.add('opacity-0', 'pointer-events-none');
+    setTimeout(() => {
+      if (loader && loader.parentNode) {
+        loader.remove();
+      }
+    }, 550); // matches transition-all duration-500
+  }
+};
+
+// Initialize loader as soon as script executes
+initLoader();
 
 let isInitializing = false;
 
@@ -207,6 +400,148 @@ const getPortal = () => {
   return "root";
 };
 
+// --- Session Monitoring & Global Logout ---
+
+// Global variable to store session listeners for cleanup
+window.SESSION_UNSUBSCRIBERS = [];
+window.LOGOUT_IN_PROGRESS = false;
+
+// Forced logout sequence
+function performLogout(message) {
+  console.log("🚶 Forced logout sequence initiated: " + message);
+  
+  // 1. Prevent double execution
+  if (window.LOGOUT_IN_PROGRESS) return;
+  window.LOGOUT_IN_PROGRESS = true;
+
+  // 2. Clear local storage immediately to stop app logic
+  localStorage.removeItem(IC3_KEYS.CURRENT_USER);
+  
+  // 3. Sign out from Firebase Auth to revoke Firestore permissions
+  if (auth) {
+    signOut(auth).catch(err => console.error("SignOut error during forced logout:", err));
+  }
+  
+  // 4. Cleanup all listeners
+  if (typeof window.cleanupFirebaseListeners === 'function') {
+    window.cleanupFirebaseListeners();
+  }
+  
+  // Cleanup session listeners specifically
+  if (window.SESSION_UNSUBSCRIBERS) {
+    window.SESSION_UNSUBSCRIBERS.forEach(unsub => {
+      try { if (typeof unsub === 'function') unsub(); } catch (e) {}
+    });
+    window.SESSION_UNSUBSCRIBERS = [];
+  }
+  
+  // 5. Show SweetAlert2 and redirect
+  if (window.Swal) {
+    window.Swal.fire({
+      title: 'THÔNG BÁO ĐĂNG XUẤT',
+      text: message,
+      icon: 'warning',
+      timer: 2500,
+      timerProgressBar: true,
+      showConfirmButton: true,
+      confirmButtonText: 'Đồng ý',
+      confirmButtonColor: '#3b82f6',
+      background: '#0f172a',
+      color: '#fff',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(() => {
+      window.location.replace("/index.html");
+    });
+
+    // Forced fallback redirect
+    setTimeout(() => {
+      window.location.replace("/index.html");
+    }, 3000);
+  } else {
+    window.location.replace("/index.html");
+  }
+}
+
+// Session monitor to prevent multiple concurrent logins and support force logout
+async function startSessionMonitor() {
+  if (!db) {
+    console.warn("⚠️ Cannot start session monitor: DB not initialized.");
+    return;
+  }
+
+  const userStr = localStorage.getItem(IC3_KEYS.CURRENT_USER);
+  if (!userStr) return;
+  
+  try {
+    const localUser = JSON.parse(userStr);
+    if (!localUser || !localUser.email) return;
+    
+    // EXCLUDE ADMINS from all force/concurrent checks to prevent admin lockout
+    if (localUser.role === 'admin') {
+      console.log("🛡️ Admin detected, session monitoring skipped.");
+      return;
+    }
+
+    console.log("🔍 Starting real-time session monitor for:", localUser.email);
+    
+    const userDocRef = doc(db, IC3_KEYS.USERS, localUser.email);
+    const configDocRef = doc(db, IC3_KEYS.SYSTEM, "config");
+
+    // Clear previous session listeners if any
+    if (window.SESSION_UNSUBSCRIBERS) {
+      window.SESSION_UNSUBSCRIBERS.forEach(unsub => {
+        try { if (typeof unsub === 'function') unsub(); } catch (e) {}
+      });
+      window.SESSION_UNSUBSCRIBERS = [];
+    }
+
+    // 1. Listen to global force logout signal
+    const unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const config = docSnap.data();
+        const loginTime = localUser.loginTimestamp || 0;
+        
+        if (config.globalForceLogoutTimestamp && config.globalForceLogoutTimestamp > loginTime) {
+          console.log("🚨 Global force logout signal received!");
+          performLogout("Tài khoản của bạn đã bị quản trị viên yêu cầu đăng xuất trên toàn hệ thống!");
+        }
+      }
+    }, (error) => {
+      console.error("Session Monitor (Global) Error:", error);
+    });
+    window.SESSION_UNSUBSCRIBERS.push(unsubscribeConfig);
+
+    // 2. Listen to individual user doc for force logout or concurrent login
+    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const cloudUser = docSnap.data();
+        
+        const isForceLogout = cloudUser.forceLogout === true;
+        const isConcurrentSession = cloudUser.currentSessionToken && 
+                                   localUser.currentSessionToken && 
+                                   cloudUser.currentSessionToken !== localUser.currentSessionToken;
+
+        if (isForceLogout || isConcurrentSession) {
+          console.log("🚨 Force logout or concurrent session detected!");
+          performLogout(isForceLogout ? 
+            'Tài khoản của bạn đã bị quản trị viên yêu cầu đăng xuất trên thiết bị này!' : 
+            'Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!');
+        }
+      } else {
+        // User doc might have been deleted
+        performLogout("Tài khoản không tồn tại hoặc đã bị xóa!");
+      }
+    }, (error) => {
+      console.error("Session Monitor (User) Error:", error);
+    });
+    window.SESSION_UNSUBSCRIBERS.push(unsubscribeUser);
+
+  } catch (e) {
+    console.error("Error starting session monitor:", e);
+  }
+}
+
 // Seed Database with initial data if empty
 // OPTIMIZED: Portal-specific fetching and deduplication
 async function initData() {
@@ -217,8 +552,18 @@ async function initData() {
   const portal = getPortal();
   console.log(`🚀 Initializing IC3 LMS Cloud Database for [${portal}] portal...`);
   
-  const userStr = localStorage.getItem(IC3_KEYS.CURRENT_USER);
-  const currentUser = userStr ? JSON.parse(userStr) : null;
+  // START MONITORING when DB is ready
+  if (db) {
+    startSessionMonitor();
+  }
+  
+  let currentUser = null;
+  try {
+    const userStr = localStorage.getItem(IC3_KEYS.CURRENT_USER);
+    currentUser = userStr ? JSON.parse(userStr) : null;
+  } catch (e) {
+    console.error("Failed to parse currentUser from localStorage", e);
+  }
 
   // Selective fetching based on portal to save quota
   let collectionsToFetch = [IC3_KEYS.SETTINGS]; // Settings always needed
@@ -370,72 +715,40 @@ async function initData() {
     isInitializing = false;
     window.IC3_DB_INITIALIZED = true;
     window.dispatchEvent(new CustomEvent('ic3-db-ready'));
-    startSessionMonitor();
+    hideGlobalLoader();
   }
 }
 
-// Session monitor to prevent multiple concurrent logins
-async function startSessionMonitor() {
-  const userStr = localStorage.getItem(IC3_KEYS.CURRENT_USER);
-  if (!userStr) return;
-  
+// Global Force Logout Helper (used by Admin)
+window.forceLogoutUser = async (email) => {
   try {
-    if (!navigator.onLine) {
-      console.log("🌐 Network is offline, skipping session monitor check.");
-      return;
-    }
-
-    const localUser = JSON.parse(userStr);
-    if (!localUser || !localUser.email || !localUser.currentSessionToken) return;
-    
-    // Throttling: Don't check more than once every 30 seconds
-    const lastCheck = parseInt(sessionStorage.getItem('last_session_check') || '0');
-    if (Date.now() - lastCheck < 30000) return;
-    sessionStorage.setItem('last_session_check', Date.now().toString());
-
-    const userDocRef = doc(db, IC3_KEYS.USERS, localUser.email);
-    
-    // Check for force logout via one-time fetch instead of listener
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      const cloudUser = docSnap.data();
-      
-      // If forceLogout is true, or currentSessionToken has changed / is cleared
-      if (cloudUser.forceLogout === true || (cloudUser.currentSessionToken && cloudUser.currentSessionToken !== localUser.currentSessionToken)) {
-        console.log("🚨 Concurrent session or force logout detected! Logging out...");
-        
-        // Clear local storage
-        localStorage.removeItem(IC3_KEYS.CURRENT_USER);
-        
-        // Show SweetAlert2 and redirect
-        window.Swal.fire({
-          title: 'THÔNG BÁO ĐĂNG XUẤT',
-          text: 'Tài khoản của bạn đã bị đăng xuất do phát hiện đăng nhập từ thiết bị/trình duyệt khác!',
-          icon: 'warning',
-          confirmButtonText: 'Đồng ý',
-          confirmButtonColor: '#3b82f6',
-          background: '#0f172a',
-          color: '#fff'
-        }).then(() => {
-          window.location.href = "/index.html";
-        });
-      }
-    } else {
-      // Only redirect if we are NOT in the middle of a pending setup and NOT on pokemon-select page
-      const isSelectionPage = window.location.pathname.includes("pokemon-select.html");
-      if (!localStorage.getItem("pendingUserData") && !isSelectionPage) {
-        console.log("🚨 User doc not found in DB, logging out...");
-        localStorage.removeItem(IC3_KEYS.CURRENT_USER);
-        window.location.href = "/index.html";
-      }
-    }
-    
-    // Save function globally if needed
-    window.checkSessionStatus = async () => startSessionMonitor();
-  } catch (e) {
-    console.error("Error running session monitor:", e);
+    console.log(`🛡️ Requesting force logout for: ${email}`);
+    const userDocRef = doc(db, IC3_KEYS.USERS, email);
+    await updateDoc(userDocRef, {
+      currentSessionToken: "",
+      forceLogout: true
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Force logout error:", error);
+    return { success: false, message: error.message };
   }
-}
+};
+
+// Force Logout EVERYONE in the system (INSTANT O(1) version)
+window.forceLogoutEveryone = async () => {
+  try {
+    console.log("🚨 Initiating GLOBAL FORCE LOGOUT via system config...");
+    const configDocRef = doc(db, IC3_KEYS.SYSTEM, "config");
+    await setDoc(configDocRef, {
+      globalForceLogoutTimestamp: Date.now()
+    }, { merge: true });
+    return { success: true };
+  } catch (error) {
+    console.error("Global force logout error:", error);
+    return { success: false, message: error.message };
+  }
+};
 
 // Global Login Helper
 window.loginUser = async (email, password) => {
@@ -465,12 +778,15 @@ window.loginUser = async (email, password) => {
         }
         
         // No concurrent login, proceed normally
+        const loginTimestamp = Date.now();
         await updateDoc(userDocRef, {
           currentSessionToken: newSessionToken,
-          forceLogout: false
+          forceLogout: false,
+          loginTimestamp: loginTimestamp
         });
         
         userData.currentSessionToken = newSessionToken;
+        userData.loginTimestamp = loginTimestamp;
         localStorage.setItem(IC3_KEYS.CURRENT_USER, JSON.stringify(userData));
         
         // Start monitoring this session
@@ -675,3 +991,11 @@ if (window.IC3_DB_INITIALIZED) {
 } else {
     window.addEventListener('ic3-db-ready', window.loadPokemonEvolutions);
 }
+
+// Import secondary modules that rely on window.fStore/window.db/window.fAuth
+// Using dynamic import to avoid hoisting issues with globals
+import("/assets/js/google-sheets.js").then(() => {
+  console.log("✅ Google Sheets module loaded");
+}).catch(err => {
+  console.error("❌ Failed to load Google Sheets module:", err);
+});

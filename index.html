@@ -303,13 +303,20 @@
       <p>© 2026 IC3 Sparks LMS. Thiết kế trò chơi hóa chuyên nghiệp hỗ trợ luyện thi chứng chỉ tin học quốc tế.</p>
     </footer>
 
-    <script type="module" src="./assets/js/db-init.js"></script>
+    <script type="module" src="/assets/js/db-init.js"></script>
     <script type="module">
       // Check if user is already logged in, then auto-redirect
       async function initApp() {
-        const userStr = localStorage.getItem(window.IC3_KEYS.CURRENT_USER);
-        if (userStr) {
-          const user = JSON.parse(userStr);
+        let user = null;
+        try {
+          const userStr = localStorage.getItem(window.IC3_KEYS ? window.IC3_KEYS.CURRENT_USER : "ic3_current_user");
+          user = userStr ? JSON.parse(userStr) : null;
+        } catch (e) {
+          console.error("Error parsing user from localStorage:", e);
+          try { localStorage.removeItem(window.IC3_KEYS ? window.IC3_KEYS.CURRENT_USER : "ic3_current_user"); } catch (_) {}
+        }
+        
+        if (user) {
           
           if (user.role === 'student') {
             try {
@@ -344,7 +351,7 @@
       }
 
       window.addEventListener('load', () => {
-        if (window.IC3_KEYS) {
+        if (window.IC3_DB_INITIALIZED && window.fStore && window.db) {
           initApp();
         } else {
           window.addEventListener('ic3-db-ready', initApp);

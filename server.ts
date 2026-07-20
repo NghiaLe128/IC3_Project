@@ -4,7 +4,6 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import fs from "fs";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { google } from "googleapis";
 
 dotenv.config();

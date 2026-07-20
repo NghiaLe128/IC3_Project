@@ -229,8 +229,7 @@
                 <thead class="text-xs text-indigo-300 uppercase bg-[#131424]/80">
                   <tr>
                     <th class="px-5 py-3.5">Học sinh</th>
-                    <th class="px-5 py-3.5">Email</th>
-                    <th class="px-5 py-3.5">Mật khẩu</th>
+                    <th class="px-5 py-3.5">Đăng nhập lần đầu</th>
                     <th class="px-5 py-3.5">Pokémon</th>
                     <th class="px-5 py-3.5">Vàng (Coins)</th>
                     <th class="px-5 py-3.5">Học lực (EXP)</th>
@@ -283,6 +282,7 @@
                     <label class="block text-xs font-bold text-indigo-300 uppercase">Bộ đề thám hiểm:</label>
                     <div class="flex flex-wrap gap-1">
                       <button onclick="openTestSetModal('add')" class="text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded cursor-pointer" title="Tạo bộ đề mới"><i class="fa-solid fa-plus mr-1"></i>Tạo bộ đề</button>
+                      <button onclick="openCustomTestGeneratorModal()" class="text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-2 py-1 rounded cursor-pointer" title="Tạo bộ đề từ danh sách câu hỏi hiện có"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Tạo đề tự chọn</button>
                       <button onclick="openCombineTestsModal()" class="text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded cursor-pointer" title="Gộp nhiều bộ đề thành bộ đề tổng hợp"><i class="fa-solid fa-object-group mr-1"></i>Tạo đề tổng hợp</button>
                       <button onclick="openTestSetModal('edit')" class="text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-1 rounded cursor-pointer" title="Sửa bộ đề"><i class="fa-solid fa-pen"></i></button>
                       <button onclick="deleteCurrentTestSet()" class="text-[10px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded cursor-pointer" title="Xóa bộ đề"><i class="fa-solid fa-trash"></i></button>
@@ -593,7 +593,74 @@
       </div>
     </div>
     
-    <!-- Modal: Confirm Delete Class -->
+    <!-- Modal: Custom Test Generator -->
+    <div id="customTestGeneratorModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-4xl p-6 rounded-2xl shadow-2xl relative flex flex-col max-h-[90vh]">
+        <button onclick="closeCustomTestGeneratorModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div class="mb-4">
+          <h3 class="font-poppins font-bold text-lg text-indigo-50"><i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-2"></i>Tạo bộ đề tự chọn</h3>
+          <p class="text-[11px] text-indigo-300">Chọn câu hỏi từ kho lưu trữ để tạo bộ đề mới cho khối lớp hiện tại.</p>
+        </div>
+
+        <form id="customTestForm" onsubmit="handleCustomTestFormSubmit(event)" class="space-y-4 flex-grow flex flex-col overflow-hidden">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+            <div class="md:col-span-2">
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Tên bộ đề mới</label>
+              <input type="text" id="customTestTitleInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 py-1.5 h-auto text-xs" placeholder="Ví dụ: Đề kiểm tra 15 phút - Chương 1">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Thời gian (phút)</label>
+              <input type="number" id="customTestDurationInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 py-1.5 h-auto text-xs" value="45">
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3 items-end shrink-0 bg-slate-900/40 p-3 rounded-xl border border-indigo-500/10">
+            <div class="flex-grow">
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Tìm kiếm câu hỏi</label>
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 text-[10px]"></i>
+                <input type="text" id="customTestSearch" oninput="renderCustomTestQuestionsList()" placeholder="Nhập nội dung câu hỏi..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950/60 border border-indigo-500/20 text-xs text-indigo-50 focus:border-indigo-500/50 outline-none transition-all">
+              </div>
+            </div>
+            <div class="flex gap-2 items-end">
+              <div>
+                <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Từ câu số</label>
+                <input type="number" id="rangeStart" class="w-16 px-2 py-1.5 rounded-lg bg-slate-950/60 border border-indigo-500/20 text-xs text-indigo-50 outline-none">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Đến câu</label>
+                <input type="number" id="rangeEnd" class="w-16 px-2 py-1.5 rounded-lg bg-slate-950/60 border border-indigo-500/20 text-xs text-indigo-50 outline-none">
+              </div>
+              <button type="button" onclick="handleSelectRange()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all h-[34px]">
+                Chọn nhanh
+              </button>
+            </div>
+          </div>
+
+          <div class="flex-grow overflow-hidden flex flex-col border border-indigo-500/20 rounded-xl bg-slate-950/20">
+            <div class="grid grid-cols-12 gap-2 px-4 py-2 border-b border-indigo-500/20 text-[10px] font-bold text-indigo-300 uppercase">
+              <div class="col-span-1 text-center">Chọn</div>
+              <div class="col-span-1 text-center">STT</div>
+              <div class="col-span-8">Nội dung câu hỏi</div>
+              <div class="col-span-2 text-center">Dạng</div>
+            </div>
+            <div id="customTestQuestionsListContainer" class="flex-grow overflow-y-auto divide-y divide-indigo-500/10">
+              <!-- JS Injected List -->
+            </div>
+          </div>
+
+          <div class="shrink-0 flex justify-between items-center bg-indigo-950/20 p-3 rounded-xl border border-indigo-500/10">
+            <div class="text-[10px] text-indigo-300">
+              Đã chọn: <span id="customTestSelectedCount" class="text-emerald-400 font-bold">0</span> câu hỏi
+            </div>
+            <div class="flex gap-3">
+              <button type="button" onclick="closeCustomTestGeneratorModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold">Hủy bỏ</button>
+              <button type="submit" class="px-6 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">Tạo bộ đề</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
     <div id="confirmDeleteClassModal" class="modal-overlay hidden">
       <div class="bg-[#1a1c2e] border border-red-500/30 w-full max-w-sm p-6 rounded-2xl shadow-xl relative text-center">
         <div class="w-12 h-12 rounded-full bg-red-500/10 text-red-500 mx-auto flex items-center justify-center text-xl mb-4">

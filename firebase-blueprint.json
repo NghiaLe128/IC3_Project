@@ -169,6 +169,16 @@
         "bossRewardCoins": { "type": "number" }
       },
       "required": ["id"]
+    },
+    "SystemConfig": {
+      "title": "System Config",
+      "description": "Global system configurations and signals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "globalForceLogoutTimestamp": { "type": "number" }
+      },
+      "required": ["id"]
     }
   },
   "firestore": {
@@ -183,6 +193,7 @@
     "notifications/{notifId}": { "schema": "Notification", "description": "Notifications" },
     "bosses/{bossId}": { "schema": "Boss", "description": "Bosses" },
     "pokemonEvolutions/{evolutionId}": { "schema": "PokemonEvolution", "description": "Pokemon Evolutions" },
-    "settings/{settingsId}": { "schema": "Settings", "description": "Settings" }
+    "settings/{settingsId}": { "schema": "Settings", "description": "Settings" },
+    "system/{configId}": { "schema": "SystemConfig", "description": "System configuration" }
   }
 }

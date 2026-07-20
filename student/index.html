@@ -16,7 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script>
-      window.confetti = window.confetti || confetti;
+      window.confetti = window.confetti || (typeof confetti !== 'undefined' ? confetti : null);
       tailwind.config = {
         theme: {
           extend: {
@@ -1543,5 +1543,4 @@
     <script type="module" src="/assets/js/db-init.js"></script>
     <script type="module" src="script.js"></script>
   </body>
-</html>
 </html>
