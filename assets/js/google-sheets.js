@@ -158,28 +158,17 @@ window.fetchGoogleSheetData = async (spreadsheetId, sheetName = "Tổng quát") 
       // Wrap sheet name in single quotes to handle spaces correctly for Sheets API
       const quotedSheetName = `'${singleSheetName.replace(/'/g, "''")}'`;
 
-      // Attempt 1: Try API/Proxy
+      // Attempt 1: Try API/Proxy (Proxy will automatically fallback to CSV if API fails or no service account key)
       try {
         const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z2000', token);
         if (data && data.values && data.values.length >= 2) {
           rows = data.values;
-          console.log(`✅ Student data loaded via Google Sheets API for sheet [${singleSheetName}].`);
+          console.log(`✅ Student data loaded via Google Sheets API (or proxy CSV fallback) for sheet [${singleSheetName}].`);
         } else if (data && data.error) {
-          console.warn(`⚠️ Sheets API failed for [${singleSheetName}], falling back to CSV. Error:`, data.error.message || data.error);
+          console.warn(`⚠️ Sheets API failed for [${singleSheetName}]. Error:`, data.error.message || data.error);
         }
       } catch (e) {
-        console.warn(`⚠️ Proxy fetch failed for [${singleSheetName}], trying CSV fallback...`);
-      }
-
-      // Attempt 2: Fallback to Public CSV (Requires "Anyone with the link")
-      if (!rows) {
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(singleSheetName)}`;
-        const res = await fetch(csvUrl);
-        if (res.ok) {
-          const csvText = await res.text();
-          rows = parseCSV(csvText);
-          console.log(`✅ Student data loaded via CSV fallback for [${singleSheetName}].`);
-        }
+        console.warn(`⚠️ Proxy fetch failed for [${singleSheetName}]. Error:`, e.message);
       }
 
       if (!rows || rows.length < 2) {
