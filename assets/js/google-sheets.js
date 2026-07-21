@@ -373,27 +373,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
     }
 
     // Validate against the original Google Sheet password
-    // Normalize both passwords (handling phone numbers, spaces, trailing spaces, leading zeros, etc.)
-    const normalizePass = (p) => {
-      if (p === undefined || p === null) return "";
-      let s = String(p).trim().toLowerCase();
-      // Remove common separators for phone numbers (spaces, dots, hyphens, parentheses, plus sign)
-      s = s.replace(/[\s\.\-\(\)\+]/g, "");
-      // Convert country code if starts with 84
-      if (s.startsWith("84") && s.length > 9) {
-        s = "0" + s.slice(2);
-      }
-      return s;
-    };
-
-    const normFound = normalizePass(found.password);
-    const normInput = normalizePass(inputPassword);
-
-    // Check if exactly matches, or matches without leading zero (handles numeric cells stripping leading 0)
-    const isMatch = (normFound === normInput) || 
-                    (normFound.replace(/^0+/, "") === normInput.replace(/^0+/, ""));
-
-    if (!isMatch) {
+    if (found.password !== inputPassword) {
       return { success: false, message: "Mật khẩu không khớp với file Sheet!" };
     }
 

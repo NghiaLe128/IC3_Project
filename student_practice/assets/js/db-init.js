@@ -130,9 +130,16 @@ function setPersistence(auth, persistence) {
   const originalRemoveItem = localStorage.removeItem;
   const originalClear = localStorage.clear;
 
-  // Clear any physical localStorage values for session-related keys once on load to prevent leaks
+  // Clear physical localStorage values, but restore from backup if sessionStorage is empty on reload/redirect (fixes Zalo/FB in-app browser wipes)
   SESSION_KEYS.forEach(key => {
     try {
+      const backupValue = originalGetItem.call(localStorage, key + "_backup");
+      if (backupValue && !sessionStorage.getItem(key)) {
+        console.log(`♻️ Restoring ${key} from physical backup due to mobile webview redirect...`);
+        sessionStorage.setItem(key, backupValue);
+      }
+      // Clean up backup immediately to maintain "logout on tab/browser close" behavior
+      originalRemoveItem.call(localStorage, key + "_backup");
       originalRemoveItem.call(localStorage, key);
     } catch (e) {}
   });
@@ -148,6 +155,9 @@ function setPersistence(auth, persistence) {
     localStorage.setItem = function(key, value) {
       if (SESSION_KEYS.includes(key)) {
         sessionStorage.setItem(key, value);
+        try {
+          originalSetItem.call(localStorage, key + "_backup", value);
+        } catch (e) {}
         return;
       }
       originalSetItem.apply(this, arguments);
@@ -156,6 +166,9 @@ function setPersistence(auth, persistence) {
     localStorage.removeItem = function(key) {
       if (SESSION_KEYS.includes(key)) {
         sessionStorage.removeItem(key);
+        try {
+          originalRemoveItem.call(localStorage, key + "_backup");
+        } catch (e) {}
         return;
       }
       originalRemoveItem.apply(this, arguments);
@@ -164,6 +177,9 @@ function setPersistence(auth, persistence) {
     localStorage.clear = function() {
       SESSION_KEYS.forEach(key => {
         sessionStorage.removeItem(key);
+        try {
+          originalRemoveItem.call(localStorage, key + "_backup");
+        } catch (e) {}
       });
       originalClear.apply(this, arguments);
     };
