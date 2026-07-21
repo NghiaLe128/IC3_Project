@@ -25,6 +25,41 @@ function convertDriveUrl(url) {
 let activeClassId = "";
 let activeQuestionId = ""; // Track selected question in manage-tests tab
 
+function getClassStudents(classId) {
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+  const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+  const cls = classes.find(c => c.id === classId);
+  if (!cls) return [];
+  
+  const mapped = (std, classObj) => {
+    if (classObj && classObj.sheetSchool && classObj.sheetClassName) {
+      std.schoolClass = `${classObj.sheetSchool} - ${classObj.sheetClassName}`;
+    }
+    return std;
+  };
+  
+  if (cls.id && (cls.id.endsWith("_tat_ca_lop") || cls.sheetClassName === "Tất cả lớp")) {
+    const schoolClasses = classes.filter(c => c.sheetSchool === cls.sheetSchool && c.id !== cls.id);
+    const schoolClassIds = schoolClasses.map(c => c.id);
+    
+    // Fetch all students of this school (including master class and individual classes)
+    const filtered = students.filter(s => s.classId === classId || schoolClassIds.includes(s.classId));
+    
+    // For each student, find their specific original class (not the "Tất cả lớp" master class if they belong to a specific class)
+    return filtered.map(s => {
+      // Find original class first
+      let studentClass = schoolClasses.find(c => c.id === s.classId);
+      if (!studentClass && s.classId === classId) {
+        // If they are directly in the master class but have individual class info in their email or name, try to find it
+        studentClass = cls;
+      }
+      return mapped({ ...s }, studentClass || cls);
+    });
+  }
+  
+  return students.filter(s => s.classId === classId).map(s => mapped({ ...s }, cls));
+}
+
 const ITEMS_PER_PAGE = 8;
 const typeLabels = {
   choice: "Trắc nghiệm 1 đáp án",
@@ -72,7 +107,7 @@ function renderPagination(totalItems, currentPage, containerId, tabId) {
   prev.innerHTML = `<i class="fa-solid fa-chevron-left"></i>`;
   prev.className = currentPage === 1 ? btnClass + " opacity-50 cursor-not-allowed" : btnClass;
   prev.disabled = currentPage === 1;
-  prev.onclick = () => { window.teacherPagination[tabId] = currentPage - 1; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId)); break;} };
+  prev.onclick = () => { window.teacherPagination[tabId] = currentPage - 1; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(getClassStudents(activeClassId)); break;} };
   container.appendChild(prev);
 
   // Pages
@@ -80,7 +115,7 @@ function renderPagination(totalItems, currentPage, containerId, tabId) {
     const btn = document.createElement("button");
     btn.innerText = i;
     btn.className = i === currentPage ? activeClass : btnClass;
-    btn.onclick = () => { window.teacherPagination[tabId] = i; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId)); break;} };
+    btn.onclick = () => { window.teacherPagination[tabId] = i; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(getClassStudents(activeClassId)); break;} };
     container.appendChild(btn);
   }
 
@@ -89,7 +124,7 @@ function renderPagination(totalItems, currentPage, containerId, tabId) {
   next.innerHTML = `<i class="fa-solid fa-chevron-right"></i>`;
   next.className = currentPage === totalPages ? btnClass + " opacity-50 cursor-not-allowed" : btnClass;
   next.disabled = currentPage === totalPages;
-  next.onclick = () => { window.teacherPagination[tabId] = currentPage + 1; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(window.IC3_CACHE[window.IC3_KEYS.STUDENTS].filter(s => s.classId === activeClassId)); break;} };
+  next.onclick = () => { window.teacherPagination[tabId] = currentPage + 1; switch(tabId) { case 'students': renderClassStudentsTable(); break; case 'results': renderResultsTable(); break; case 'ranking': renderClassRanking(); break; case 'rewards': renderTeacherRewards(); break; case 'questions': renderQuestionsList(); break; case 'overview': renderOverviewProgressTable(getClassStudents(activeClassId)); break;} };
   container.appendChild(next);
 }
 
@@ -309,8 +344,7 @@ function switchTab(tabId) {
 
 // ==================== OVERVIEW RENDERING ====================
 function renderOverview() {
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  const classStudents = students.filter(s => s.classId === activeClassId);
+  const classStudents = getClassStudents(activeClassId);
 
   // 1. Total students
   document.getElementById("overview-students-count").innerText = `${classStudents.length} học sinh`;
@@ -354,10 +388,8 @@ function renderClassesGrid() {
   const gridEl = document.getElementById("teacher-classes-grid");
   gridEl.innerHTML = "";
 
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-
   teacherClasses.forEach(c => {
-    const classSize = students.filter(s => s.classId === c.id).length;
+    const classSize = getClassStudents(c.id).length;
     const isCurrent = c.id === activeClassId;
 
     const div = document.createElement("div");
@@ -433,8 +465,7 @@ function renderOverviewProgressTable(classStudents) {
 
 // ==================== STUDENTS LIST TAB ====================
 function renderClassStudentsTable() {
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  const classStudents = students.filter(s => s.classId === activeClassId);
+  const classStudents = getClassStudents(activeClassId);
   // Populate filter dropdown with unique school classes
   populateSchoolClassFilter(classStudents);
   
@@ -459,7 +490,7 @@ function renderClassStudentsTable() {
   if (paginationEl) paginationEl.innerHTML = "";
 
   if (filteredStudents.length === 0) {
-    body.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8" class="px-5 py-6 text-center text-indigo-300 text-xs">Không tìm thấy học sinh nào thuộc điều kiện lọc.</td></tr>`;
     return;
   }
 
@@ -510,6 +541,10 @@ function renderClassStudentsTable() {
           <i class="fa-solid fa-circle-user text-indigo-300"></i> ${std.name}
         </button>
         <div class="text-[11px] text-indigo-400 font-mono font-normal mt-0.5 break-all max-w-[200px]">${std.email}</div>
+      </td>
+      <td class="px-5 py-3.5 font-medium text-indigo-200">
+        <span class="font-bold text-indigo-100">${classText}</span>
+        <span class="block text-[10px] text-indigo-400">${schoolText}</span>
       </td>
       <td class="px-5 py-3.5 font-medium whitespace-nowrap">${loginStatusBadge}</td>
       <td class="px-5 py-3.5 font-medium text-indigo-200"><i class="fa-solid fa-paw mr-1 text-indigo-400"></i> ${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon || "Chưa có"}</td>
@@ -632,7 +667,9 @@ function openAddStudentToClassModal() {
   const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
   
   // Find students who are NOT in this class yet
-  const availableStudents = students.filter(s => s.classId !== activeClassId);
+  const classStudents = getClassStudents(activeClassId);
+  const classEmails = classStudents.map(s => s.email);
+  const availableStudents = students.filter(s => !classEmails.includes(s.email));
   const selector = document.getElementById("studentToClassSelector");
   selector.innerHTML = "";
 
@@ -1570,8 +1607,7 @@ function deleteCurrentTestSet() {
 
 // ==================== RESULTS HISTORY ====================
 function renderResultsTable() {
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  const classStudents = students.filter(s => s.classId === activeClassId);
+  const classStudents = getClassStudents(activeClassId);
   const emails = classStudents.map(s => s.email);
 
   const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [] || [];
@@ -1644,8 +1680,7 @@ function renderResultsTable() {
 
 // ==================== CLASS RANKING ====================
 function renderClassRanking() {
-  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [] || [];
-  let classStudents = students.filter(s => s.classId === activeClassId);
+  let classStudents = getClassStudents(activeClassId);
 
   const searchInput = document.getElementById("rankingSearch");
   const searchQuery = searchInput ? searchInput.value.toLowerCase() : "";
@@ -1816,12 +1851,14 @@ window.updateSheetClassDropdown = function() {
   
   if (!school) return;
   
-  const classesForSchool = [...new Set(fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school).map(s => s.className))];
+  const classesForSchool = [...new Set(fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school).map(s => s.className))].filter(Boolean);
+  
+  if (classesForSchool.length > 0) {
+    classSelect.innerHTML += `<option value="all">Tất cả lớp (${classesForSchool.length} lớp)</option>`;
+  }
   
   classesForSchool.forEach(cls => {
-    if (cls) {
-      classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
-    }
+    classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
   });
 };
 
@@ -1836,68 +1873,139 @@ document.getElementById("classSheetForm").addEventListener("submit", function(e)
     return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
   };
   
-  const classId = `class_${cleanStringForId(school)}_${cleanStringForId(className)}`;
-  const displayClassName = `${className} - ${school}`;
-  
-  const currentClasses = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
-  const existingClass = currentClasses.find(c => c.id === classId);
-
   const teacher = getTeacherUser();
   if (!teacher) return;
-
-  if (!existingClass) {
-    const newClass = {
-      id: classId,
-      name: displayClassName,
-      teacherEmail: teacher.email,
-      isFromSheet: true, // Mark this class as synced from sheet
-      sheetSchool: school,
-      sheetClassName: className,
-      createdAt: new Date().toISOString()
-    };
-    
-    currentClasses.push(newClass);
-    window.saveData(window.IC3_KEYS.CLASSES, currentClasses, classId);
-  }
-
   if (!teacher.classes) teacher.classes = [];
-  if (!teacher.classes.includes(classId)) teacher.classes.push(classId);
-  localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
   
-  syncTeacherDataToCollections(teacher);
-
-  // also add students immediately
-  const studentsInClass = fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school && s.className === className);
+  const currentClasses = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
   const allStudents = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   
-  let newStudentsCount = 0;
+  let classesToImport = [];
+  if (className === "all") {
+    classesToImport = [...new Set(fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school).map(s => s.className))].filter(Boolean);
+  } else {
+    classesToImport = [className];
+  }
+  
+  if (classesToImport.length === 0) {
+    return window.showToast("Không tìm thấy lớp học nào để import!", "error");
+  }
+  
+  let totalNewStudentsCount = 0;
   let newStudentIds = [];
-  studentsInClass.forEach(s => {
-    const studentId = cleanStringForId(s.name) + "_" + cleanStringForId(className) + "_" + cleanStringForId(school) + "_" + s.rowIndex;
-    const sEmail = `${studentId}@ic3lms.edu.vn`;
-    if (!allStudents.some(ex => ex.id === sEmail || ex.email === sEmail)) {
-      allStudents.push({
-        id: sEmail,
-        email: sEmail,
-        name: s.name,
-        classId: classId,
-        password: s.password,
-        badges: [],
-        level: "Tân binh",
-        pokemon: "pikachu",
-        coins: 0,
-        testsCompleted: 0,
-        isFirstLogin: true
-      });
-      newStudentIds.push(sEmail);
-      newStudentsCount++;
+  
+  if (className === "all") {
+    const classId = `class_${cleanStringForId(school)}_tat_ca_lop`;
+    const displayClassName = `Tất cả lớp - ${school}`;
+    
+    const existingClass = currentClasses.find(c => c.id === classId);
+    if (!existingClass) {
+      const newClass = {
+        id: classId,
+        name: displayClassName,
+        teacherEmail: teacher.email,
+        isFromSheet: true,
+        sheetSchool: school,
+        sheetClassName: "Tất cả lớp",
+        createdAt: new Date().toISOString()
+      };
+      currentClasses.push(newClass);
+      window.saveData(window.IC3_KEYS.CLASSES, currentClasses, classId);
     }
-  });
-  window.saveData(window.IC3_KEYS.STUDENTS, allStudents, newStudentIds);
+    
+    if (!teacher.classes.includes(classId)) {
+      teacher.classes.push(classId);
+    }
+    
+    const studentsInClasses = fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school && classesToImport.includes(s.className));
+    studentsInClasses.forEach(s => {
+      const studentId = cleanStringForId(s.name) + "_" + cleanStringForId(s.className) + "_" + cleanStringForId(school) + "_" + s.rowIndex;
+      const sEmail = `${studentId}@ic3lms.edu.vn`;
+      if (!allStudents.some(ex => ex.id === sEmail || ex.email === sEmail)) {
+        allStudents.push({
+          id: sEmail,
+          email: sEmail,
+          name: s.name,
+          classId: classId,
+          schoolClass: `${school} - ${s.className}`,
+          password: s.password,
+          badges: [],
+          level: "Tân binh",
+          pokemon: "pikachu",
+          coins: 0,
+          testsCompleted: 0,
+          isFirstLogin: true
+        });
+        newStudentIds.push(sEmail);
+        totalNewStudentsCount++;
+      }
+    });
+  } else {
+    classesToImport.forEach(clsName => {
+      const classId = `class_${cleanStringForId(school)}_${cleanStringForId(clsName)}`;
+      const displayClassName = `${clsName} - ${school}`;
+      
+      const existingClass = currentClasses.find(c => c.id === classId);
+      if (!existingClass) {
+        const newClass = {
+          id: classId,
+          name: displayClassName,
+          teacherEmail: teacher.email,
+          isFromSheet: true,
+          sheetSchool: school,
+          sheetClassName: clsName,
+          createdAt: new Date().toISOString()
+        };
+        currentClasses.push(newClass);
+        window.saveData(window.IC3_KEYS.CLASSES, currentClasses, classId);
+      }
+      
+      if (!teacher.classes.includes(classId)) {
+        teacher.classes.push(classId);
+      }
+      
+      // sync students for this class
+      const studentsInClass = fetchedSheetStudents.filter(s => (s.school || "Mặc định") === school && s.className === clsName);
+      studentsInClass.forEach(s => {
+        const studentId = cleanStringForId(s.name) + "_" + cleanStringForId(clsName) + "_" + cleanStringForId(school) + "_" + s.rowIndex;
+        const sEmail = `${studentId}@ic3lms.edu.vn`;
+        if (!allStudents.some(ex => ex.id === sEmail || ex.email === sEmail)) {
+          allStudents.push({
+            id: sEmail,
+            email: sEmail,
+            name: s.name,
+            classId: classId,
+            schoolClass: `${school} - ${clsName}`,
+            password: s.password,
+            badges: [],
+            level: "Tân binh",
+            pokemon: "pikachu",
+            coins: 0,
+            testsCompleted: 0,
+            isFirstLogin: true
+          });
+          newStudentIds.push(sEmail);
+          totalNewStudentsCount++;
+        }
+      });
+    });
+  }
+  
+  if (newStudentIds.length > 0) {
+    window.saveData(window.IC3_KEYS.STUDENTS, allStudents, newStudentIds);
+  }
+  
+  localStorage.setItem(window.IC3_KEYS.CURRENT_USER, JSON.stringify(teacher));
+  syncTeacherDataToCollections(teacher);
   
   initClassSelector();
   closeClassModal();
-  window.showToast(`Tạo lớp thành công! Đã đồng bộ ${newStudentsCount} học sinh.`, "success");
+  
+  if (className === "all") {
+    window.showToast(`Đã đồng bộ thành công ${classesToImport.length} lớp học và ${totalNewStudentsCount} học sinh!`, "success");
+  } else {
+    window.showToast(`Tạo lớp thành công! Đã đồng bộ ${totalNewStudentsCount} học sinh.`, "success");
+  }
 });
 
 function openClassModal() {
