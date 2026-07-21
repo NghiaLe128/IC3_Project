@@ -2465,13 +2465,95 @@ async function toggleTabLockState(tabId, isLocked) {
 
 // ==================== QUESTION FORM MANAGEMENT ====================
 
+// Dynamic choices helper functions for multiple choice questions
+window.addNewChoiceOption = function(type) {
+  if (!window.currentChoicesList) window.currentChoicesList = ["", "", "", ""];
+  window.currentChoicesList.push("");
+  renderDynamicFormFields(type);
+};
+
+window.removeChoiceOption = function(idx, type) {
+  if (!window.currentChoicesList) return;
+  if (window.currentChoicesList.length <= 2) {
+    if (window.showToast) window.showToast("Phải có ít nhất 2 đáp án!", "error");
+    return;
+  }
+  window.currentChoicesList.splice(idx, 1);
+  
+  if (window.currentChoicesCorrectIndex === idx) {
+    window.currentChoicesCorrectIndex = 0;
+  } else if (window.currentChoicesCorrectIndex > idx) {
+    window.currentChoicesCorrectIndex--;
+  }
+
+  window.currentChoicesCorrectIndices = (window.currentChoicesCorrectIndices || [])
+    .filter(i => i !== idx)
+    .map(i => i > idx ? i - 1 : i);
+
+  renderDynamicFormFields(type);
+};
+
+window.updateCorrectAnswerSelectors = function(type) {
+  const container = document.getElementById("correct-answer-selector-section");
+  if (!container) return;
+
+  const inputClass = "w-full p-3 rounded-xl border border-indigo-500/30 bg-[#1a1c2e] text-indigo-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm text-xs";
+  
+  let html = "";
+  if (type === "multi_choice") {
+    html += `
+      <label class="block text-xs font-bold text-indigo-300 uppercase mb-1.5">Chọn các đáp án đúng:</label>
+      <div class="flex flex-wrap gap-3 text-xs text-indigo-200 bg-[#131424]/40 p-3 rounded-xl border border-indigo-500/10">
+    `;
+    window.currentChoicesList.forEach((val, idx) => {
+      const charCode = String.fromCharCode(65 + idx);
+      const isChecked = (window.currentChoicesCorrectIndices || []).includes(idx) ? 'checked' : '';
+      const displayVal = val.trim() ? ` (${val.trim()})` : '';
+      html += `
+        <label class="flex items-center gap-2 cursor-pointer bg-[#131424]/60 hover:bg-[#131424]/80 px-3 py-1.5 rounded-lg border border-indigo-500/10 transition-all select-none">
+          <input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="${idx}" ${isChecked} 
+            onchange="window.updateCheckedIndices(${idx}, this.checked)"> 
+          <span class="font-bold text-purple-400">${charCode}</span>${displayVal}
+        </label>
+      `;
+    });
+    html += `</div>`;
+  } else {
+    html += `
+      <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Phương án đúng:</label>
+      <select id="choice-correct-idx" class="${inputClass} cursor-pointer" onchange="window.currentChoicesCorrectIndex = parseInt(this.value)">
+    `;
+    window.currentChoicesList.forEach((val, idx) => {
+      const charCode = String.fromCharCode(65 + idx);
+      const isSelected = window.currentChoicesCorrectIndex === idx ? 'selected' : '';
+      const displayVal = val.trim() ? ` - ${val.trim()}` : '';
+      html += `
+        <option value="${idx}" ${isSelected}>Phương án ${charCode}${displayVal}</option>
+      `;
+    });
+    html += `</select>`;
+  }
+  container.innerHTML = html;
+};
+
+window.updateCheckedIndices = function(idx, checked) {
+  if (!window.currentChoicesCorrectIndices) window.currentChoicesCorrectIndices = [];
+  if (checked) {
+    if (!window.currentChoicesCorrectIndices.includes(idx)) {
+      window.currentChoicesCorrectIndices.push(idx);
+    }
+  } else {
+    window.currentChoicesCorrectIndices = window.currentChoicesCorrectIndices.filter(i => i !== idx);
+  }
+};
+
 function renderDynamicFormFields(type) {
   const container = document.getElementById("dynamic-form-fields");
   if (!container) return;
   container.innerHTML = "";
 
   const typeHints = {
-    choice: "Học sinh sẽ được chọn một trong 4 phương án liệt kê bên dưới.",
+    choice: "Học sinh sẽ được chọn một trong các phương án liệt kê bên dưới.",
     multi_choice: "Học sinh có thể chọn một hoặc nhiều phương án đúng.",
     image_choice: "Học sinh chọn hình ảnh đúng dựa trên link URL được cung cấp.",
     true_false: "Học sinh chọn phương án Đúng hoặc Sai.",
@@ -2490,43 +2572,54 @@ function renderDynamicFormFields(type) {
     const isImage = type === "image_choice";
     const placeholderText = isImage ? "URL hình ảnh phương án " : "Phương án ";
     
+    if (!window.currentChoicesList || window.currentChoicesList.length === 0) {
+      window.currentChoicesList = ["", "", "", ""];
+    }
+    if (window.currentChoicesCorrectIndex === undefined) {
+      window.currentChoicesCorrectIndex = 0;
+    }
+    if (!window.currentChoicesCorrectIndices) {
+      window.currentChoicesCorrectIndices = [];
+    }
+
     let optionsHtml = `
       <div class="space-y-3">
-        <label class="block text-xs font-bold text-indigo-300 uppercase">Các phương án lựa chọn:</label>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input type="text" id="choice-opt-0" required class="${inputClass}" placeholder="${placeholderText}A">
-          <input type="text" id="choice-opt-1" required class="${inputClass}" placeholder="${placeholderText}B">
-          <input type="text" id="choice-opt-2" required class="${inputClass}" placeholder="${placeholderText}C">
-          <input type="text" id="choice-opt-3" required class="${inputClass}" placeholder="${placeholderText}D">
+        <div class="flex justify-between items-center">
+          <label class="block text-xs font-bold text-indigo-300 uppercase">Các phương án lựa chọn:</label>
+          <button type="button" onclick="window.addNewChoiceOption('${type}')" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold rounded cursor-pointer flex items-center gap-1 transition-colors">
+            <i class="fa-solid fa-plus"></i> Thêm đáp án
+          </button>
         </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="choices-inputs-grid">
     `;
 
-    if (type === "multi_choice") {
+    window.currentChoicesList.forEach((val, idx) => {
+      const charCode = String.fromCharCode(65 + idx);
       optionsHtml += `
-        <div class="mt-2">
-          <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Chọn các đáp án đúng:</label>
-          <div class="flex gap-4 text-xs text-indigo-200">
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="0"> A</label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="1"> B</label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="2"> C</label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="mc-correct accent-purple-500 h-4 w-4" value="3"> D</label>
-          </div>
+        <div class="flex items-center gap-2 relative">
+          <div class="absolute left-3 text-indigo-400 font-bold text-xs select-none">${charCode}.</div>
+          <input type="text" id="choice-opt-${idx}" required class="${inputClass} pl-8 pr-10" 
+            placeholder="${placeholderText}${charCode}" value="${val.replace(/"/g, '&quot;')}"
+            oninput="window.currentChoicesList[${idx}] = this.value; window.updateCorrectAnswerSelectors('${type}')">
+          <button type="button" onclick="window.removeChoiceOption(${idx}, '${type}')" 
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 p-1.5 rounded transition-all cursor-pointer"
+            title="Xóa đáp án này">
+            <i class="fa-solid fa-trash text-xs"></i>
+          </button>
         </div>
-      </div>`;
-    } else {
-      optionsHtml += `
-        <div class="mt-2">
-          <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Phương án đúng:</label>
-          <select id="choice-correct-idx" class="${inputClass} cursor-pointer">
-            <option value="0">Phương án A</option>
-            <option value="1">Phương án B</option>
-            <option value="2">Phương án C</option>
-            <option value="3">Phương án D</option>
-          </select>
-        </div>
-      </div>`;
-    }
+      `;
+    });
+
+    optionsHtml += `</div>`;
+
+    optionsHtml += `
+      <div id="correct-answer-selector-section" class="mt-4">
+        <!-- Will be dynamically updated by updateCorrectAnswerSelectors -->
+      </div>
+    </div>`;
+
     container.innerHTML = optionsHtml;
+    window.updateCorrectAnswerSelectors(type);
 
   } else if (type === "true_false") {
     container.innerHTML = `
@@ -2645,6 +2738,11 @@ function setupNewQuestionForm() {
   document.getElementById("question-edit-form").reset();
   document.getElementById("form-q-id").value = "";
   
+  // Set window globals for dynamic options
+  window.currentChoicesList = ["", "", "", ""];
+  window.currentChoicesCorrectIndex = 0;
+  window.currentChoicesCorrectIndices = [];
+
   // Show Editor Card
   document.getElementById("question-view-mode").classList.add("hidden");
   document.getElementById("question-edit-form").classList.remove("hidden");
@@ -2672,6 +2770,15 @@ function enableQuestionEditing() {
 
   document.getElementById("form-q-id").value = q.id;
   document.getElementById("form-q-type").value = q.type || "choice";
+  
+  // Set window globals for dynamic options
+  const type = q.type || "choice";
+  if (type === "choice" || type === "multi_choice" || type === "image_choice") {
+    window.currentChoicesList = q.options && q.options.length > 0 ? [...q.options] : ["", "", "", ""];
+    window.currentChoicesCorrectIndex = q.correctIndex !== undefined ? q.correctIndex : 0;
+    window.currentChoicesCorrectIndices = q.correctIndices ? [...q.correctIndices] : [];
+  }
+  
   adjustFormQuestionOptions();
 
   document.getElementById("form-q-text").value = q.question || q.text || "";
@@ -2679,26 +2786,8 @@ function enableQuestionEditing() {
   document.getElementById("form-q-explanation").value = q.explanation || "";
 
   // Populate dynamic controls
-  const type = q.type || "choice";
-  if (type === "choice" || type === "image_choice") {
-    const opts = q.options || [];
-    for (let i = 0; i < 4; i++) {
-      const input = document.getElementById(`choice-opt-${i}`);
-      if (input) input.value = opts[i] || "";
-    }
-    const select = document.getElementById("choice-correct-idx");
-    if (select) select.value = q.correctIndex !== undefined ? q.correctIndex : 0;
-  } else if (type === "multi_choice") {
-    const opts = q.options || [];
-    for (let i = 0; i < 4; i++) {
-      const input = document.getElementById(`choice-opt-${i}`);
-      if (input) input.value = opts[i] || "";
-    }
-    const checkboxes = document.querySelectorAll(".mc-correct");
-    const correctIndices = q.correctIndices || [];
-    checkboxes.forEach(cb => {
-      cb.checked = correctIndices.includes(parseInt(cb.value));
-    });
+  if (type === "choice" || type === "multi_choice" || type === "image_choice") {
+    // Dynamic fields are rendered and populated directly by renderDynamicFormFields inside adjustFormQuestionOptions()
   } else if (type === "true_false") {
     const select = document.getElementById("choice-correct-idx");
     if (select) select.value = q.correctIndex !== undefined ? q.correctIndex : (q.answer === "Sai" ? 1 : 0);
@@ -2813,19 +2902,21 @@ async function handleQuestionFormSubmit(e) {
   };
 
   if (type === "choice" || type === "image_choice") {
-    const opts = [];
-    for (let i = 0; i < 4; i++) {
-      opts.push(document.getElementById(`choice-opt-${i}`).value.trim());
+    const opts = (window.currentChoicesList || []).map(opt => opt.trim());
+    if (opts.some(o => !o)) {
+      if (window.showToast) window.showToast("Vui lòng nhập đầy đủ nội dung tất cả các phương án!", "error");
+      return;
     }
-    const correctIdx = parseInt(document.getElementById("choice-correct-idx").value);
+    const correctIdx = window.currentChoicesCorrectIndex !== undefined ? window.currentChoicesCorrectIndex : 0;
     qObj.options = opts;
     qObj.correctIndex = correctIdx;
-    qObj.answer = opts[correctIdx];
+    qObj.answer = opts[correctIdx] || "";
 
   } else if (type === "multi_choice") {
-    const opts = [];
-    for (let i = 0; i < 4; i++) {
-      opts.push(document.getElementById(`choice-opt-${i}`).value.trim());
+    const opts = (window.currentChoicesList || []).map(opt => opt.trim());
+    if (opts.some(o => !o)) {
+      if (window.showToast) window.showToast("Vui lòng nhập đầy đủ nội dung tất cả các phương án!", "error");
+      return;
     }
     const correctIndices = [];
     document.querySelectorAll(".mc-correct:checked").forEach(cb => {

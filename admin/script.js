@@ -839,6 +839,8 @@ function renderQuestionsTable() {
 function openQuestionModal() {
   const modal = document.getElementById("questionModal");
   document.getElementById("questionForm").reset();
+  window.adminChoicesList = ["", "", "", ""];
+  renderAdminChoicesList();
   adjustQuestionAnswers();
   modal.classList.remove("hidden");
 }
@@ -847,23 +849,63 @@ function closeQuestionModal() {
   document.getElementById("questionModal").classList.add("hidden");
 }
 
+function renderAdminChoicesList() {
+  const container = document.getElementById("admin-choices-container");
+  if (!container) return;
+  
+  if (!window.adminChoicesList) {
+    window.adminChoicesList = ["", "", "", ""];
+  }
+  
+  let html = "";
+  window.adminChoicesList.forEach((val, idx) => {
+    const charCode = String.fromCharCode(65 + idx);
+    html += `
+      <div class="flex items-center gap-2 relative">
+        <span class="text-xs font-bold text-slate-400 w-5 select-none">${charCode}.</span>
+        <input type="text" id="admin-opt-${idx}" required class="modal-input flex-1" 
+          placeholder="Lựa chọn ${charCode}" value="${val.replace(/"/g, '&quot;')}"
+          oninput="window.adminChoicesList[${idx}] = this.value">
+        <button type="button" onclick="removeAdminChoiceOption(${idx})" 
+          class="text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 p-2 rounded transition-all cursor-pointer"
+          title="Xóa đáp án này">
+          <i class="fa-solid fa-trash text-xs"></i>
+        </button>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+function addAdminChoiceOption() {
+  if (!window.adminChoicesList) window.adminChoicesList = ["", "", "", ""];
+  window.adminChoicesList.push("");
+  renderAdminChoicesList();
+}
+
+function removeAdminChoiceOption(idx) {
+  if (!window.adminChoicesList) return;
+  if (window.adminChoicesList.length <= 2) {
+    if (window.showToast) window.showToast("Phải có ít nhất 2 đáp án!", "error");
+    return;
+  }
+  window.adminChoicesList.splice(idx, 1);
+  renderAdminChoicesList();
+}
+
+window.addAdminChoiceOption = addAdminChoiceOption;
+window.removeAdminChoiceOption = removeAdminChoiceOption;
+
 function adjustQuestionAnswers() {
   const type = document.getElementById("questionTypeInput").value;
   const optionsGroup = document.getElementById("options-group");
   
   if (type === "multiple_choice") {
     optionsGroup.classList.remove("hidden");
-    document.getElementById("optionA").required = true;
-    document.getElementById("optionB").required = true;
-    document.getElementById("optionC").required = true;
-    document.getElementById("optionD").required = true;
-    document.getElementById("questionAnswerInput").placeholder = "Nhập A, B, C hoặc D làm đáp án đúng";
+    renderAdminChoicesList();
+    document.getElementById("questionAnswerInput").placeholder = "Nhập A, B, C, D... làm đáp án đúng";
   } else {
     optionsGroup.classList.add("hidden");
-    document.getElementById("optionA").required = false;
-    document.getElementById("optionB").required = false;
-    document.getElementById("optionC").required = false;
-    document.getElementById("optionD").required = false;
     
     if (type === "true_false") {
       document.getElementById("questionAnswerInput").placeholder = "Nhập Đúng hoặc Sai làm đáp án đúng";
@@ -898,12 +940,14 @@ function handleQuestionSubmit(e) {
   };
 
   if (type === "multiple_choice") {
-    newQuestion.options = [
-      "A. " + document.getElementById("optionA").value.trim(),
-      "B. " + document.getElementById("optionB").value.trim(),
-      "C. " + document.getElementById("optionC").value.trim(),
-      "D. " + document.getElementById("optionD").value.trim()
-    ];
+    newQuestion.options = window.adminChoicesList.map((val, idx) => {
+      const charCode = String.fromCharCode(65 + idx);
+      const trimmed = val.trim();
+      if (trimmed.match(/^[A-Z]\.\s/i)) {
+        return trimmed;
+      }
+      return `${charCode}. ${trimmed}`;
+    });
   } else if (type === "true_false") {
     newQuestion.options = ["Đúng", "Sai"];
   }
