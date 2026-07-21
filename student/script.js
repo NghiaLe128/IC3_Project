@@ -2543,8 +2543,8 @@ function finishBossHunt() {
     message = `Trận chiến kết thúc! Nhận được ${coins} Coins và ${exp} EXP (bao gồm thưởng tham gia).`;
   }
   
-  currentStudent.coins += coins;
-  currentStudent.exp += exp;
+  currentStudent.coins = (currentStudent.coins || 0) + coins;
+  currentStudent.exp = (currentStudent.exp || 0) + exp;
 
   // Update hunt record for today
   const today = getBossHuntDayKey();
@@ -2676,11 +2676,12 @@ function renderBattleArena() {
   const baseInt = pKey === "eevee" ? 100 : pKey === "pikachu" ? 95 : 80;
   const baseSpd = pKey === "pikachu" ? 100 : pKey === "eevee" ? 90 : 75;
 
-  const currentHp = baseHp + Math.floor(currentStudent.exp / 15);
-  const currentAtk = Math.min(100, baseAtk + Math.floor(currentStudent.exp / 40));
-  const currentDef = Math.min(100, baseDef + Math.floor(currentStudent.exp / 50));
-  const currentInt = Math.min(100, baseInt + Math.floor(currentStudent.exp / 35));
-  const currentSpd = Math.min(100, baseSpd + Math.floor(currentStudent.exp / 45));
+  const currentExp = currentStudent.exp || 0;
+  const currentHp = baseHp + Math.floor(currentExp / 15);
+  const currentAtk = Math.min(100, baseAtk + Math.floor(currentExp / 40));
+  const currentDef = Math.min(100, baseDef + Math.floor(currentExp / 50));
+  const currentInt = Math.min(100, baseInt + Math.floor(currentExp / 35));
+  const currentSpd = Math.min(100, baseSpd + Math.floor(currentExp / 45));
 
   // Update DOM battle stats
   document.getElementById("battle-stat-val-hp").innerText = `${currentHp}/${currentHp}`;
@@ -3127,7 +3128,7 @@ function watchLessonVideo(nodeId) {
     timer.innerText = "✓ Đã xem bài giảng xong";
     
     // Reward EXP once per session
-    currentStudent.exp += 10;
+    currentStudent.exp = (currentStudent.exp || 0) + 10;
     
     // Save to Database
     const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
@@ -3155,8 +3156,8 @@ function submitSkillQuiz(nodeId) {
   if (ans === data.correctAnswer) {
     window.showToast(`🎉 CHÍNH XÁC! Chúc mừng bạn đã trả lời đúng bài học mini-quiz.\nGiải thích: ${data.explanation}\n\n🎁 PHẦN THƯỞNG: +15 EXP | +5 Coin 💰`);
     
-    currentStudent.exp += 15;
-    currentStudent.coins += 5;
+    currentStudent.exp = (currentStudent.exp || 0) + 15;
+    currentStudent.coins = (currentStudent.coins || 0) + 5;
 
     // Save lesson as completed/unlocked in student data
     if (!currentStudent.unlockedLessons.includes(data.lessonId)) {
@@ -3788,8 +3789,8 @@ function useInventoryItem(itemIndex) {
     ];
 
     const chosen = rewardsList[Math.floor(Math.random() * rewardsList.length)];
-    currentStudent.exp += chosen.exp;
-    currentStudent.coins += chosen.coins;
+    currentStudent.exp = (currentStudent.exp || 0) + chosen.exp;
+    currentStudent.coins = (currentStudent.coins || 0) + chosen.coins;
 
     // Remove item from inventory
     currentStudent.ownedItems.splice(itemIndex, 1);
@@ -4137,8 +4138,6 @@ function startTest(testId, mode = "practice") {
     return clonedQ;
   });
 
-  document.getElementById("game-navigation-panel").classList.remove("hidden");
-
   // Pre-initialize examUserAnswers array with empty strings
   examUserAnswers = new Array(testQuestions.length).fill("");
 
@@ -4153,7 +4152,7 @@ function startTest(testId, mode = "practice") {
 
   const activePoke = currentStudent.pokemon || "pikachu";
   const baseHp = activePoke === "bulbasaur" ? 140 : activePoke === "squirtle" ? 130 : 100;
-  playerMaxHP = baseHp + Math.floor(currentStudent.exp / 15);
+  playerMaxHP = baseHp + Math.floor((currentStudent.exp || 0) / 15);
   playerCurrentHP = playerMaxHP;
   
   bossMaxHP = testQuestions.length * 100;
@@ -5235,7 +5234,7 @@ function executeSubmitExamCalculation() {
     document.getElementById("battle-scene-player-status").innerText = "CHIẾN THẮNG! 🏆";
   } else {
     document.getElementById("battle-scene-boss-status").innerText = "HÌ HÌ...";
-    playerCurrentHP = Math.max(0, playerMaxHP - ((testQuestions.length - correctAnswersCount) * 20));
+    playerCurrentHP = Math.max(0, playerMaxHP - ((testQuestions.length - correctAnswersCount) * 5));
     document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
     const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
     document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
@@ -5573,7 +5572,7 @@ function nextGameQuestion() {
       }
 
       // Player takes damage!
-      playerCurrentHP = Math.max(0, playerCurrentHP - 20);
+      playerCurrentHP = Math.max(0, playerCurrentHP - 5);
       document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
       const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
       document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
@@ -5586,9 +5585,9 @@ function nextGameQuestion() {
         return;
       }
 
-      document.getElementById("battle-scene-player-status").innerText = "-20 HP! HỰ!";
+      document.getElementById("battle-scene-player-status").innerText = "-5 HP! HỰ!";
       document.getElementById("battle-scene-boss-status").innerText = "TẤN CÔNG! 💥";
-      document.getElementById("battle-scene-log").innerHTML = `❌ <span class="text-red-400 font-bold">SAI MẤT RỒI!</span> Boss phản công vũ dội khiến Thần thú của bạn tổn thất <span class="text-red-400 font-bold">20 HP</span>! Hãy cố gắng ở câu kế tiếp!`;
+      document.getElementById("battle-scene-log").innerHTML = `❌ <span class="text-red-400 font-bold">SAI MẤT RỒI!</span> Boss phản công vũ dội khiến Thần thú của bạn tổn thất <span class="text-red-400 font-bold">5 HP</span>! Hãy cố gắng ở câu kế tiếp!`;
     }
 
     // Render explanation details
@@ -5713,8 +5712,8 @@ function finishTest() {
   expGained = Math.round(expGained);
 
   // Apply rewards to student data
-  currentStudent.exp += expGained;
-  currentStudent.coins += coinsGained;
+  currentStudent.exp = (currentStudent.exp || 0) + expGained;
+  currentStudent.coins = (currentStudent.coins || 0) + coinsGained;
   currentStudent.bananas = (currentStudent.bananas || 0) + bananasGained;
   
   // Merge new badges

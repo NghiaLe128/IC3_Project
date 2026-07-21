@@ -783,6 +783,8 @@ function renderActiveQuestion() {
   document.getElementById("progressBarFill").style.width = `${progressPercent}%`;
   document.getElementById("sidebarProgressPercentText").innerText = `Tiến trình làm bài: ${progressPercent}%`;
   document.getElementById("sidebarProgressBarFill").style.width = `${progressPercent}%`;
+  document.getElementById("mobile-sidebarProgressPercentText").innerText = `Tiến trình làm bài: ${progressPercent}%`;
+  document.getElementById("mobile-sidebarProgressBarFill").style.width = `${progressPercent}%`;
   
   // Render question text
   document.getElementById("questionBody").innerHTML = q.question;
@@ -1944,7 +1946,9 @@ window.handleCloseScoreReport = function() {
 // 17. Interactive Sidebar Question Navigation Grid
 function renderSidebarListGrid() {
   const grid = document.getElementById("sidebarQuestionListGrid");
+  const mobileGrid = document.getElementById("mobile-sidebarQuestionListGrid");
   grid.innerHTML = "";
+  if (mobileGrid) mobileGrid.innerHTML = "";
   
   let done = 0;
   let todo = 0;
@@ -2015,8 +2019,15 @@ function renderSidebarListGrid() {
       }
       activeQuestionIndex = idx;
       renderActiveQuestion();
+      if (typeof toggleMobileNavPanel === 'function') toggleMobileNavPanel(false);
     };
     grid.appendChild(circle);
+    
+    if (mobileGrid) {
+      const circleClone = circle.cloneNode(true);
+      circleClone.onclick = circle.onclick;
+      mobileGrid.appendChild(circleClone);
+    }
   });
   
   document.getElementById("sidebarStatDone").innerText = done;
@@ -2026,6 +2037,27 @@ function renderSidebarListGrid() {
 function updateSidebarGridCircle(index, state) {
   renderSidebarListGrid(); // Quick rebuild of grid to keep indices synchronized
 }
+
+window.toggleMobileNavPanel = function(forceState) {
+  const drawer = document.getElementById('mobile-nav-drawer');
+  if (!drawer) return;
+  const container = drawer.querySelector('.absolute');
+  
+  const show = forceState !== undefined ? forceState : drawer.classList.contains('hidden');
+  
+  if (show) {
+    drawer.classList.remove('hidden');
+    drawer.offsetHeight;
+    drawer.classList.remove('opacity-0');
+    container.classList.remove('translate-y-full');
+  } else {
+    drawer.classList.add('opacity-0');
+    container.classList.add('translate-y-full');
+    setTimeout(() => {
+      drawer.classList.add('hidden');
+    }, 300);
+  }
+};
 
 window.confirmExitPlaying = function() {
   Swal.fire({

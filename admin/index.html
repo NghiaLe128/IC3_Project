@@ -43,65 +43,70 @@
       }
     </style>
   </head>
-  <body class="bg-admin-dark text-slate-100 min-h-screen flex overflow-hidden">
-    
+  <body class="bg-admin-dark text-slate-100 min-h-screen flex overflow-hidden relative">
+
     <!-- Sidebar -->
-    <aside class="w-64 bg-white/5 border-r border-white/10 flex flex-col justify-between shrink-0 h-screen z-20 backdrop-blur-md">
+    <aside id="mobile-sidebar" class="w-64 bg-slate-900 md:bg-white/5 border-r border-slate-800 md:border-white/10 flex flex-col justify-between shrink-0 h-screen z-50 backdrop-blur-md absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300">
       <div>
         <!-- Logo Header -->
-        <div class="px-6 py-5 border-b border-slate-800 flex items-center gap-3">
-          <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20">
-            A
+        <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20">
+              A
+            </div>
+            <div>
+              <h1 class="font-poppins font-bold text-base tracking-tight text-white leading-none">IC3 ADMIN</h1>
+              <span class="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Portal quản trị</span>
+            </div>
           </div>
-          <div>
-            <h1 class="font-poppins font-bold text-base tracking-tight text-white leading-none">IC3 ADMIN</h1>
-            <span class="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Portal quản trị</span>
-          </div>
+          <button onclick="document.getElementById('mobile-sidebar').classList.add('-translate-x-full')" class="md:hidden text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark text-xl"></i>
+          </button>
         </div>
 
         <!-- Navigation Menu -->
-        <nav class="px-3 py-4 space-y-1">
-          <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active">
+        <nav class="px-3 py-4 space-y-1 overflow-y-auto" style="max-height: calc(100vh - 180px);">
+          <button onclick="switchTab('dashboard'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-dashboard" class="nav-btn active">
             <i class="fa-solid fa-chart-line w-5"></i> Dashboard
           </button>
-          <button onclick="switchTab('students')" id="nav-students" class="nav-btn">
+          <button onclick="switchTab('students'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-students" class="nav-btn">
             <i class="fa-solid fa-graduation-cap w-5"></i> Quản lý học sinh
           </button>
-          <button onclick="switchTab('teachers')" id="nav-teachers" class="nav-btn">
+          <button onclick="switchTab('teachers'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-teachers" class="nav-btn">
             <i class="fa-solid fa-chalkboard-user w-5"></i> Quản lý giáo viên
           </button>
-          <button onclick="switchTab('ic3-levels')" id="nav-ic3-levels" class="nav-btn">
+          <button onclick="switchTab('ic3-levels'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-ic3-levels" class="nav-btn">
             <i class="fa-solid fa-book-open w-5"></i> Quản lý môn IC3
           </button>
-          <button onclick="switchTab('tests')" id="nav-tests" class="nav-btn">
+          <button onclick="switchTab('tests'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-tests" class="nav-btn">
             <i class="fa-solid fa-file-signature w-5"></i> Quản lý bộ đề
           </button>
-          <button onclick="switchTab('ranking')" id="nav-ranking" class="nav-btn">
+          <button onclick="switchTab('ranking'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-ranking" class="nav-btn">
             <i class="fa-solid fa-trophy w-5"></i> Ranking
           </button>
-          <button onclick="switchTab('rewards')" id="nav-rewards" class="nav-btn">
+          <button onclick="switchTab('rewards'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-rewards" class="nav-btn">
             <i class="fa-solid fa-gift w-5"></i> Phần thưởng
           </button>
-          <button onclick="switchTab('bosses')" id="nav-bosses" class="nav-btn">
+          <button onclick="switchTab('bosses'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-bosses" class="nav-btn">
             <i class="fa-solid fa-dragon w-5 text-red-500"></i> Quản lý Boss
           </button>
-          <button onclick="switchTab('pokemon-evo')" id="nav-pokemon-evo" class="nav-btn">
+          <button onclick="switchTab('pokemon-evo'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-pokemon-evo" class="nav-btn">
             <i class="fa-solid fa-paw w-5 text-yellow-400"></i> Tiến Hóa Pokemon
           </button>
-          <button onclick="switchTab('lock-tabs')" id="nav-lock-tabs" class="nav-btn">
+          <button onclick="switchTab('lock-tabs'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-lock-tabs" class="nav-btn">
             <i class="fa-solid fa-lock w-5 text-red-400"></i> Khóa/Mở Tab Học Sinh
           </button>
-          <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn">
+          <button onclick="switchTab('settings'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-settings" class="nav-btn">
             <i class="fa-solid fa-gear w-5"></i> Cài đặt
           </button>
-          <button onclick="switchTab('backup-restore')" id="nav-backup-restore" class="nav-btn">
+          <button onclick="switchTab('backup-restore'); document.getElementById('mobile-sidebar').classList.add('-translate-x-full');" id="nav-backup-restore" class="nav-btn">
             <i class="fa-solid fa-database w-5 text-emerald-400"></i> Sao lưu/Khôi phục
           </button>
         </nav>
       </div>
 
       <!-- Current User Profile / Logout -->
-      <div class="p-4 border-t border-slate-800 bg-slate-900/50">
+      <div class="p-4 border-t border-slate-800 bg-slate-900/50 shrink-0">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-9 h-9 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center font-bold">
             AD
@@ -118,18 +123,23 @@
     </aside>
 
     <!-- Main Content Layout -->
-    <div class="flex-grow flex flex-col h-screen overflow-hidden">
+    <div class="flex-grow flex flex-col w-full min-w-0 h-screen overflow-hidden">
       
       <!-- Top Navbar -->
-      <header class="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between shrink-0">
-        <h2 id="currentTabTitle" class="font-poppins font-bold text-lg text-white">Tổng quan hệ thống</h2>
+      <header class="h-16 bg-slate-900 border-b border-slate-800 px-4 md:px-6 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+          <button onclick="document.getElementById('mobile-sidebar').classList.remove('-translate-x-full')" class="md:hidden text-slate-400 hover:text-white p-2">
+            <i class="fa-solid fa-bars text-xl"></i>
+          </button>
+          <h2 id="currentTabTitle" class="font-poppins font-bold text-lg text-white">Tổng quan hệ thống</h2>
+        </div>
         <div class="flex items-center gap-4">
           <!-- Live Time Clock -->
           <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
             <i class="fa-regular fa-clock text-blue-400"></i>
             <span id="liveClock">2026-07-09 17:36</span>
           </div>
-          <span class="px-2.5 py-1 text-xs font-bold rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">Enterprise Level</span>
+          <span class="hidden sm:inline-block px-2.5 py-1 text-xs font-bold rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">Enterprise Level</span>
           <button onclick="logoutAdmin()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-900/30 text-slate-300 hover:text-red-200 border border-slate-700 transition-all text-xs font-bold">
             <i class="fa-solid fa-right-from-bracket"></i>
             <span class="hidden md:inline">Đăng xuất</span>
