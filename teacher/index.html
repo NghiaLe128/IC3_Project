@@ -470,11 +470,28 @@
         <!-- ==================== TAB: RESULTS ==================== -->
         <section id="tab-results" class="tab-content space-y-6 hidden">
           <div class="bg-[#1a1c2e] border border-indigo-500/30 rounded-2xl p-6 shadow-sm">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mb-4">
               <h3 class="font-poppins font-bold text-base text-indigo-50"><i class="fa-solid fa-clipboard-check text-emerald-500 mr-2"></i>Lịch sử làm bài thi của học sinh trong lớp</h3>
-              <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-white/5">
-                <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
-                <input type="text" id="resultsSearch" placeholder="Tìm tên/email..." oninput="window.teacherPagination.results = 1; renderResultsTable()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-40">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Từ lúc -->
+                <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1 rounded-lg border border-indigo-500/10">
+                  <span class="text-[10px] text-indigo-300 font-bold uppercase">Từ:</span>
+                  <input type="datetime-local" id="resultsFromTime" onchange="window.teacherPagination.results = 1; renderResultsTable()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none focus:ring-0 [color-scheme:dark] w-38">
+                </div>
+                <!-- Đến lúc -->
+                <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1 rounded-lg border border-indigo-500/10">
+                  <span class="text-[10px] text-indigo-300 font-bold uppercase">Đến:</span>
+                  <input type="datetime-local" id="resultsToTime" onchange="window.teacherPagination.results = 1; renderResultsTable()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none focus:ring-0 [color-scheme:dark] w-38">
+                </div>
+                <!-- Clear Button -->
+                <button onclick="clearResultsTimeFilters()" class="px-2.5 py-1 text-xs font-medium text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-filter-circle-xmark"></i> Xóa lọc
+                </button>
+                <!-- Search -->
+                <div class="flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1 rounded-lg border border-indigo-500/10">
+                  <i class="fa-solid fa-magnifying-glass text-indigo-400 text-xs"></i>
+                  <input type="text" id="resultsSearch" placeholder="Tìm tên/email..." oninput="window.teacherPagination.results = 1; renderResultsTable()" class="bg-transparent border-0 text-xs font-medium text-white focus:outline-none placeholder-indigo-400/50 w-32">
+                </div>
               </div>
             </div>
             

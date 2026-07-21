@@ -1216,7 +1216,9 @@ function renderRankingList() {
     else if (index === 1) medal = `<span class="w-8 flex justify-center text-xl">🥈</span>`;
     else if (index === 2) medal = `<span class="w-8 flex justify-center text-xl">🥉</span>`;
 
-    const badgesRendered = std.badges.map(b => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px]" title="${b}">${badgeIcons[b] || "🏅"} ${b}</span>`).join(" ");
+    const exp = std.exp || 0;
+    const computedRank = std.rank || (exp >= 3000 ? "Diamond" : exp >= 1500 ? "Gold" : exp >= 500 ? "Silver" : "Bronze");
+    const badgesRendered = (std.badges || []).map(b => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px]" title="${b}">${badgeIcons[b] || "🏅"} ${b}</span>`).join(" ");
 
     const div = document.createElement("div");
     div.className = "flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-850 border border-slate-800 hover:border-slate-700 transition-all gap-4";
@@ -1229,7 +1231,7 @@ function renderRankingList() {
         <div>
           <div class="flex items-center gap-2">
             <h4 class="font-bold text-sm text-white">${std.name}</h4>
-            <span class="px-2 py-0.5 text-[9px] font-bold rounded-full border ${rankColor(std.rank)}">${std.rank}</span>
+            <span class="px-2 py-0.5 text-[9px] font-bold rounded-full border ${rankColor(computedRank)}">${computedRank}</span>
           </div>
           <p class="text-[10px] text-slate-500 font-mono">${std.email}</p>
         </div>

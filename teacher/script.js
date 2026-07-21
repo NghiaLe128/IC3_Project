@@ -438,7 +438,9 @@ function renderOverviewProgressTable(classStudents) {
   }
 
   classStudents.forEach(std => {
-    const badgesRendered = std.badges.map(b => `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 border border-indigo-500/30 text-[10px] text-indigo-200 font-bold" title="${b}">${badgeIcons[b] || "🏅"} ${b}</span>`).join(" ");
+    const exp = std.exp || 0;
+    const computedRank = std.rank || (exp >= 3000 ? "Diamond" : exp >= 1500 ? "Gold" : exp >= 500 ? "Silver" : "Bronze");
+    const badgesRendered = (std.badges || []).map(b => `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 border border-indigo-500/30 text-[10px] text-indigo-200 font-bold" title="${b}">${badgeIcons[b] || "🏅"} ${b}</span>`).join(" ");
 
     const tr = document.createElement("tr");
     tr.className = "hover:bg-[#131424]/80 transition-all text-xs";
@@ -448,14 +450,14 @@ function renderOverviewProgressTable(classStudents) {
         <span class="text-[9px] text-indigo-300 font-mono">${std.email}</span>
       </td>
       <td class="px-4 py-3.5"><span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded font-bold">${std.level}</span></td>
-      <td class="px-4 py-3.5 font-medium text-indigo-200">${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon}</td>
+      <td class="px-4 py-3.5 font-medium text-indigo-200">${window.pokemonAvatars[std.pokemon] || "🦊"} ${window.pokemonNames[std.pokemon] || std.pokemon || "Chưa chọn"}</td>
       <td class="px-4 py-3.5">
         <div class="flex items-center gap-2">
           <span class="font-mono text-xs font-bold text-indigo-50">${std.exp} EXP</span>
           <span class="text-[10px] text-yellow-600"><i class="fa-solid fa-coins"></i> ${std.coins || 0}</span>
         </div>
       </td>
-      <td class="px-4 py-3.5"><span class="font-bold text-indigo-50">${std.rank}</span></td>
+      <td class="px-4 py-3.5"><span class="font-bold text-indigo-50">${computedRank}</span></td>
       <td class="px-4 py-3.5 flex items-center gap-1.5 flex-wrap">${badgesRendered || '<span class="text-indigo-300 italic">Chưa đạt</span>'}</td>
     `;
     body.appendChild(tr);
@@ -1606,7 +1608,17 @@ function deleteCurrentTestSet() {
 
 
 // ==================== RESULTS HISTORY ====================
+function clearResultsTimeFilters() {
+  const fromTimeInput = document.getElementById("resultsFromTime");
+  const toTimeInput = document.getElementById("resultsToTime");
+  if (fromTimeInput) fromTimeInput.value = "";
+  if (toTimeInput) toTimeInput.value = "";
+  window.teacherPagination.results = 1;
+  renderResultsTable();
+}
+
 function renderResultsTable() {
+  const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
   const classStudents = getClassStudents(activeClassId);
   const emails = classStudents.map(s => s.email);
 
@@ -1627,6 +1639,38 @@ function renderResultsTable() {
       return nameMatch || emailMatch || testMatch;
     });
   }
+
+  // Filter by from/to time range
+  const fromTimeInput = document.getElementById("resultsFromTime");
+  const toTimeInput = document.getElementById("resultsToTime");
+  const fromTimeVal = fromTimeInput ? fromTimeInput.value : "";
+  const toTimeVal = toTimeInput ? toTimeInput.value : "";
+
+  if (fromTimeVal || toTimeVal) {
+    classScores = classScores.filter(sc => {
+      if (!sc.date) return false;
+      const scTime = new Date(sc.date.replace(/-/g, "/")).getTime();
+      if (fromTimeVal) {
+        const fromTime = new Date(fromTimeVal).getTime();
+        if (scTime < fromTime) return false;
+      }
+      if (toTimeVal) {
+        const toTime = new Date(toTimeVal).getTime();
+        if (scTime > toTime) return false;
+      }
+      return true;
+    });
+  }
+
+  // Deduplicate and keep the highest score for duplicate (student, test) attempts
+  const uniqueScoresMap = {};
+  classScores.forEach(sc => {
+    const key = `${sc.studentEmail}_${sc.testId}`;
+    if (!uniqueScoresMap[key] || sc.score > uniqueScoresMap[key].score) {
+      uniqueScoresMap[key] = sc;
+    }
+  });
+  classScores = Object.values(uniqueScoresMap);
 
   const body = document.getElementById("teacher-results-table-body");
   body.innerHTML = "";
@@ -1723,6 +1767,9 @@ function renderClassRanking() {
     else if (index === 1) medal = `<span class="w-8 flex justify-center text-xl">🥈</span>`;
     else if (index === 2) medal = `<span class="w-8 flex justify-center text-xl">🥉</span>`;
 
+    const exp = std.exp || 0;
+    const computedRank = std.rank || (exp >= 3000 ? "Diamond" : exp >= 1500 ? "Gold" : exp >= 500 ? "Silver" : "Bronze");
+
     const div = document.createElement("div");
     div.className = "flex items-center justify-between p-4 rounded-xl bg-[#1a1c2e] border border-indigo-500/30 hover:border-indigo-500/30 hover:shadow-sm transition-all gap-4";
     div.innerHTML = `
@@ -1734,7 +1781,7 @@ function renderClassRanking() {
         <div>
           <div class="flex items-center gap-2">
             <h4 class="font-bold text-sm text-indigo-50">${std.name}</h4>
-            <span class="px-1.5 py-0.5 text-[8px] font-bold bg-slate-100 border border-indigo-500/30 text-indigo-200 rounded-full">${std.rank}</span>
+            <span class="px-1.5 py-0.5 text-[8px] font-bold bg-slate-100 border border-indigo-500/30 text-indigo-200 rounded-full">${computedRank}</span>
           </div>
           <span class="text-[10px] text-indigo-300 font-mono block">${std.email}</span>
         </div>
@@ -3227,6 +3274,11 @@ function selectActiveQuestion(qId) {
   const q = questions.find(item => item.id === qId);
   if (!q) return;
 
+  const viewMode = document.getElementById("question-view-mode");
+  const editForm = document.getElementById("question-edit-form");
+  if (viewMode) viewMode.classList.remove("hidden");
+  if (editForm) editForm.classList.add("hidden");
+
   const viewCard = document.getElementById("view-question-card");
   const placeholder = document.getElementById("view-placeholder");
   if (viewCard) viewCard.classList.remove("hidden");
@@ -3257,7 +3309,7 @@ function selectActiveQuestion(qId) {
     optionsContainer.innerHTML = "";
     
     if (q.type === "choice" || q.type === "true_false" || q.type === "multiple_choice") {
-      const opts = q.options || [];
+      const opts = Array.isArray(q.options) ? q.options : [];
       opts.forEach((opt, idx) => {
         const isCorrect = idx === q.correctIndex || opt === q.answer || (q.answer === "Đúng" && idx === 0) || (q.answer === "Sai" && idx === 1);
         const div = document.createElement("div");
@@ -3266,16 +3318,17 @@ function selectActiveQuestion(qId) {
         optionsContainer.appendChild(div);
       });
     } else if (q.type === "multi_choice") {
-      const opts = q.options || [];
+      const opts = Array.isArray(q.options) ? q.options : [];
+      const correctIndices = Array.isArray(q.correctIndices) ? q.correctIndices : [];
       opts.forEach((opt, idx) => {
-        const isCorrect = (q.correctIndices || []).includes(idx);
+        const isCorrect = correctIndices.includes(idx);
         const div = document.createElement("div");
         div.className = `p-3 rounded-xl border text-xs font-semibold ${isCorrect ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-slate-900/60 border-indigo-500/10 text-indigo-100'}`;
         div.innerText = `[${isCorrect ? '✓' : ' '}] ${opt}`;
         optionsContainer.appendChild(div);
       });
     } else if (q.type === "image_choice") {
-      const opts = q.options || [];
+      const opts = Array.isArray(q.options) ? q.options : [];
       const grid = document.createElement("div");
       grid.className = "grid grid-cols-2 gap-3";
       opts.forEach((optImg, idx) => {
@@ -3287,8 +3340,8 @@ function selectActiveQuestion(qId) {
       });
       optionsContainer.appendChild(grid);
     } else if (q.type === "drag_text") {
-      const rows = q.rows || [];
-      const correctAnswers = q.correctAnswers || [];
+      const rows = Array.isArray(q.rows) ? q.rows : [];
+      const correctAnswers = Array.isArray(q.correctAnswers) ? q.correctAnswers : [];
       rows.forEach((row, idx) => {
         const rowLabel = row.label || row.text || row;
         const correctVal = correctAnswers[idx] || "";
@@ -3298,8 +3351,8 @@ function selectActiveQuestion(qId) {
         optionsContainer.appendChild(div);
       });
     } else if (q.type === "drag_image_text") {
-      const leftImages = q.leftImages || [];
-      const correctAnswers = q.correctAnswers || [];
+      const leftImages = Array.isArray(q.leftImages) ? q.leftImages : [];
+      const correctAnswers = Array.isArray(q.correctAnswers) ? q.correctAnswers : [];
       const grid = document.createElement("div");
       grid.className = "grid grid-cols-2 gap-3";
       leftImages.forEach((imgUrl, idx) => {
@@ -3311,9 +3364,9 @@ function selectActiveQuestion(qId) {
       });
       optionsContainer.appendChild(grid);
     } else if (q.type === "table_match") {
-      const rows = q.rows || [];
-      const correctAnswers = q.correctAnswers || [];
-      const cols = q.options || [];
+      const rows = Array.isArray(q.rows) ? q.rows : [];
+      const correctAnswers = Array.isArray(q.correctAnswers) ? q.correctAnswers : [];
+      const cols = Array.isArray(q.options) ? q.options : [];
       rows.forEach((row, idx) => {
         const correctColIdx = correctAnswers[idx];
         const correctColLabel = cols[correctColIdx] || "";
@@ -3324,7 +3377,7 @@ function selectActiveQuestion(qId) {
       });
     } else if (q.type === "hotspot") {
       const imgUrl = q.imageUrl || "";
-      const hotspots = q.hotspots || [];
+      const hotspots = Array.isArray(q.hotspots) ? q.hotspots : [];
       const div = document.createElement("div");
       div.className = "relative inline-block border border-indigo-500/20 rounded-xl overflow-hidden self-center mx-auto";
       div.innerHTML = `
@@ -3348,9 +3401,12 @@ function selectActiveQuestion(qId) {
     if (q.type === "choice" || q.type === "true_false") {
       viewAnswer.innerText = q.answer || (q.correctIndex !== undefined ? (q.options ? q.options[q.correctIndex] : q.correctIndex) : "");
     } else if (q.type === "multi_choice") {
-      viewAnswer.innerText = (q.correctIndices || []).map(idx => q.options ? q.options[idx] : idx).join(", ");
+      const correctIndices = Array.isArray(q.correctIndices) ? q.correctIndices : [];
+      viewAnswer.innerText = correctIndices.map(idx => q.options ? q.options[idx] : idx).join(", ");
     } else if (q.type === "image_choice") {
       viewAnswer.innerText = `Phương án ảnh số ${q.correctIndex !== undefined ? q.correctIndex + 1 : ""}`;
+    } else if (q.type === "fill_blank") {
+      viewAnswer.innerText = q.answer || "";
     } else {
       viewAnswer.innerText = "Xem chi tiết phương án ghép khớp ở trên";
     }
@@ -3396,7 +3452,7 @@ function closeCustomTestGeneratorModal() {
 
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
-  adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction,
+  clearResultsTimeFilters, adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction,
   openCustomTestGeneratorModal, closeCustomTestGeneratorModal, renderCustomTestQuestionsList, updateCustomTestSelectedCount, handleSelectRange, handleCustomTestFormSubmit,
   renderLockTabsTab, toggleTabLockState
 });
