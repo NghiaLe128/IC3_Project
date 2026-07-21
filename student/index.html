@@ -773,10 +773,10 @@
     </main>
 
     <!-- ==================== SCREEN: GAME PLAYING TEST MODE (FULL SCREEN OVERLAY) ==================== -->
-    <section id="game-playing-screen" class="fixed inset-0 z-50 overflow-y-auto hidden flex flex-row p-3 sm:p-5 md:p-6" style="background: radial-gradient(circle at 50% 50%, #0d1527 0%, #050811 100%);">
+    <section id="game-playing-screen" class="fixed inset-0 z-50 overflow-hidden hidden flex flex-row p-3 sm:p-5 md:p-6" style="background: radial-gradient(circle at 50% 50%, #0d1527 0%, #050811 100%);">
       
       <!-- Main Content Area -->
-      <div id="game-container" class="flex-grow flex flex-col justify-between max-w-4xl mx-auto w-full gap-5">
+      <div id="game-container" class="flex-grow flex flex-col justify-between max-w-4xl mx-auto w-full gap-5 h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-indigo-500/20 scrollbar-track-transparent">
         <!-- Test Header / Progress indicators -->
         <header class="w-full flex justify-between items-center gap-4 py-3 border-b border-indigo-950">
           <div>
@@ -928,7 +928,7 @@
       </div>
 
       <!-- Navigation Sidebar -->
-      <div id="game-navigation-panel" class="hidden md:flex flex-col w-72 bg-[#0c1224]/90 border-l border-indigo-500/20 p-6 shrink-0 overflow-y-auto justify-between select-none shadow-2xl">
+      <div id="game-navigation-panel" class="hidden md:flex flex-col w-72 bg-[#0c1224]/90 border-l border-indigo-500/20 p-6 shrink-0 h-full overflow-y-auto justify-between select-none shadow-2xl">
         <div class="space-y-6">
           <!-- Sidebar Header -->
           <div class="border-b border-indigo-950 pb-4">
@@ -1543,6 +1543,17 @@
         </div>
       </div>
     </div>
+
+    <!-- ==================== IMAGE LIGHTBOX MODAL ==================== -->
+    <div id="image-lightbox-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/95 backdrop-blur-md transition-opacity duration-300 opacity-0 cursor-zoom-out" onclick="closeImageLightbox()">
+      <button onclick="event.stopPropagation(); closeImageLightbox();" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-white/70 hover:text-white transition-all text-3xl sm:text-4xl p-2 focus:outline-none cursor-pointer hover:scale-110 z-[210]" aria-label="Close lightbox">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="max-w-[90vw] max-h-[90vh] flex items-center justify-center p-2 relative" onclick="event.stopPropagation()">
+        <img id="lightbox-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-white/10 select-none animate-scale-up">
+      </div>
+    </div>
+
     <!-- Database Script Initializer -->
     <script type="module" src="/assets/js/db-init.js"></script>
     <script type="module" src="script.js"></script>

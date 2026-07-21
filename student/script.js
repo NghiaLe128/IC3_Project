@@ -1349,19 +1349,34 @@ function switchStudentTab(tabId) {
     return;
   }
 
-  // Check if tab is locked for student's class
+  // Check if tab is locked for student's class (including master "Tất cả lớp" for that school)
   if (currentStudent && currentStudent.classId) {
     const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
     const studentClass = classes.find(c => c.id === currentStudent.classId);
-    if (studentClass && studentClass.lockedTabs && studentClass.lockedTabs.includes(tabId)) {
-      Swal.fire({
-        title: 'Tính năng đang khóa!',
-        html: `Thầy cô giáo đã tạm thời khóa tính năng này đối với lớp <strong class="text-rose-500">${studentClass.name}</strong>.<br>Vui lòng thử lại sau nhé!`,
-        icon: 'warning',
-        confirmButtonText: 'Đã hiểu',
-        confirmButtonColor: '#e11d48'
-      });
-      return;
+    if (studentClass) {
+      let isLocked = false;
+      let lockSourceName = studentClass.name;
+      
+      if (studentClass.lockedTabs && studentClass.lockedTabs.includes(tabId)) {
+        isLocked = true;
+      } else if (studentClass.sheetSchool) {
+        const schoolMasterClass = classes.find(c => c.sheetSchool === studentClass.sheetSchool && (c.sheetClassName === "Tất cả lớp" || c.id.endsWith("_tat_ca_lop")));
+        if (schoolMasterClass && schoolMasterClass.lockedTabs && schoolMasterClass.lockedTabs.includes(tabId)) {
+          isLocked = true;
+          lockSourceName = schoolMasterClass.name;
+        }
+      }
+      
+      if (isLocked) {
+        Swal.fire({
+          title: 'Tính năng đang khóa!',
+          html: `Thầy cô giáo đã tạm thời khóa tính năng này đối với <strong class="text-rose-500">${lockSourceName}</strong>.<br>Vui lòng thử lại sau nhé!`,
+          icon: 'warning',
+          confirmButtonText: 'Đã hiểu',
+          confirmButtonColor: '#e11d48'
+        });
+        return;
+      }
     }
   }
 
@@ -4410,6 +4425,7 @@ function renderGameQuestion() {
     q.rows.forEach((row, rIdx) => {
       const placed = savedAnswers[rIdx];
       const correct = q.correctAnswers[rIdx];
+      const rowLabel = (row && typeof row === 'object') ? (row.label || row.text || '') : row;
       let slotClass = "flex items-center justify-center min-w-[220px] min-h-14 h-auto py-3 px-5 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-[#131b2e]/40 text-sm font-black text-indigo-300 cursor-pointer hover:border-indigo-500 hover:bg-[#131b2e]/80 transition-all text-center break-words whitespace-normal";
       let slotText = "Nhấp từ khóa để điền...";
       let tipHtml = "";
@@ -4430,7 +4446,7 @@ function renderGameQuestion() {
 
       rowsHtml += `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#0f172a]/60 border border-slate-800/60 gap-3">
-          <span class="text-sm font-bold text-slate-200 flex-1 min-w-0 break-words whitespace-normal">${row}</span>
+          <span class="text-sm font-bold text-slate-200 flex-1 min-w-0 break-words whitespace-normal">${rowLabel}</span>
           <div class="shrink-0 w-full sm:w-auto">
             <div id="drag-text-target-${rIdx}" onclick="clearDraggedText(${rIdx})" 
                  class="${slotClass} w-full sm:w-auto">
@@ -4583,6 +4599,7 @@ function renderGameQuestion() {
     q.rows.forEach((row, rIdx) => {
       const placedIdx = savedAnswers[rIdx];
       const correctIdx = q.correctAnswers[rIdx];
+      const rowLabel = (row && typeof row === 'object') ? (row.label || row.text || '') : row;
       
       let selectClass = "w-full bg-[#131b2e]/60 border-2 border-slate-800/90 focus:border-indigo-500 text-sm font-bold text-slate-100 rounded-2xl p-3.5 outline-none transition-all cursor-pointer whitespace-normal break-words h-auto leading-relaxed";
       let disabledAttr = "";
@@ -4605,7 +4622,7 @@ function renderGameQuestion() {
 
       tableHtml += `
         <tr class="border-b border-slate-900 hover:bg-white/2 transition-colors">
-          <td class="p-5 text-sm font-black text-slate-200 break-words whitespace-normal">${row}</td>
+          <td class="p-5 text-sm font-black text-slate-200 break-words whitespace-normal">${rowLabel}</td>
           <td class="p-5 max-w-xs md:max-w-md">
             <select id="table-match-select-${rIdx}" onchange="changeTableMatchSelect(${rIdx})" ${disabledAttr}
                     class="${selectClass} max-w-full">
@@ -7634,7 +7651,21 @@ function updateStudentTabsLockUI() {
   
   const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
   const studentClass = classes.find(c => c.id === currentStudent.classId);
-  const lockedTabs = (studentClass && studentClass.lockedTabs) || [];
+  
+  let lockedTabs = [];
+  if (studentClass) {
+    lockedTabs = [...(studentClass.lockedTabs || [])];
+    if (studentClass.sheetSchool) {
+      const schoolMasterClass = classes.find(c => c.sheetSchool === studentClass.sheetSchool && (c.sheetClassName === "Tất cả lớp" || c.id.endsWith("_tat_ca_lop")));
+      if (schoolMasterClass && schoolMasterClass.lockedTabs) {
+        schoolMasterClass.lockedTabs.forEach(tab => {
+          if (!lockedTabs.includes(tab)) {
+            lockedTabs.push(tab);
+          }
+        });
+      }
+    }
+  }
   
   const tabs = [
     { id: 'dashboard', name: 'Bảng Tin', iconClass: 'fa-chart-pie' },
@@ -7736,3 +7767,74 @@ function closeCatchScreen() {
   loadStudentProfile();
   renderBattleArena();
 }
+
+// IMAGE ZOOM LIGHTBOX LOGIC
+function openImageLightbox(src) {
+  const modal = document.getElementById("image-lightbox-modal");
+  const img = document.getElementById("lightbox-img");
+  if (!modal || !img) return;
+  
+  img.src = src;
+  modal.classList.remove("hidden");
+  // Force reflow
+  modal.offsetWidth;
+  modal.classList.add("opacity-100");
+  modal.classList.remove("opacity-0");
+  
+  document.addEventListener("keydown", handleLightboxKeyDown);
+}
+
+function closeImageLightbox() {
+  const modal = document.getElementById("image-lightbox-modal");
+  if (!modal) return;
+  
+  modal.classList.add("opacity-0");
+  modal.classList.remove("opacity-100");
+  
+  setTimeout(() => {
+    modal.classList.add("hidden");
+    const img = document.getElementById("lightbox-img");
+    if (img) img.src = "";
+  }, 300);
+  
+  document.removeEventListener("keydown", handleLightboxKeyDown);
+}
+
+function handleLightboxKeyDown(e) {
+  if (e.key === "Escape") {
+    closeImageLightbox();
+  }
+}
+
+// Global delegated click listener for question images
+document.addEventListener("click", function(e) {
+  const img = e.target;
+  if (img.tagName !== "IMG") return;
+  
+  // Exclude non-question, non-option, non-hotspot HUD/UI elements
+  if (
+    img.id === "battle-scene-player-img" ||
+    img.id === "battle-scene-boss-img" ||
+    img.id === "battle-scene-player-avatar" ||
+    img.id === "battle-scene-boss-avatar" ||
+    img.classList.contains("no-zoom") ||
+    img.closest(".companion-box") ||
+    img.closest(".hud-panel") ||
+    img.closest(".inventory-item") ||
+    img.src.includes("poke-ball") ||
+    img.src.includes("items")
+  ) {
+    return;
+  }
+  
+  // Only allow zooming inside the gameplay, test review, or boss hunting screen
+  const isZoomableArea = img.closest("#game-playing-screen") || img.closest("#boss-hunting-screen") || img.closest("#game-victory-screen");
+  if (isZoomableArea) {
+    openImageLightbox(img.src);
+  }
+});
+
+// EXPOSE TO WINDOW
+window.openImageLightbox = openImageLightbox;
+window.closeImageLightbox = closeImageLightbox;
+
