@@ -6163,76 +6163,176 @@ function switchProfileCustomTab(tabId) {
   renderProfileCustomizationContent();
 }
 
+function isStudentPokemonUnlocked(student, pId) {
+  if (!student) return false;
+  const baseKey = window.getBasePokemonKey(pId);
+  const unlocked = student.unlockedPokemons || [];
+
+  if (unlocked.includes(pId)) return true;
+  if (unlocked.includes(baseKey)) return true;
+  if (unlocked.some(owned => window.getBasePokemonKey(owned) === baseKey)) return true;
+  if (window.getBasePokemonKey(student.pokemon || "pikachu") === baseKey) return true;
+  if (baseKey === "pikachu" || baseKey === "pichu") return true;
+
+  return false;
+}
+window.isStudentPokemonUnlocked = isStudentPokemonUnlocked;
+
 function renderProfileCustomizationContent() {
   if (!currentStudent) return;
   const grid = document.getElementById("profile-customization-content-grid");
+  if (!grid) return;
   grid.innerHTML = "";
 
+  if (!currentStudent.unlockedPokemons) {
+    currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
+  }
+
   if (currentCustomTab === "pokemon") {
-    const allPokemons = [
-      { id: "pikachu", name: "Pikachu" }, { id: "charmander", name: "Charmander" },
-      { id: "bulbasaur", name: "Bulbasaur" }, { id: "squirtle", name: "Squirtle" },
-      { id: "eevee", name: "Eevee" }, { id: "snorlax", name: "Snorlax" },
-      { id: "gengar", name: "Gengar" }, { id: "lucario", name: "Lucario" },
-      { id: "charizard", name: "Charizard" }, { id: "dragonite", name: "Dragonite" },
-      { id: "mewtwo", name: "Mewtwo" }, { id: "rayquaza", name: "Rayquaza" },
+    const basePokemonDefs = [
+      { id: "pikachu", name: "Pikachu" },
+      { id: "charmander", name: "Charmander" },
+      { id: "bulbasaur", name: "Bulbasaur" },
+      { id: "squirtle", name: "Squirtle" },
+      { id: "eevee", name: "Eevee" },
+      { id: "snorlax", name: "Snorlax" },
+      { id: "gengar", name: "Gengar" },
+      { id: "lucario", name: "Lucario" },
+      { id: "dragonite", name: "Dragonite" },
+      { id: "mewtwo", name: "Mewtwo" },
+      { id: "rayquaza", name: "Rayquaza" },
       { id: "arceus", name: "Arceus" }
     ];
 
+    const allPokemons = [];
+    const seenKeys = new Set();
+
+    // 1. Base families
+    basePokemonDefs.forEach(p => {
+      const baseKey = window.getBasePokemonKey(p.id);
+      if (!seenKeys.has(baseKey)) {
+        seenKeys.add(baseKey);
+        allPokemons.push({
+          id: baseKey,
+          name: window.pokemonNames[baseKey] || p.name,
+          baseKey: baseKey
+        });
+      }
+    });
+
+    // 2. Boss Pokemons
+    const bosses = window.IC3_CACHE ? (window.IC3_CACHE[window.IC3_KEYS.BOSSES] || []) : [];
+    bosses.forEach(boss => {
+      const bossPokeId = `boss_${boss.id}`;
+      const baseKey = window.getBasePokemonKey(bossPokeId);
+      if (!seenKeys.has(bossPokeId) && !seenKeys.has(baseKey)) {
+        seenKeys.add(bossPokeId);
+        allPokemons.push({
+          id: bossPokeId,
+          name: boss.name || "Boss Huyền Thoại",
+          baseKey: baseKey,
+          isBoss: true,
+          bossAvatar: boss.avatar
+        });
+      }
+    });
+
+    // 3. Extra unlocked Pokemons in student array
+    (currentStudent.unlockedPokemons || []).forEach(pId => {
+      const baseKey = window.getBasePokemonKey(pId);
+      if (!seenKeys.has(pId) && !seenKeys.has(baseKey)) {
+        seenKeys.add(pId);
+        allPokemons.push({
+          id: pId,
+          name: window.pokemonNames[pId] || window.pokemonNames[baseKey] || pId,
+          baseKey: baseKey
+        });
+      }
+    });
+
+    const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
+    const currentLvlName = currentStudent.level || "Beginner";
+    let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
+
     allPokemons.forEach(p => {
-      const isUnlocked = (currentStudent.unlockedPokemons || []).includes(p.id);
-      const isCurrent = window.getBasePokemonKey(currentStudent.pokemon || "") === p.id;
-      
+      const isUnlocked = isStudentPokemonUnlocked(currentStudent, p.id);
+      const isCurrent = window.getBasePokemonKey(currentStudent.pokemon || "") === p.baseKey;
+
+      const evolutions = window.evoMap[p.baseKey] || [p.id];
+      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || p.id;
+      const spriteUrl = p.bossAvatar || window.getPokemonSpriteUrl(targetForm);
+      const displayName = window.pokemonNames[targetForm] || p.name;
+
       const btn = document.createElement("button");
-      btn.className = `p-4 rounded-2xl border flex flex-col items-center justify-center transition-all relative group ${isUnlocked ? 'bg-slate-900/60 border-indigo-500/30 hover:border-indigo-400' : 'bg-slate-950/20 border-white/5 opacity-50 cursor-not-allowed'} ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400' : ''}`;
-      
+      btn.className = `p-4 rounded-2xl border flex flex-col items-center justify-center transition-all relative group cursor-pointer ${
+        isUnlocked 
+          ? 'bg-slate-900/80 border-indigo-500/30 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/10' 
+          : 'bg-slate-950/40 border-white/5 opacity-60 hover:opacity-80'
+      } ${isCurrent ? 'ring-2 ring-yellow-400 border-yellow-400 bg-indigo-950/60' : ''}`;
+
       if (isUnlocked) {
-          btn.onclick = (e) => {
-              if (e.target.closest('.mini-avatar-btn')) return;
-              selectCustomItem("pokemon", p.id);
-          };
+        btn.onclick = (e) => {
+          if (e.target.closest('.mini-avatar-btn')) return;
+          selectCustomItem("pokemon", p.id);
+        };
+      } else {
+        btn.onclick = () => {
+          if (typeof window.showToast === "function") {
+            window.showToast(`Pokémon ${displayName} chưa được thu phục! Hãy đánh Boss hoặc mua tại Cửa Hàng để mở khóa.`, "warning");
+          }
+        };
       }
 
-      const levels = ["Beginner", "Explorer", "Expert", "Master IC3", "Champion", "Grandmaster", "Legendary"];
-      const currentLvlName = currentStudent.level || "Beginner";
-      let unlockedIndex = Math.max(0, levels.indexOf(currentLvlName));
-      const evolutions = window.evoMap[p.id] || [p.id];
-      const targetForm = evolutions[Math.min(unlockedIndex, evolutions.length - 1)] || p.id;
-
       btn.innerHTML = `
-        <img src="${window.getPokemonSpriteUrl(targetForm)}" class="w-12 h-12 object-contain ${isUnlocked ? '' : 'grayscale'}">
-        <span class="text-[10px] font-black mt-2">${window.pokemonNames[targetForm] || p.name}</span>
+        <div class="relative w-14 h-14 flex items-center justify-center">
+          <img src="${spriteUrl}" class="w-12 h-12 object-contain ${isUnlocked ? 'filter drop-shadow-md' : 'grayscale opacity-40 group-hover:opacity-60 transition-all'}" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${p.baseKey}.gif'">
+          ${!isUnlocked ? `
+            <div class="absolute -top-1 -right-1 w-6 h-6 bg-slate-900/90 border border-amber-500/40 rounded-full flex items-center justify-center text-amber-400 shadow-md" title="Chưa thu phục">
+              <i class="fa-solid fa-lock text-[9px]"></i>
+            </div>
+          ` : ''}
+        </div>
+        <span class="text-[10px] font-black mt-2 text-center truncate w-full ${isUnlocked ? 'text-white' : 'text-slate-400'}">${displayName}</span>
         
         ${isUnlocked ? `
-          <div class="mini-avatar-btn absolute top-1 right-1 w-5 h-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md border border-white/10 z-10" title="Đặt làm ảnh đại diện">
-            <i class="fa-solid fa-user-tag text-[8px]"></i>
+          <span class="text-[8px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-check text-[7px]"></i> Đã sở hữu
+          </span>
+          <div class="mini-avatar-btn absolute top-1.5 right-1.5 w-6 h-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md border border-white/20 z-10" title="Đặt làm ảnh đại diện">
+            <i class="fa-solid fa-user-tag text-[9px]"></i>
           </div>
-        ` : ''}
+        ` : `
+          <span class="text-[8px] font-black text-slate-400 bg-slate-900/80 border border-slate-700/50 px-2 py-0.5 rounded-full mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-lock text-[7px]"></i> Khóa
+          </span>
+        `}
       `;
-      
-      const miniBtn = btn.querySelector('.mini-avatar-btn');
-      if (miniBtn) {
+
+      if (isUnlocked) {
+        const miniBtn = btn.querySelector('.mini-avatar-btn');
+        if (miniBtn) {
           miniBtn.onclick = (e) => {
-              e.stopPropagation();
-              const imgUrl = window.getPokemonSpriteUrl(targetForm);
-              currentStudent.currentAvatar = imgUrl;
-              if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
-              if (!currentStudent.unlockedAvatars.includes(imgUrl)) {
-                  currentStudent.unlockedAvatars.push(imgUrl);
-              }
-              
-              // Save
-              const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
-              const idx = students.findIndex(s => s.email === currentStudent.email);
-              if (idx !== -1) {
-                  students[idx] = currentStudent;
-                  window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
-              }
-              
-              window.showToast("Đã cập nhật Ảnh đại diện!", "success");
-              loadStudentProfile();
-              renderProfileCustomizationContent();
+            e.stopPropagation();
+            const imgUrl = spriteUrl;
+            currentStudent.currentAvatar = imgUrl;
+            if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
+            if (!currentStudent.unlockedAvatars.includes(imgUrl)) {
+              currentStudent.unlockedAvatars.push(imgUrl);
+            }
+            
+            // Save
+            const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
+            const idx = students.findIndex(s => s.email === currentStudent.email);
+            if (idx !== -1) {
+              students[idx] = currentStudent;
+              window.saveData(window.IC3_KEYS.STUDENTS, students, currentStudent.email);
+            }
+            
+            window.showToast("Đã cập nhật Ảnh đại diện!", "success");
+            loadStudentProfile();
+            renderProfileCustomizationContent();
           };
+        }
       }
 
       grid.appendChild(btn);
