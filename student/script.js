@@ -1,4 +1,64 @@
 
+function safeStringify(obj, indent) {
+  if (obj === undefined) return "undefined";
+  if (obj === null) return "null";
+  const cache = new WeakSet();
+  try {
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (
+          (typeof Node !== 'undefined' && value instanceof Node) ||
+          (typeof Element !== 'undefined' && value instanceof Element) ||
+          (typeof Window !== 'undefined' && value instanceof Window) ||
+          value.nodeType !== undefined ||
+          value.ownerDocument !== undefined ||
+          value.self === value ||
+          (value.constructor && value.constructor.name && ['Y', 'Ka', 'HTMLImageElement', 'HTMLDivElement', 'Element', 'Node'].includes(value.constructor.name))
+        ) {
+          return undefined;
+        }
+        if (cache.has(value)) {
+          return undefined;
+        }
+        cache.add(value);
+      }
+      return value;
+    }, indent);
+  } catch (e) {
+    console.warn("safeStringify exception caught:", e);
+    return "{}";
+  }
+}
+window.safeStringify = safeStringify;
+
+function safeDeepClone(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  try {
+    return JSON.parse(safeStringify(obj));
+  } catch (e) {
+    if (Array.isArray(obj)) {
+      return obj.map(item => typeof item === "object" && item !== null ? safeDeepClone(item) : item);
+    }
+    const copy = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        if (typeof val !== "object" || val === null) {
+          copy[key] = val;
+        } else {
+          try {
+            copy[key] = safeDeepClone(val);
+          } catch (err) {
+            copy[key] = undefined;
+          }
+        }
+      }
+    }
+    return copy;
+  }
+}
+window.safeDeepClone = safeDeepClone;
+
 window.evoMap = {
     "bulbasaur": ["bulbasaur", "ivysaur", "venusaur", "venusaur-gmax", "venusaur-mega"],
     "charmander": ["charmander", "charmeleon", "charizard", "charizard-megax", "charizard-megay"],
@@ -1997,21 +2057,19 @@ function renderBossQuestion() {
   if (type === "choice" || type === "multiple_choice" || type === "true_false") {
     const options = q.options || [];
     options.forEach((opt, idx) => {
-      const isLegacyMultChoice = type === "multiple_choice";
-      const label = isLegacyMultChoice ? opt.charAt(0) : idx;
+      const isLegacyMultChoice = type === "multiple_choice" && typeof opt === "string" && /^[A-D][\.\:\s]/i.test(opt.trim());
+      const label = isLegacyMultChoice ? opt.trim().charAt(0).toUpperCase() : idx;
       const btn = document.createElement("button");
       let extraClass = "";
       
       if (isQuestionAnswered) {
-        const isUserSelected = bossCurrentSelectedAnswer === label;
-        let isCorrect = false;
-        if (type === "choice") isCorrect = idx === q.correctIndex;
-        else isCorrect = opt.startsWith(q.answer) || opt === q.answer;
+        const isUserSelected = String(bossCurrentSelectedAnswer) === String(label);
+        const isCorrect = isOptionCorrectForQuestion(q, idx, opt, label);
 
         if (isUserSelected && isCorrect) extraClass = " border-emerald-500 bg-emerald-500/20 text-emerald-300";
         else if (isUserSelected && !isCorrect) extraClass = " border-rose-500 bg-rose-500/20 text-rose-300";
         else if (isCorrect) extraClass = " border-emerald-500/50 text-emerald-400/50";
-      } else if (bossCurrentSelectedAnswer === label) {
+      } else if (String(bossCurrentSelectedAnswer) === String(label)) {
         extraClass = " border-red-500 bg-red-500/10";
       }
 
@@ -2167,6 +2225,7 @@ function renderBossQuestion() {
     if (isQuestionAnswered) {
       try { savedSelected = typeof bossCurrentSelectedAnswer === "string" ? JSON.parse(bossCurrentSelectedAnswer) : (bossCurrentSelectedAnswer || []); } catch (e) { savedSelected = []; }
     }
+    if (!Array.isArray(savedSelected)) savedSelected = [];
     bossMultiChoiceSelected = savedSelected;
     q.options.forEach((opt, idx) => {
       const btn = document.createElement("button");
@@ -2367,34 +2426,7 @@ function nextBossQuestion() {
     bossUserAnswers.push(studentAns);
     bossIsAnswerChecked = true;
     
-    let isCorrect = false;
-    if (type === "choice" || type === "image_choice") {
-      isCorrect = studentAns !== "" && parseInt(studentAns) === q.correctIndex;
-    } else if (type === "multiple_choice" || type === "true_false") {
-      isCorrect = studentAns === q.answer;
-    } else if (type === "fill_blank") {
-      isCorrect = (studentAns || "").trim().toLowerCase() === q.answer.toLowerCase();
-    } else if (type === "drag_text" || type === "drag_image_text") {
-      let parsedAns = JSON.parse(studentAns);
-      isCorrect = parsedAns.every((val, i) => val === q.correctAnswers[i]);
-    } else if (type === "table_match") {
-      let parsedAns = JSON.parse(studentAns);
-      isCorrect = parsedAns.every((val, i) => val === q.correctAnswers[i]);
-    } else if (type === "multi_choice") {
-      let parsedAns = JSON.parse(studentAns);
-      isCorrect = parsedAns.length === q.correctIndices.length && parsedAns.every(val => q.correctIndices.includes(val));
-    } else if (type === "hotspot") {
-      let clicks = JSON.parse(studentAns);
-      let allHit = true;
-      clicks.forEach(c => {
-        let hit = false;
-        (q.hotspots || []).forEach(area => {
-          if (c.x >= area.x && c.x <= area.x + area.w && c.y >= area.y && c.y <= area.y + area.h) hit = true;
-        });
-        if (!hit) allHit = false;
-      });
-      isCorrect = allHit && clicks.length >= (q.requiredCount || 1);
-    }
+    let isCorrect = isAnswerCorrect(q, studentAns);
 
     if (isCorrect) {
       bossCorrectAnswersCount++;
@@ -4073,10 +4105,37 @@ function startTest(testId, mode = "practice") {
     return;
   }
 
+function safeStringify(obj) {
+  if (obj === undefined) return "undefined";
+  const cache = new WeakSet();
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === "object" && value !== null) {
+      if (value instanceof Node || value instanceof Window) return undefined;
+      if (cache.has(value)) return undefined;
+      cache.add(value);
+    }
+    return value;
+  });
+}
+
+function safeDeepClone(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (typeof structuredClone === "function") {
+    try {
+      return structuredClone(obj);
+    } catch (e) {}
+  }
+  try {
+    return JSON.parse(safeStringify(obj));
+  } catch (e) {
+    return obj;
+  }
+}
+
   // Shuffle questions and their options for freshness
   testQuestions = shuffleArray([...rawQuestions]).map(q => {
-    const clonedQ = JSON.parse(JSON.stringify(q));
-    if (clonedQ.options && Array.isArray(clonedQ.options)) {
+    const clonedQ = safeDeepClone(q);
+    if (clonedQ.options && Array.isArray(clonedQ.options) && clonedQ.type !== "true_false") {
       // Map original indices to track correct answers after shuffling
       const optionsWithMetadata = clonedQ.options.map((opt, i) => ({
         text: opt,
@@ -4143,7 +4202,7 @@ function startTest(testId, mode = "practice") {
 
   // Set initial game states
   activeQuestionIndex = 0;
-  userAnswers = [];
+  userAnswers = new Array(testQuestions.length).fill("");
   correctAnswersCount = 0;
   isAnswerChecked = false;
 
@@ -4262,7 +4321,7 @@ function renderGameQuestion() {
   if (isReviewingExam) {
     isQuestionAnswered = true;
   } else if (currentTestMode === "practice") {
-    isQuestionAnswered = activeQuestionIndex < userAnswers.length;
+    isQuestionAnswered = userAnswers[activeQuestionIndex] !== "" && userAnswers[activeQuestionIndex] !== undefined && userAnswers[activeQuestionIndex] !== null;
   } else {
     isQuestionAnswered = false;
   }
@@ -4349,36 +4408,25 @@ function renderGameQuestion() {
   if (type === "choice" || type === "multiple_choice" || type === "true_false") {
     const options = q.options || [];
     options.forEach((opt, idx) => {
-      const isLegacyMultChoice = type === "multiple_choice";
-      const label = isLegacyMultChoice ? opt.charAt(0) : idx;
+      const isLegacyMultChoice = type === "multiple_choice" && typeof opt === "string" && /^[A-D][\.\:\s]/i.test(opt.trim());
+      const label = isLegacyMultChoice ? opt.trim().charAt(0).toUpperCase() : idx;
       
       const btn = document.createElement("button");
       let extraClass = "";
       
       if (isQuestionAnswered) {
-        const isUserSelected = currentSelectedAnswer === label;
-        if (type === "choice") {
-          const isCorrectIdx = idx === q.correctIndex;
-          if (isUserSelected && isCorrectIdx) {
-            extraClass = " correct selected";
-          } else if (isUserSelected && !isCorrectIdx) {
-            extraClass = " wrong selected";
-          } else if (isCorrectIdx) {
-            extraClass = " correct";
-          }
-        } else { // multiple_choice or true_false
-          const isCorrect = opt.startsWith(q.answer) || opt === q.answer;
-          if (isUserSelected && isCorrect) {
-            extraClass = " correct selected";
-          } else if (isUserSelected && !isCorrect) {
-            extraClass = " wrong selected";
-          } else if (isCorrect) {
-            extraClass = " correct";
-          }
+        const isUserSelected = String(currentSelectedAnswer) === String(label);
+        const isCorrect = isOptionCorrectForQuestion(q, idx, opt, label);
+        if (isUserSelected && isCorrect) {
+          extraClass = " correct selected";
+        } else if (isUserSelected && !isCorrect) {
+          extraClass = " wrong selected";
+        } else if (isCorrect) {
+          extraClass = " correct";
         }
       } else {
         // If not checked but it is currently selected (for Exam mode)
-        if (currentSelectedAnswer !== "" && currentSelectedAnswer === label) {
+        if (currentSelectedAnswer !== "" && currentSelectedAnswer !== undefined && String(currentSelectedAnswer) === String(label)) {
           extraClass = " selected border-indigo-500 bg-indigo-500/10";
         }
       }
@@ -4790,6 +4838,7 @@ function renderGameQuestion() {
         savedSelected = examUserAnswers[activeQuestionIndex] || [];
       }
     }
+    if (!Array.isArray(savedSelected)) savedSelected = [];
     window.multiChoiceSelected = savedSelected;
 
     q.options.forEach((opt, idx) => {
@@ -5154,65 +5203,12 @@ function confirmSubmitExamDirectly() {
 function executeSubmitExamCalculation() {
   // Calculate scores
   correctAnswersCount = 0;
-  userAnswers = [];
+  userAnswers = new Array(testQuestions.length).fill("");
 
   testQuestions.forEach((item, idx) => {
     const studentAns = examUserAnswers[idx];
-    userAnswers.push(studentAns);
-    const type = item.type || "choice";
-    let isCorrect = false;
-
-    if (type === "choice" || type === "image_choice") {
-      isCorrect = studentAns !== "" && parseInt(studentAns) === item.correctIndex;
-    } else if (type === "multiple_choice" || type === "true_false") {
-      isCorrect = studentAns === item.answer;
-    } else if (type === "fill_blank") {
-      isCorrect = (studentAns || "").trim().toLowerCase() === item.answer.toLowerCase();
-    } else if (type === "drag_text" || type === "drag_image_text") {
-      let parsedAns = [];
-      try {
-        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-      } catch (e) {
-        parsedAns = studentAns || [];
-      }
-      isCorrect = Array.isArray(parsedAns) && parsedAns.length === item.correctAnswers.length && parsedAns.every((val, i) => val === item.correctAnswers[i]);
-    } else if (type === "table_match") {
-      let parsedAns = [];
-      try {
-        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-      } catch (e) {
-        parsedAns = studentAns || [];
-      }
-      isCorrect = Array.isArray(parsedAns) && parsedAns.length === item.correctAnswers.length && parsedAns.every((val, i) => val === item.correctAnswers[i]);
-    } else if (type === "multi_choice") {
-      let parsedAns = [];
-      try {
-        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-      } catch (e) {
-        parsedAns = studentAns || [];
-      }
-      isCorrect = Array.isArray(parsedAns) && parsedAns.length === item.correctIndices.length && parsedAns.every(val => item.correctIndices.includes(val));
-    } else if (type === "hotspot") {
-      let parsedAns = [];
-      try {
-        parsedAns = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-      } catch (e) {
-        parsedAns = studentAns || [];
-      }
-      if (Array.isArray(parsedAns) && parsedAns.length >= (item.requiredCount || 1)) {
-         let allValid = true;
-         parsedAns.forEach(click => {
-            let hit = false;
-            (item.hotspots || []).forEach(area => {
-                if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
-            });
-            if (!hit) allValid = false;
-         });
-         isCorrect = allValid;
-      } else {
-         isCorrect = false;
-      }
-    }
+    userAnswers[idx] = studentAns;
+    const isCorrect = isAnswerCorrect(item, studentAns);
 
     if (isCorrect) {
       correctAnswersCount++;
@@ -5225,20 +5221,27 @@ function executeSubmitExamCalculation() {
   bossCurrentHP = Math.max(0, bossMaxHP - (correctAnswersCount * 100));
   
   // Set final HP values in UI
-  document.getElementById("battle-scene-boss-hp-val").innerText = `${bossCurrentHP}/${bossMaxHP}`;
+  const bossHpValEl = document.getElementById("battle-scene-boss-hp-val");
+  if (bossHpValEl) bossHpValEl.innerText = `${bossCurrentHP}/${bossMaxHP}`;
+  const bossHpBarEl = document.getElementById("battle-scene-boss-hp-bar");
   const bossHpPct = Math.round((bossCurrentHP / bossMaxHP) * 100);
-  document.getElementById("battle-scene-boss-hp-bar").style.width = `${bossHpPct}%`;
+  if (bossHpBarEl) bossHpBarEl.style.width = `${bossHpPct}%`;
+
+  const bossStatusEl = document.getElementById("battle-scene-boss-status");
+  const playerStatusEl = document.getElementById("battle-scene-player-status");
+  const playerHpValEl = document.getElementById("battle-scene-player-hp-val");
+  const playerHpBarEl = document.getElementById("battle-scene-player-hp-bar");
 
   if (bossCurrentHP === 0) {
-    document.getElementById("battle-scene-boss-status").innerText = "GỤC NGÃ! 💀";
-    document.getElementById("battle-scene-player-status").innerText = "CHIẾN THẮNG! 🏆";
+    if (bossStatusEl) bossStatusEl.innerText = "GỤC NGÃ! 💀";
+    if (playerStatusEl) playerStatusEl.innerText = "CHIẾN THẮNG! 🏆";
   } else {
-    document.getElementById("battle-scene-boss-status").innerText = "HÌ HÌ...";
+    if (bossStatusEl) bossStatusEl.innerText = "HÌ HÌ...";
     playerCurrentHP = Math.max(0, playerMaxHP - ((testQuestions.length - correctAnswersCount) * 5));
-    document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
+    if (playerHpValEl) playerHpValEl.innerText = `${playerCurrentHP}/${playerMaxHP}`;
     const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
-    document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
-    document.getElementById("battle-scene-player-status").innerText = playerCurrentHP > 0 ? "KIỆT SỨC!" : "BẠI TRẬN! 💀";
+    if (playerHpBarEl) playerHpBarEl.style.width = `${playerHpPct}%`;
+    if (playerStatusEl) playerStatusEl.innerText = playerCurrentHP > 0 ? "KIỆT SỨC!" : "BẠI TRẬN! 💀";
   }
 
   finishTest();
@@ -5337,18 +5340,12 @@ function nextGameQuestion() {
   // 1. If currently in unchecked state, validate and show explanation
   if (!isAnswerChecked) {
     let studentAns = "";
-    let isCorrect = false;
     
     if (type === "choice" || type === "multiple_choice" || type === "true_false" || type === "image_choice") {
       studentAns = currentSelectedAnswer;
-      if (studentAns === "" || studentAns === undefined) {
+      if (studentAns === "" || studentAns === undefined || studentAns === null) {
         window.showToast("Vui lòng click chọn một đáp án trước khi bấm kiểm tra!", 'error');
         return;
-      }
-      if (type === "choice" || type === "image_choice") {
-        isCorrect = parseInt(studentAns) === q.correctIndex;
-      } else {
-        isCorrect = studentAns === q.answer;
       }
     } else if (type === "fill_blank") {
       studentAns = document.getElementById("blank-input").value.trim();
@@ -5356,7 +5353,6 @@ function nextGameQuestion() {
         window.showToast("Vui lòng nhập câu trả lời vào ô trống!", 'error');
         return;
       }
-      isCorrect = studentAns.toLowerCase() === q.answer.toLowerCase();
     } else if (type === "drag_text" || type === "drag_image_text") {
       const unfilled = window.draggedTextAnswers.some(ans => !ans);
       if (unfilled) {
@@ -5364,7 +5360,6 @@ function nextGameQuestion() {
         return;
       }
       studentAns = [...window.draggedTextAnswers];
-      isCorrect = studentAns.every((val, idx) => val === q.correctAnswers[idx]);
     } else if (type === "table_match") {
       const selectVals = [];
       let allSelected = true;
@@ -5381,32 +5376,23 @@ function nextGameQuestion() {
         return;
       }
       studentAns = selectVals;
-      isCorrect = studentAns.every((val, idx) => val === q.correctAnswers[idx]);
     } else if (type === "hotspot") {
       studentAns = window.hotspotClicks || [];
       if (studentAns.length < (q.requiredCount || 1)) {
         window.showToast(`Vui lòng chọn đủ ${q.requiredCount || 1} vị trí trên ảnh!`, 'error');
         return;
       }
-      let allValid = true;
-      studentAns.forEach(click => {
-          let hit = false;
-          (q.hotspots || []).forEach(area => {
-              if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
-          });
-          if (!hit) allValid = false;
-      });
-      isCorrect = allValid;
     } else if (type === "multi_choice") {
       if (window.multiChoiceSelected.length === 0) {
         window.showToast("Vui lòng chọn ít nhất một đáp án trước khi nộp!", 'error');
         return;
       }
       studentAns = [...window.multiChoiceSelected];
-      isCorrect = studentAns.length === q.correctIndices.length && studentAns.every(val => q.correctIndices.includes(val));
     }
 
-    userAnswers.push(studentAns);
+    const isCorrect = isAnswerCorrect(q, studentAns);
+
+    userAnswers[activeQuestionIndex] = studentAns;
     isAnswerChecked = true;
 
     const pokeName = currentStudent.pokemon.toUpperCase();
@@ -5461,29 +5447,35 @@ function nextGameQuestion() {
       // Boss takes damage!
       bossCurrentHP = Math.max(0, bossCurrentHP - 100);
       const bossHpPct = Math.round((bossCurrentHP / bossMaxHP) * 100);
-      document.getElementById("battle-scene-boss-hp-val").innerText = `${bossCurrentHP}/${bossMaxHP}`;
-      document.getElementById("battle-scene-boss-hp-bar").style.width = `${bossHpPct}%`;
+      const bossHpValEl = document.getElementById("battle-scene-boss-hp-val");
+      if (bossHpValEl) bossHpValEl.innerText = `${bossCurrentHP}/${bossMaxHP}`;
+      const bossHpBarEl = document.getElementById("battle-scene-boss-hp-bar");
+      if (bossHpBarEl) bossHpBarEl.style.width = `${bossHpPct}%`;
       
       triggerGameBattleEffect(true);
 
-      document.getElementById("battle-scene-player-status").innerText = "ĐÒN SẤM SÉT! ⚡";
-      document.getElementById("battle-scene-boss-status").innerText = "-100 HP! ÁI!";
-      document.getElementById("battle-scene-log").innerHTML = `🎉 <span class="text-emerald-400 font-bold">CHÍNH XÁC!</span> Thần thú <span class="text-yellow-400">${pokeName}</span> của bạn ra đòn chí mạng gây <span class="text-red-400 font-black">100 Sát thương</span> lên Boss!`;
+      const playerStatusEl = document.getElementById("battle-scene-player-status");
+      if (playerStatusEl) playerStatusEl.innerText = "ĐÒN SẤM SÉT! ⚡";
+      const bossStatusEl = document.getElementById("battle-scene-boss-status");
+      if (bossStatusEl) bossStatusEl.innerText = "-100 HP! ÁI!";
+      const battleLogEl = document.getElementById("battle-scene-log");
+      if (battleLogEl) battleLogEl.innerHTML = `🎉 <span class="text-emerald-400 font-bold">CHÍNH XÁC!</span> Thần thú <span class="text-yellow-400">${pokeName}</span> của bạn ra đòn chí mạng gây <span class="text-red-400 font-black">100 Sát thương</span> lên Boss!`;
     } else {
       // Wrong Highlighting
-      if (type === "choice") {
-        const selectedBtn = document.querySelector(".option-card-btn.selected");
-        if (selectedBtn) selectedBtn.classList.add("wrong");
-        const btns = document.querySelectorAll(".option-card-btn");
-        if (btns[q.correctIndex]) {
-          btns[q.correctIndex].classList.add("correct");
-        }
-      } else if (type === "multiple_choice" || type === "true_false") {
-        const selectedBtn = document.querySelector(".option-card-btn.selected");
-        if (selectedBtn) selectedBtn.classList.add("wrong");
-        document.querySelectorAll(".option-card-btn").forEach(btn => {
-          const btnText = btn.querySelector("span:last-child").innerText;
-          if (btnText.startsWith(q.answer) || btnText === q.answer) {
+      if (type === "choice" || type === "multiple_choice" || type === "true_false") {
+        const btns = document.querySelectorAll("#game-options-container .option-card-btn");
+        btns.forEach((btn, idx) => {
+          const opt = q.options ? q.options[idx] : "";
+          const isLegacyMultChoice = type === "multiple_choice" && typeof opt === "string" && /^[A-D][\.\:\s]/i.test(opt.trim());
+          const label = isLegacyMultChoice ? opt.trim().charAt(0).toUpperCase() : idx;
+          const isUserSelected = String(currentSelectedAnswer) === String(label);
+          const isOptCorrect = isOptionCorrectForQuestion(q, idx, opt, label);
+
+          if (isUserSelected && isOptCorrect) {
+            btn.classList.add("correct", "selected");
+          } else if (isUserSelected && !isOptCorrect) {
+            btn.classList.add("wrong", "selected");
+          } else if (isOptCorrect) {
             btn.classList.add("correct");
           }
         });
@@ -5573,9 +5565,11 @@ function nextGameQuestion() {
 
       // Player takes damage!
       playerCurrentHP = Math.max(0, playerCurrentHP - 5);
-      document.getElementById("battle-scene-player-hp-val").innerText = `${playerCurrentHP}/${playerMaxHP}`;
+      const playerHpValEl = document.getElementById("battle-scene-player-hp-val");
+      if (playerHpValEl) playerHpValEl.innerText = `${playerCurrentHP}/${playerMaxHP}`;
       const playerHpPct = Math.round((playerCurrentHP / playerMaxHP) * 100);
-      document.getElementById("battle-scene-player-hp-bar").style.width = `${playerHpPct}%`;
+      const playerHpBarEl = document.getElementById("battle-scene-player-hp-bar");
+      if (playerHpBarEl) playerHpBarEl.style.width = `${playerHpPct}%`;
 
       triggerGameBattleEffect(false);
 
@@ -5585,20 +5579,28 @@ function nextGameQuestion() {
         return;
       }
 
-      document.getElementById("battle-scene-player-status").innerText = "-5 HP! HỰ!";
-      document.getElementById("battle-scene-boss-status").innerText = "TẤN CÔNG! 💥";
-      document.getElementById("battle-scene-log").innerHTML = `❌ <span class="text-red-400 font-bold">SAI MẤT RỒI!</span> Boss phản công vũ dội khiến Thần thú của bạn tổn thất <span class="text-red-400 font-bold">5 HP</span>! Hãy cố gắng ở câu kế tiếp!`;
+      const playerStatusEl = document.getElementById("battle-scene-player-status");
+      if (playerStatusEl) playerStatusEl.innerText = "-5 HP! HỰ!";
+      const bossStatusEl = document.getElementById("battle-scene-boss-status");
+      if (bossStatusEl) bossStatusEl.innerText = "TẤN CÔNG! 💥";
+      const battleLogEl = document.getElementById("battle-scene-log");
+      if (battleLogEl) battleLogEl.innerHTML = `❌ <span class="text-red-400 font-bold">SAI MẤT RỒI!</span> Boss phản công vũ dội khiến Thần thú của bạn tổn thất <span class="text-red-400 font-bold">5 HP</span>! Hãy cố gắng ở câu kế tiếp!`;
     }
 
     // Render explanation details
-    document.getElementById("game-explanation-text").innerText = q.explanation;
-    document.getElementById("game-explanation-box").classList.remove("hidden");
+    const expTextEl = document.getElementById("game-explanation-text");
+    if (expTextEl) expTextEl.innerText = q.explanation || "";
+    const expBoxEl = document.getElementById("game-explanation-box");
+    if (expBoxEl) expBoxEl.classList.remove("hidden");
 
     // Change button text
     const isLast = activeQuestionIndex === testQuestions.length - 1;
-    document.getElementById("game-next-btn").innerHTML = isLast 
-      ? `Nộp bài thi thám hiểm <i class="fa-solid fa-flag-checkered ml-1.5 text-yellow-400"></i>`
-      : `Câu tiếp theo <i class="fa-solid fa-angle-right ml-1.5"></i>`;
+    const gameNextBtn = document.getElementById("game-next-btn");
+    if (gameNextBtn) {
+      gameNextBtn.innerHTML = isLast 
+        ? `Nộp bài thi thám hiểm <i class="fa-solid fa-flag-checkered ml-1.5 text-yellow-400"></i>`
+        : `Câu tiếp theo <i class="fa-solid fa-angle-right ml-1.5"></i>`;
+    }
 
     return;
   }
@@ -5793,7 +5795,8 @@ function finishTest() {
 }
 
 function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained = 0, correctCount = 0, totalCount = 0) {
-  document.getElementById("victory-test-title").innerText = activePlayingTest.title;
+  const vTitleHead = document.getElementById("victory-test-title");
+  if (vTitleHead) vTitleHead.innerText = activePlayingTest ? (activePlayingTest.title || activePlayingTest.name || "") : "";
   
   const displayTotal = totalCount || testQuestions.length;
   
@@ -5821,19 +5824,25 @@ function showVictoryScreen(score, expGained, coinsGained, levelUp, bananasGained
     }
   }
 
-  document.getElementById("victory-score").innerHTML = `
-    <div class="flex flex-col items-center justify-center p-6 bg-slate-900/50 rounded-2xl border border-slate-700/50 shadow-inner">
-      <div class="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-1">Điểm số</div>
-      <div class="text-6xl font-black text-white tracking-tighter">
-        ${score}<span class="text-4xl text-slate-600">/100</span>
+  const vScoreEl = document.getElementById("victory-score");
+  if (vScoreEl) {
+    vScoreEl.innerHTML = `
+      <div class="flex flex-col items-center justify-center p-6 bg-slate-900/50 rounded-2xl border border-slate-700/50 shadow-inner">
+        <div class="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-1">Điểm số</div>
+        <div class="text-6xl font-black text-white tracking-tighter">
+          ${score}<span class="text-4xl text-slate-600">/100</span>
+        </div>
+        <div class="text-slate-400 font-medium mt-2 text-sm bg-slate-800 px-3 py-1 rounded-full">
+          ${correctCount}/${displayTotal} câu đúng
+        </div>
       </div>
-      <div class="text-slate-400 font-medium mt-2 text-sm bg-slate-800 px-3 py-1 rounded-full">
-        ${correctCount}/${displayTotal} câu đúng
-      </div>
-    </div>
-  `;
-  document.getElementById("victory-exp").innerText = `+${expGained} EXP`;
-  document.getElementById("victory-coins").innerHTML = `+${coinsGained} <i class="fa-solid fa-coins text-yellow-400"></i>`;
+    `;
+  }
+  const vExpEl = document.getElementById("victory-exp");
+  if (vExpEl) vExpEl.innerText = `+${expGained} EXP`;
+
+  const vCoinsEl = document.getElementById("victory-coins");
+  if (vCoinsEl) vCoinsEl.innerHTML = `+${coinsGained} <i class="fa-solid fa-coins text-yellow-400"></i>`;
 
   const bananasEl = document.getElementById("victory-bananas");
   if (bananasEl) {
@@ -6656,7 +6665,7 @@ window.renderNavigationPanel = () => {
         isCorrect = isAnswerCorrect(q, examUserAnswers[i]);
       }
     } else {
-      if (userAnswers[i] !== undefined) {
+      if (userAnswers[i] !== undefined && userAnswers[i] !== "" && userAnswers[i] !== null) {
         isAnswered = true;
         isCorrect = isAnswerCorrect(q, userAnswers[i]);
       }
@@ -6760,21 +6769,99 @@ window.renderNavigationPanel = () => {
   if (mobStatTodo) mobStatTodo.innerText = todoCount;
 };
 
-function isAnswerCorrect(q, userAnswer) {
+function isOptionCorrectForQuestion(q, idx, opt, label) {
   const type = q.type || "choice";
   if (type === "choice" || type === "image_choice") {
-    return parseInt(userAnswer) === q.correctIndex;
-  } else if (type === "multiple_choice" || type === "true_false") {
-    return userAnswer === q.answer;
+    if (q.correctIndex !== undefined) return idx === parseInt(q.correctIndex);
+    if (q.answer !== undefined) return opt === q.answer;
+    return false;
+  }
+  if (type === "true_false") {
+    if (q.correctIndex !== undefined) return idx === parseInt(q.correctIndex);
+    if (q.answer === "Đúng" || q.answer === "True" || q.answer === "0") return idx === 0;
+    if (q.answer === "Sai" || q.answer === "False" || q.answer === "1") return idx === 1;
+    if (q.answer !== undefined) return opt === q.answer;
+    return false;
+  }
+  if (type === "multiple_choice") {
+    if (q.answer !== undefined) {
+      if (String(label) === String(q.answer)) return true;
+      if (typeof q.answer === "string" && (opt.startsWith(q.answer) || opt === q.answer || q.answer.startsWith(String(label)))) return true;
+    }
+    if (q.correctIndex !== undefined) return idx === parseInt(q.correctIndex);
+    return false;
+  }
+  return false;
+}
+
+function isAnswerCorrect(q, userAnswer) {
+  if (userAnswer === undefined || userAnswer === null || userAnswer === "") return false;
+  const type = q.type || "choice";
+
+  if (type === "choice" || type === "image_choice") {
+    const userIdx = parseInt(userAnswer);
+    if (!isNaN(userIdx)) {
+      if (q.correctIndex !== undefined && userIdx === parseInt(q.correctIndex)) return true;
+      if (q.options && q.options[userIdx] !== undefined && q.options[userIdx] === q.answer) return true;
+    }
+    if (typeof userAnswer === "string" && q.answer !== undefined) {
+      return userAnswer.trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
+    }
+    return false;
+
+  } else if (type === "true_false") {
+    const userIdx = parseInt(userAnswer);
+    if (!isNaN(userIdx)) {
+      if (q.correctIndex !== undefined && userIdx === parseInt(q.correctIndex)) return true;
+      if (q.options && q.options[userIdx] !== undefined) {
+        if (q.options[userIdx] === q.answer) return true;
+        if (q.answer === "Đúng" && userIdx === 0) return true;
+        if (q.answer === "Sai" && userIdx === 1) return true;
+      }
+      if (q.answer === "Đúng" || q.answer === "True" || q.answer === "0") return userIdx === 0;
+      if (q.answer === "Sai" || q.answer === "False" || q.answer === "1") return userIdx === 1;
+    }
+    if (typeof userAnswer === "string") {
+      const uStr = userAnswer.trim().toLowerCase();
+      const aStr = (q.answer || "").toString().trim().toLowerCase();
+      if (uStr === aStr) return true;
+      if ((uStr === "0" || uStr === "đúng" || uStr === "true") && (aStr === "đúng" || aStr === "true" || aStr === "0")) return true;
+      if ((uStr === "1" || uStr === "sai" || uStr === "false") && (aStr === "sai" || aStr === "false" || aStr === "1")) return true;
+    }
+    return false;
+
+  } else if (type === "multiple_choice") {
+    if (q.answer !== undefined && (userAnswer === q.answer || (typeof q.answer === "string" && (q.answer.startsWith(userAnswer) || userAnswer.startsWith(q.answer))))) return true;
+    const userIdx = parseInt(userAnswer);
+    if (!isNaN(userIdx)) {
+      if (q.correctIndex !== undefined && userIdx === parseInt(q.correctIndex)) return true;
+      if (q.options && q.options[userIdx] !== undefined) {
+        const optText = q.options[userIdx];
+        if (optText === q.answer || optText.startsWith(q.answer) || (typeof q.answer === "string" && q.answer.startsWith(optText.charAt(0)))) return true;
+      }
+    }
+    return false;
+
   } else if (type === "fill_blank") {
     return (userAnswer || "").toString().trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
+
   } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
-    if (!Array.isArray(userAnswer)) return false;
-    return userAnswer.every((val, idx) => val == q.correctAnswers[idx]);
+    let parsed = userAnswer;
+    if (typeof userAnswer === "string") {
+      try { parsed = JSON.parse(userAnswer); } catch (e) { parsed = userAnswer; }
+    }
+    if (!Array.isArray(parsed) || !Array.isArray(q.correctAnswers)) return false;
+    if (parsed.length !== q.correctAnswers.length) return false;
+    return parsed.every((val, idx) => val == q.correctAnswers[idx]);
+
   } else if (type === "hotspot") {
-    if (!Array.isArray(userAnswer) || userAnswer.length < (q.requiredCount || 1)) return false;
+    let clicks = userAnswer;
+    if (typeof userAnswer === "string") {
+      try { clicks = JSON.parse(userAnswer); } catch (e) { clicks = []; }
+    }
+    if (!Array.isArray(clicks) || clicks.length < (q.requiredCount || 1)) return false;
     let allValid = true;
-    userAnswer.forEach(click => {
+    clicks.forEach(click => {
       let hit = false;
       (q.hotspots || []).forEach(area => {
         const tolerance = 2;
@@ -6783,10 +6870,16 @@ function isAnswerCorrect(q, userAnswer) {
       if (!hit) allValid = false;
     });
     return allValid;
+
   } else if (type === "multi_choice") {
-    if (!Array.isArray(userAnswer)) return false;
-    return userAnswer.length === q.correctIndices.length && userAnswer.every(val => q.correctIndices.includes(val));
+    let parsed = userAnswer;
+    if (typeof userAnswer === "string") {
+      try { parsed = JSON.parse(userAnswer); } catch (e) { parsed = []; }
+    }
+    if (!Array.isArray(parsed) || !Array.isArray(q.correctIndices)) return false;
+    return parsed.length === q.correctIndices.length && parsed.every(val => q.correctIndices.includes(val));
   }
+
   return false;
 }
 

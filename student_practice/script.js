@@ -1,6 +1,66 @@
 console.log("script.js v2 loaded");
 // Cổng Luyện Thi Học Sinh - IC3 LMS script.js
 
+function safeStringify(obj, indent) {
+  if (obj === undefined) return "undefined";
+  if (obj === null) return "null";
+  const cache = new WeakSet();
+  try {
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (
+          (typeof Node !== 'undefined' && value instanceof Node) ||
+          (typeof Element !== 'undefined' && value instanceof Element) ||
+          (typeof Window !== 'undefined' && value instanceof Window) ||
+          value.nodeType !== undefined ||
+          value.ownerDocument !== undefined ||
+          value.self === value ||
+          (value.constructor && value.constructor.name && ['Y', 'Ka', 'HTMLImageElement', 'HTMLDivElement', 'Element', 'Node'].includes(value.constructor.name))
+        ) {
+          return undefined;
+        }
+        if (cache.has(value)) {
+          return undefined;
+        }
+        cache.add(value);
+      }
+      return value;
+    }, indent);
+  } catch (e) {
+    console.warn("safeStringify exception caught:", e);
+    return "{}";
+  }
+}
+window.safeStringify = safeStringify;
+
+function safeDeepClone(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  try {
+    return JSON.parse(safeStringify(obj));
+  } catch (e) {
+    if (Array.isArray(obj)) {
+      return obj.map(item => typeof item === "object" && item !== null ? safeDeepClone(item) : item);
+    }
+    const copy = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        if (typeof val !== "object" || val === null) {
+          copy[key] = val;
+        } else {
+          try {
+            copy[key] = safeDeepClone(val);
+          } catch (err) {
+            copy[key] = undefined;
+          }
+        }
+      }
+    }
+    return copy;
+  }
+}
+window.safeDeepClone = safeDeepClone;
+
 // 1. App State
 let currentStudent = null;
 let activePlayingTest = null;
@@ -531,7 +591,7 @@ function renderScoresHistory() {
       <td class="p-5 font-mono text-xs text-gray-500">${scoreEntry.timeSpent || "00:00"}</td>
       <td class="p-5 font-semibold text-gray-500 text-xs">${scoreEntry.completedAt ? new Date(scoreEntry.completedAt).toLocaleDateString('vi-VN') : "Chưa rõ"}</td>
       <td class="p-5 text-right">
-        <button onclick="reviewTest('${scoreEntry.testId}', ${JSON.stringify(scoreEntry).replace(/"/g, '&quot;')})" 
+        <button onclick="reviewTest('${scoreEntry.testId}', ${safeStringify(scoreEntry).replace(/"/g, '&quot;')})" 
                 class="px-3.5 py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 text-gray-600 hover:text-blue-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1 inline-flex">
           Xem bài <i class="fa-solid fa-eye text-[9px]"></i>
         </button>
@@ -698,9 +758,36 @@ function startPlayingTest(test, mode) {
     return;
   }
   
+function safeStringify(obj) {
+  if (obj === undefined) return "undefined";
+  const cache = new WeakSet();
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === "object" && value !== null) {
+      if (value instanceof Node || value instanceof Window) return undefined;
+      if (cache.has(value)) return undefined;
+      cache.add(value);
+    }
+    return value;
+  });
+}
+
+function safeDeepClone(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (typeof structuredClone === "function") {
+    try {
+      return structuredClone(obj);
+    } catch (e) {}
+  }
+  try {
+    return JSON.parse(safeStringify(obj));
+  } catch (e) {
+    return obj;
+  }
+}
+
   // Standard option shuffler from student app
   testQuestions = matchedQuestions.map(originalQ => {
-    const clonedQ = JSON.parse(JSON.stringify(originalQ));
+    const clonedQ = safeDeepClone(originalQ);
     
     // Shuffler only if not table_match/hotspot/fill_blank/drag text
     if (["choice", "multiple_choice", "image_choice", "multi_choice"].includes(clonedQ.type) && Array.isArray(clonedQ.options)) {
@@ -732,11 +819,8 @@ function startPlayingTest(test, mode) {
   });
   
   // 2. Pre-allocate answers array
-  if (mode === "exam") {
-    examUserAnswers = new Array(testQuestions.length).fill("");
-  } else {
-    userAnswers = [];
-  }
+  userAnswers = new Array(testQuestions.length).fill("");
+  examUserAnswers = new Array(testQuestions.length).fill("");
   
   isAnswerChecked = false;
   currentSelectedAnswer = "";
@@ -809,7 +893,7 @@ function renderActiveQuestion() {
   
   // Track if current question is already evaluated/answered
   const isQuestionAnswered = currentTestMode === "practice" 
-    ? activeQuestionIndex < userAnswers.length 
+    ? (userAnswers[activeQuestionIndex] !== "" && userAnswers[activeQuestionIndex] !== undefined && userAnswers[activeQuestionIndex] !== null) 
     : isReviewingExam;
     
   isAnswerChecked = isQuestionAnswered;
@@ -902,6 +986,7 @@ function renderActiveQuestion() {
         savedSelected = stored || [];
       }
     }
+    if (!Array.isArray(savedSelected)) savedSelected = [];
     window.multiChoiceSelected = savedSelected;
     
     q.options.forEach((opt, idx) => {
@@ -1662,45 +1747,23 @@ window.handleNextQuestion = function() {
         return;
       }
       
-      let isCorrect = false;
       const type = q.type || "choice";
+      let studentAns = "";
       
       if (type === "choice" || type === "true_false" || type === "image_choice") {
-        isCorrect = parseInt(currentSelectedAnswer) === q.correctIndex;
-        userAnswers.push(currentSelectedAnswer);
+        studentAns = currentSelectedAnswer;
       } else if (type === "fill_blank") {
-        const val = document.getElementById("blank-input").value;
-        isCorrect = val.trim().toLowerCase() === q.answer.trim().toLowerCase();
-        userAnswers.push(val);
-      } else if (type === "drag_text" || type === "drag_image_text") {
-        isCorrect = window.draggedTextAnswers.length === q.correctAnswers.length &&
-                    window.draggedTextAnswers.every((val, i) => val === q.correctAnswers[i]);
-        userAnswers.push(JSON.stringify(window.draggedTextAnswers));
-      } else if (type === "table_match") {
-        isCorrect = window.draggedTextAnswers.length === q.correctAnswers.length &&
-                    window.draggedTextAnswers.every((val, i) => val === q.correctAnswers[i]);
-        userAnswers.push(JSON.stringify(window.draggedTextAnswers));
+        studentAns = document.getElementById("blank-input").value;
+      } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
+        studentAns = JSON.stringify(window.draggedTextAnswers || []);
       } else if (type === "hotspot") {
-        let clicks = window.hotspotClicks || [];
-        if (clicks.length >= (q.requiredCount || 1)) {
-          let allValid = true;
-          clicks.forEach(click => {
-            let hit = false;
-            (q.hotspots || []).forEach(area => {
-              if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
-            });
-            if (!hit) allValid = false;
-          });
-          isCorrect = allValid;
-        } else {
-          isCorrect = false;
-        }
-        userAnswers.push(JSON.stringify(clicks));
+        studentAns = JSON.stringify(window.hotspotClicks || []);
       } else if (type === "multi_choice") {
-        const sel = window.multiChoiceSelected || [];
-        isCorrect = sel.length === q.correctIndices.length && sel.every(val => q.correctIndices.includes(val));
-        userAnswers.push(JSON.stringify(sel));
+        studentAns = JSON.stringify(window.multiChoiceSelected || []);
       }
+      
+      const isCorrect = isAnswerCorrect(q, studentAns);
+      userAnswers[activeQuestionIndex] = studentAns;
       
       if (isCorrect) {
         correctAnswersCount++;
@@ -1817,42 +1880,7 @@ async function submitFinishedExam() {
   // Calculate final grading
   testQuestions.forEach((q, idx) => {
     const studentAns = currentTestMode === "practice" ? userAnswers[idx] : examUserAnswers[idx];
-    let isCorrect = false;
-    
-    const type = q.type || "choice";
-    
-    if (type === "choice" || type === "true_false" || type === "image_choice") {
-      isCorrect = studentAns !== "" && parseInt(studentAns) === q.correctIndex;
-    } else if (type === "fill_blank") {
-      isCorrect = studentAns && studentAns.trim().toLowerCase() === q.answer.trim().toLowerCase();
-    } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
-      try {
-        const parsed = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-        isCorrect = Array.isArray(parsed) && parsed.length === q.correctAnswers.length &&
-                    parsed.every((val, i) => val === q.correctAnswers[i]);
-      } catch (e) { isCorrect = false; }
-    } else if (type === "hotspot") {
-      try {
-        const clicks = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-        if (Array.isArray(clicks) && clicks.length >= (q.requiredCount || 1)) {
-          let allValid = true;
-          clicks.forEach(click => {
-            let hit = false;
-            (q.hotspots || []).forEach(area => {
-              if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
-            });
-            if (!hit) allValid = false;
-          });
-          isCorrect = allValid;
-        }
-      } catch (e) { isCorrect = false; }
-    } else if (type === "multi_choice") {
-      try {
-        const parsed = typeof studentAns === "string" ? JSON.parse(studentAns) : studentAns;
-        isCorrect = Array.isArray(parsed) && parsed.length === q.correctIndices.length && 
-                    parsed.every(val => q.correctIndices.includes(val));
-      } catch (e) { isCorrect = false; }
-    }
+    const isCorrect = isAnswerCorrect(q, studentAns);
     
     if (isCorrect) correctCount++;
   });
@@ -1955,7 +1983,7 @@ function renderSidebarListGrid() {
   
   testQuestions.forEach((q, idx) => {
     const isCurrent = idx === activeQuestionIndex;
-    const isPractAnswered = currentTestMode === "practice" && idx < userAnswers.length;
+    const isPractAnswered = currentTestMode === "practice" && userAnswers[idx] !== "" && userAnswers[idx] !== undefined && userAnswers[idx] !== null;
     const isExamAnswered = currentTestMode === "exam" && examUserAnswers[idx] !== "" && examUserAnswers[idx] !== undefined;
     
     let btnClass = "bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200";
@@ -2012,11 +2040,6 @@ function renderSidebarListGrid() {
     circle.className = `w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center transition-all ${btnClass}`;
     circle.innerText = idx + 1;
     circle.onclick = () => {
-      // In practice mode, you can move freely to already-checked questions, or to the next unanswered
-      if (currentTestMode === "practice" && idx > userAnswers.length) {
-        Swal.fire('Nhắc nhở', 'Vui lòng hoàn thành lần lượt từng câu hỏi ở chế độ Ôn tập!', 'warning');
-        return;
-      }
       activeQuestionIndex = idx;
       renderActiveQuestion();
       if (typeof toggleMobileNavPanel === 'function') toggleMobileNavPanel(false);
@@ -2110,7 +2133,7 @@ window.reviewTest = function(testId, scoreEntry) {
     // If the database stored separate answers, load them.
     // If not, we just show correctness indicators and correct choices.
   } else {
-    userAnswers = [];
+    userAnswers = new Array(testQuestions.length).fill("");
   }
   
   // Hide timer details block
@@ -2125,6 +2148,120 @@ window.reviewTest = function(testId, scoreEntry) {
   document.getElementById("screen-testing").classList.remove("hidden");
   renderActiveQuestion();
 };
+
+function isOptionCorrectForQuestion(q, idx, opt, label) {
+  const type = q.type || "choice";
+  if (type === "choice" || type === "image_choice") {
+    if (q.correctIndex !== undefined) return idx === parseInt(q.correctIndex);
+    if (q.answer !== undefined) return opt === q.answer;
+    return false;
+  }
+  if (type === "true_false") {
+    if (q.correctIndex !== undefined) return idx === parseInt(q.correctIndex);
+    if (q.answer === "Đúng" || q.answer === "True" || q.answer === "0") return idx === 0;
+    if (q.answer === "Sai" || q.answer === "False" || q.answer === "1") return idx === 1;
+    if (q.answer !== undefined) return opt === q.answer;
+    return false;
+  }
+  if (type === "multiple_choice") {
+    if (q.answer !== undefined) {
+      if (String(label) === String(q.answer)) return true;
+      if (typeof q.answer === "string" && (opt.startsWith(q.answer) || opt === q.answer || q.answer.startsWith(String(label)))) return true;
+    }
+    if (q.correctIndex !== undefined) return idx === parseInt(q.correctIndex);
+    return false;
+  }
+  return false;
+}
+
+function isAnswerCorrect(q, userAnswer) {
+  if (userAnswer === undefined || userAnswer === null || userAnswer === "") return false;
+  const type = q.type || "choice";
+
+  if (type === "choice" || type === "image_choice") {
+    const userIdx = parseInt(userAnswer);
+    if (!isNaN(userIdx)) {
+      if (q.correctIndex !== undefined && userIdx === parseInt(q.correctIndex)) return true;
+      if (q.options && q.options[userIdx] !== undefined && q.options[userIdx] === q.answer) return true;
+    }
+    if (typeof userAnswer === "string" && q.answer !== undefined) {
+      return userAnswer.trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
+    }
+    return false;
+
+  } else if (type === "true_false") {
+    const userIdx = parseInt(userAnswer);
+    if (!isNaN(userIdx)) {
+      if (q.correctIndex !== undefined && userIdx === parseInt(q.correctIndex)) return true;
+      if (q.options && q.options[userIdx] !== undefined) {
+        if (q.options[userIdx] === q.answer) return true;
+        if (q.answer === "Đúng" && userIdx === 0) return true;
+        if (q.answer === "Sai" && userIdx === 1) return true;
+      }
+      if (q.answer === "Đúng" || q.answer === "True" || q.answer === "0") return userIdx === 0;
+      if (q.answer === "Sai" || q.answer === "False" || q.answer === "1") return userIdx === 1;
+    }
+    if (typeof userAnswer === "string") {
+      const uStr = userAnswer.trim().toLowerCase();
+      const aStr = (q.answer || "").toString().trim().toLowerCase();
+      if (uStr === aStr) return true;
+      if ((uStr === "0" || uStr === "đúng" || uStr === "true") && (aStr === "đúng" || aStr === "true" || aStr === "0")) return true;
+      if ((uStr === "1" || uStr === "sai" || uStr === "false") && (aStr === "sai" || aStr === "false" || aStr === "1")) return true;
+    }
+    return false;
+
+  } else if (type === "multiple_choice") {
+    if (q.answer !== undefined && (userAnswer === q.answer || (typeof q.answer === "string" && (q.answer.startsWith(userAnswer) || userAnswer.startsWith(q.answer))))) return true;
+    const userIdx = parseInt(userAnswer);
+    if (!isNaN(userIdx)) {
+      if (q.correctIndex !== undefined && userIdx === parseInt(q.correctIndex)) return true;
+      if (q.options && q.options[userIdx] !== undefined) {
+        const optText = q.options[userIdx];
+        if (optText === q.answer || optText.startsWith(q.answer) || (typeof q.answer === "string" && q.answer.startsWith(optText.charAt(0)))) return true;
+      }
+    }
+    return false;
+
+  } else if (type === "fill_blank") {
+    return (userAnswer || "").toString().trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
+
+  } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
+    let parsed = userAnswer;
+    if (typeof userAnswer === "string") {
+      try { parsed = JSON.parse(userAnswer); } catch (e) { parsed = userAnswer; }
+    }
+    if (!Array.isArray(parsed) || !Array.isArray(q.correctAnswers)) return false;
+    if (parsed.length !== q.correctAnswers.length) return false;
+    return parsed.every((val, idx) => val == q.correctAnswers[idx]);
+
+  } else if (type === "hotspot") {
+    let clicks = userAnswer;
+    if (typeof userAnswer === "string") {
+      try { clicks = JSON.parse(userAnswer); } catch (e) { clicks = []; }
+    }
+    if (!Array.isArray(clicks) || clicks.length < (q.requiredCount || 1)) return false;
+    let allValid = true;
+    clicks.forEach(click => {
+      let hit = false;
+      (q.hotspots || []).forEach(area => {
+        const tolerance = 2;
+        if (click.x >= area.x - tolerance && click.x <= area.x + area.w + tolerance && click.y >= area.y - tolerance && click.y <= area.y + area.h + tolerance) hit = true;
+      });
+      if (!hit) allValid = false;
+    });
+    return allValid;
+
+  } else if (type === "multi_choice") {
+    let parsed = userAnswer;
+    if (typeof userAnswer === "string") {
+      try { parsed = JSON.parse(userAnswer); } catch (e) { parsed = []; }
+    }
+    if (!Array.isArray(parsed) || !Array.isArray(q.correctIndices)) return false;
+    return parsed.length === q.correctIndices.length && parsed.every(val => q.correctIndices.includes(val));
+  }
+
+  return false;
+}
 
 window.handleStartReviewFromReport = function() {
   document.getElementById("scoreReportModal").classList.add("hidden");
