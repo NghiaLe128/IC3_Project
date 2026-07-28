@@ -867,7 +867,7 @@ async function initData() {
         name: pokemonNames[id],
         rarity: pokemonRarity[id] || "Thường",
         element: pokemonTypes[id] || "Hệ Thường",
-        image: "https://projectpokemon.org/images/normal-sprite/" + id.toLowerCase() + ".gif"
+        image: "https://play.pokemonshowdown.com/sprites/xyani/" + id.toLowerCase() + ".gif"
       }));
       
       window.IC3_CACHE[IC3_KEYS.POKEMONS] = defaultPokemons;
@@ -1137,7 +1137,11 @@ window.loadPokemonEvolutions = async function() {
             const data = docSnap.data();
             if (data.forms && data.basePokemon) {
                 newEvoMap[data.basePokemon] = data.forms;
-                newEvoImagesMap[data.basePokemon] = data.images || data.forms.map(f => `https://projectpokemon.org/images/normal-sprite/${f}.gif`);
+                let images = data.images;
+                if (images && Array.isArray(images)) {
+                    images = images.map(img => img ? img.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/") : img);
+                }
+                newEvoImagesMap[data.basePokemon] = images || data.forms.map(f => `https://play.pokemonshowdown.com/sprites/xyani/${f}.gif`);
             }
         });
         window.currentEvoImagesMap = { ...(window.currentEvoImagesMap || {}), ...newEvoImagesMap };

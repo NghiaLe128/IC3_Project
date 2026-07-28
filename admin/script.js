@@ -2070,7 +2070,7 @@ window.openAddPokemonModal = function() {
     document.getElementById("pokeName").value = "";
     document.getElementById("pokeRarity").value = "Thường";
     document.getElementById("pokeElement").value = "";
-    document.getElementById("pokeImage").value = "https://projectpokemon.org/images/normal-sprite/";
+    document.getElementById("pokeImage").value = "https://play.pokemonshowdown.com/sprites/xyani/";
     
     const container = document.getElementById("evoRowsContainer");
     if (container) {
@@ -2187,7 +2187,7 @@ window.handlePokemonSubmit = async function(e) {
             if (evoImagesList[i] && evoImagesList[i].trim().startsWith("http")) {
                 return evoImagesList[i].trim();
             }
-            return `https://projectpokemon.org/images/normal-sprite/${f}.gif`;
+            return `https://play.pokemonshowdown.com/sprites/xyani/${f}.gif`;
         });
     } else {
         delete window.currentAdminEvoMap[id];
@@ -2255,7 +2255,7 @@ window.savePokemonEvolutions = async function() {
         if (images[i] && images[i].trim().startsWith("http")) {
           return images[i].trim();
         }
-        return `https://projectpokemon.org/images/normal-sprite/${f}.gif`;
+        return `https://play.pokemonshowdown.com/sprites/xyani/${f}.gif`;
       });
       
       // Save it back to currentAdminEvoImagesMap too

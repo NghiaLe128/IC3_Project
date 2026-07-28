@@ -2591,24 +2591,40 @@ async function toggleTabLockState(tabId, isLocked) {
   if (classIndex === -1) return;
   
   const currentClass = classes[classIndex];
-  let lockedTabs = currentClass.lockedTabs || [];
   
-  if (isLocked) {
-    if (!lockedTabs.includes(tabId)) {
-      lockedTabs.push(tabId);
-    }
-  } else {
-    lockedTabs = lockedTabs.filter(id => id !== tabId);
+  // Find all classes to update
+  let classesToUpdate = [currentClass];
+  
+  if (currentClass.sheetClassName === "Tất cả lớp" || currentClass.id.endsWith("_tat_ca_lop")) {
+    const childClasses = classes.filter(c => c.sheetSchool === currentClass.sheetSchool && c.id !== currentClass.id);
+    classesToUpdate = classesToUpdate.concat(childClasses);
   }
   
-  currentClass.lockedTabs = lockedTabs;
-  classes[classIndex] = currentClass;
+  const classIdsToSave = [];
+  
+  classesToUpdate.forEach(cls => {
+    let lockedTabs = cls.lockedTabs || [];
+    if (isLocked) {
+      if (!lockedTabs.includes(tabId)) {
+        lockedTabs.push(tabId);
+      }
+    } else {
+      lockedTabs = lockedTabs.filter(id => id !== tabId);
+    }
+    cls.lockedTabs = lockedTabs;
+    
+    // update in cache
+    const idx = classes.findIndex(c => c.id === cls.id);
+    if (idx !== -1) classes[idx] = cls;
+    
+    classIdsToSave.push(cls.id);
+  });
   
   try {
-    // Save updated class config to DB
-    await window.saveData(window.IC3_KEYS.CLASSES, classes, activeClassId);
+    // Save updated class configs to DB
+    await window.saveData(window.IC3_KEYS.CLASSES, classes, classIdsToSave);
     if (window.showToast) {
-      window.showToast(`Đã ${isLocked ? 'KHÓA' : 'MỞ'} tab [${tabId}] thành công cho lớp ${currentClass.name}!`, isLocked ? 'error' : 'success');
+      window.showToast(`Đã ${isLocked ? 'KHÓA' : 'MỞ'} tab [${tabId}] thành công cho ${classesToUpdate.length > 1 ? 'toàn bộ trường' : 'lớp'}!`, isLocked ? 'error' : 'success');
     }
     // Re-render
     renderLockTabsTab();

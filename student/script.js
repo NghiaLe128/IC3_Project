@@ -264,14 +264,31 @@ window.getShowdownFormName = function(name) {
 
 window.getPokemonSpriteUrl = function(formName) {
     if (!formName) return "";
+    
+    // Check if it's in currentEvoImagesMap
+    if (window.getBasePokemonKey && window.evoMap && window.currentEvoImagesMap) {
+        const baseKey = window.getBasePokemonKey(formName);
+        const stages = window.evoMap[baseKey] || [baseKey];
+        const stageIndex = stages.indexOf(formName);
+        
+        if (stageIndex !== -1 && window.currentEvoImagesMap[baseKey] && window.currentEvoImagesMap[baseKey][stageIndex]) {
+            let url = window.currentEvoImagesMap[baseKey][stageIndex];
+            if (url && url.startsWith("http")) {
+                url = url.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/");
+                return url.trim();
+            }
+        }
+    }
+
     const name = window.getShowdownFormName(formName);
-    return `https://projectpokemon.org/images/normal-sprite/${name}.gif`;
+    return `https://play.pokemonshowdown.com/sprites/xyani/${name}.gif`;
 };
 
 window.getEvolutionSpriteUrl = function(pokeKey, stageIndex, formName) {
     if (window.evoImagesMap && window.evoImagesMap[pokeKey] && window.evoImagesMap[pokeKey][stageIndex]) {
-        const customUrl = window.evoImagesMap[pokeKey][stageIndex];
+        let customUrl = window.evoImagesMap[pokeKey][stageIndex];
         if (customUrl && customUrl.trim().startsWith("http")) {
+            customUrl = customUrl.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/");
             return customUrl.trim();
         }
     }
@@ -362,7 +379,7 @@ window.renderEvolutionSlideshow = function() {
         avatarEl.src = customUrl;
         avatarEl.classList.remove("hidden");
         avatarEl.onerror = function() {
-            this.src = `https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif`;
+            this.src = `https://play.pokemonshowdown.com/sprites/xyani/${slideTargetName}.gif`;
         };
         
         // Remove grayscale or brightness reduction so users can preview the beautiful 3D model fully
@@ -909,14 +926,14 @@ function initBattleSceneVisuals(testId) {
   const scenePlayerImg = document.getElementById("battle-scene-player-img");
   if (scenePlayerImg) {
     scenePlayerImg.src = window.getPokemonSpriteUrl(activePoke);
-    scenePlayerImg.onerror = function() { this.src = `https://projectpokemon.org/images/normal-sprite/${activePoke}.gif`; };
+    scenePlayerImg.onerror = function() { this.src = `https://play.pokemonshowdown.com/sprites/xyani/${activePoke}.gif`; };
   }
 
   const sceneBossImg = document.getElementById("battle-scene-boss-img");
   if (sceneBossImg) {
     const bossPoke = bossProf.poke || "exeggutor";
     sceneBossImg.src = window.getPokemonSpriteUrl(bossPoke);
-    sceneBossImg.onerror = function() { this.src = `https://projectpokemon.org/images/normal-sprite/${bossPoke}.gif`; };
+    sceneBossImg.onerror = function() { this.src = `https://play.pokemonshowdown.com/sprites/xyani/${bossPoke}.gif`; };
     // Boss in Test mode faces left, so flip it
     sceneBossImg.style.transform = "scaleX(-1)";
   }
@@ -1009,7 +1026,11 @@ async function startStudentApp() {
         customEvoMap[docSnap.id] = data.forms;
       }
       if (data.images) {
-        customEvoImagesMap[docSnap.id] = data.images;
+        let images = data.images;
+        if (images && Array.isArray(images)) {
+          images = images.map(img => img ? img.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/") : img);
+        }
+        customEvoImagesMap[docSnap.id] = images;
       }
     });
     Object.assign(window.evoMap, customEvoMap);
@@ -1138,6 +1159,26 @@ async function checkStudentAuth() {
 function loadStudentProfile() {
   if (!currentStudent) return;
 
+  // Fix old image URLs globally
+  if (currentStudent.currentAvatar && typeof currentStudent.currentAvatar === 'string') {
+    currentStudent.currentAvatar = currentStudent.currentAvatar.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/");
+  }
+  if (currentStudent.unlockedAvatars && Array.isArray(currentStudent.unlockedAvatars)) {
+    currentStudent.unlockedAvatars = currentStudent.unlockedAvatars.map(url => typeof url === 'string' ? url.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/") : url);
+  }
+
+  // Retroactively grant Boss pokemons if missing
+  if (!currentStudent.unlockedPokemons) currentStudent.unlockedPokemons = [];
+  if (currentStudent.unlockedPokemons.includes("boss_boss_3") && !currentStudent.unlockedPokemons.includes("dragonite")) {
+    currentStudent.unlockedPokemons.push("dragonite");
+  }
+  if (currentStudent.unlockedPokemons.includes("boss_boss_4") && !currentStudent.unlockedPokemons.includes("mewtwo")) {
+    currentStudent.unlockedPokemons.push("mewtwo");
+  }
+  if (currentStudent.unlockedPokemons.some(id => id.startsWith("boss_") && (id.toLowerCase().includes("thống lĩnh") || id.toLowerCase().includes("ic3") || id === "boss_boss_1" || id === "boss_boss_2" || id === "boss_boss_5")) && !currentStudent.unlockedPokemons.includes("charizard")) {
+    currentStudent.unlockedPokemons.push("charizard");
+  }
+
   // Re-sync level with EXP thresholds
   if (currentStudent.exp >= 3000) {
     currentStudent.level = "Master IC3";
@@ -1233,12 +1274,12 @@ function loadStudentProfile() {
     }
 
     if (currentStudent.currentAvatar && currentStudent.currentAvatar.includes("://")) {
-      frameEl.innerHTML = `<img src="${currentStudent.currentAvatar}" class="w-10 h-10 object-contain drop-shadow-md">`;
+      frameEl.innerHTML = `<img referrerPolicy="no-referrer" src="${currentStudent.currentAvatar}" class="w-10 h-10 object-contain drop-shadow-md">`;
     } else if (currentStudent.currentAvatar) {
       frameEl.innerHTML = `<span class="text-2xl">${currentStudent.currentAvatar}</span>`;
     } else {
       const activePoke = currentStudent.pokemon || "pikachu";
-      frameEl.innerHTML = `<img src="${window.getPokemonSpriteUrl(activePoke)}" class="w-10 h-10 object-contain drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
+      frameEl.innerHTML = `<img referrerPolicy="no-referrer" src="${window.getPokemonSpriteUrl(activePoke)}" class="w-10 h-10 object-contain drop-shadow-md" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
     }
   }
 
@@ -1409,7 +1450,7 @@ function switchStudentTab(tabId) {
     return;
   }
 
-  // Check if tab is locked for student's class (including master "Tất cả lớp" for that school)
+  // Check if tab is locked for student's class
   if (currentStudent && currentStudent.classId) {
     const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
     const studentClass = classes.find(c => c.id === currentStudent.classId);
@@ -1419,12 +1460,6 @@ function switchStudentTab(tabId) {
       
       if (studentClass.lockedTabs && studentClass.lockedTabs.includes(tabId)) {
         isLocked = true;
-      } else if (studentClass.sheetSchool) {
-        const schoolMasterClass = classes.find(c => c.sheetSchool === studentClass.sheetSchool && (c.sheetClassName === "Tất cả lớp" || c.id.endsWith("_tat_ca_lop")));
-        if (schoolMasterClass && schoolMasterClass.lockedTabs && schoolMasterClass.lockedTabs.includes(tabId)) {
-          isLocked = true;
-          lockSourceName = schoolMasterClass.name;
-        }
       }
       
       if (isLocked) {
@@ -1544,7 +1579,7 @@ function renderBossHuntTab() {
     bossCard.innerHTML = `
       ${isDefeated ? '<div class="absolute top-2 right-2 rotate-12 bg-emerald-500 text-black font-black text-[8px] px-2 py-0.5 rounded shadow-lg uppercase">Captured</div>' : ''}
       <div class="flex flex-col items-center gap-3">
-        <img src="${boss.avatar}" alt="${boss.name}" class="w-64 h-64 rounded-2xl object-contain shadow-lg" referrerPolicy="no-referrer" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">
+        <img referrerPolicy="no-referrer" src="${boss.avatar}" alt="${boss.name}" class="w-64 h-64 rounded-2xl object-contain shadow-lg" referrerPolicy="no-referrer" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">
         <h4 class="font-bold text-white text-lg">${boss.name}</h4>
         ${statusHtml}
       </div>
@@ -2171,7 +2206,7 @@ function renderBossQuestion() {
       const itemDiv = document.createElement("div");
       itemDiv.className = "flex flex-row items-center p-3 rounded-2xl bg-slate-900/50 border border-slate-800 gap-3";
       itemDiv.innerHTML = `
-        <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-16 w-16 object-contain rounded-lg bg-white p-1 border border-slate-800">
+        <img referrerPolicy="no-referrer" src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-16 w-16 object-contain rounded-lg bg-white p-1 border border-slate-800">
         <div class="flex-grow">
           <div id="boss-drag-image-target-${idx}" onclick="clearBossDraggedImageText(${idx})" class="${slotClass}">${slotText}</div>
           ${tipHtml}
@@ -2300,7 +2335,7 @@ function renderBossQuestion() {
         badgeInner = "✓";
       }
       card.className = "relative border-2 border-slate-800 bg-slate-900/60 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-red-500 transition-all h-36" + extraClass;
-      card.innerHTML = `<img src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-20 w-auto object-contain"><div id="boss-image-choice-badge-${idx}" class="${badgeClass}">${badgeInner}</div>`;
+      card.innerHTML = `<img referrerPolicy="no-referrer" src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-20 w-auto object-contain"><div id="boss-image-choice-badge-${idx}" class="${badgeClass}">${badgeInner}</div>`;
       card.onclick = () => {
         if (bossIsAnswerChecked) return;
         grid.querySelectorAll("div.relative").forEach(el => el.classList.remove("border-red-500", "bg-red-500/10"));
@@ -2688,7 +2723,7 @@ function renderBattleArena() {
   if(elAvatar) {
     elAvatar.className = `transition-all duration-300 flex justify-center w-full`;
     const avatarImg = window.getPokemonSpriteUrl(activePoke);
-    elAvatar.innerHTML = `<img src="${avatarImg}" class="w-24 h-24 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
+    elAvatar.innerHTML = `<img referrerPolicy="no-referrer" src="${avatarImg}" class="w-24 h-24 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${activePoke}.gif'; this.onerror=function(){this.src='https://api.dicebear.com/7.x/bottts/svg?seed=default';}">`;
   }
   
   // Dynamic RPG Level Stage
@@ -3277,7 +3312,7 @@ function renderInventory() {
     ];
 
     allCompanionsDef.forEach(comp => {
-      const isUnlocked = currentStudent.unlockedPokemons.includes(comp.id);
+      const isUnlocked = isStudentPokemonUnlocked(currentStudent, comp.id);
       if (isUnlocked) allItems.push({ type: 'pokemon', data: comp });
     });
 
@@ -3399,10 +3434,15 @@ function renderInventory() {
       const rarity = window.pokemonRarity[comp.id] || "Normal";
       const rarityColor = rarity === "Rare" ? "bg-yellow-500" : (rarity === "Mythical" ? "bg-purple-500" : "bg-slate-500");
 
+      let spriteUrl = window.getPokemonSpriteUrl(targetForm);
+      if (comp.id.startsWith("boss_")) {
+          spriteUrl = comp.img;
+      }
+
       slot.innerHTML = `
         ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
         <div class="absolute top-1 left-1 ${rarityColor} text-[7px] font-black px-1 rounded text-white uppercase tracking-tighter z-10">${rarity}</div>
-        <img src="${window.getPokemonSpriteUrl(targetForm)}" class="w-12 h-12 object-contain filter drop-shadow-md">
+        <img referrerPolicy="no-referrer" src="${spriteUrl}" class="w-12 h-12 object-contain filter drop-shadow-md">
         <span class="text-[9px] font-black mt-2 uppercase text-center truncate w-full">${window.pokemonNames[targetForm] || comp.name}</span>
         <button class="mini-avatar-btn absolute -top-1 -right-1 w-6 h-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-white/20 z-20" title="Đặt làm ảnh đại diện">
             <i class="fa-solid fa-user-tag text-[10px]"></i>
@@ -3412,7 +3452,7 @@ function renderInventory() {
       if (miniBtn) {
           miniBtn.onclick = (e) => {
               e.stopPropagation();
-              const imgUrl = window.getPokemonSpriteUrl(targetForm);
+              const imgUrl = spriteUrl;
               currentStudent.currentAvatar = imgUrl;
               if (!currentStudent.unlockedAvatars) currentStudent.unlockedAvatars = [];
               if (!currentStudent.unlockedAvatars.includes(imgUrl)) currentStudent.unlockedAvatars.push(imgUrl);
@@ -3445,19 +3485,23 @@ function renderInventory() {
       `;
       grid.appendChild(slot);
     } else if (item.type === 'avatar') {
-      const isCurrent = currentStudent.currentAvatar === item.data || (!currentStudent.currentAvatar && item.data === "⚡");
+      let avatarUrl = item.data;
+      if (avatarUrl && typeof avatarUrl === 'string') {
+        avatarUrl = avatarUrl.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/");
+      }
+      const isCurrent = currentStudent.currentAvatar === item.data || currentStudent.currentAvatar === avatarUrl || (!currentStudent.currentAvatar && item.data === "⚡");
       const slot = document.createElement("div");
       slot.className = `inventory-slot cursor-pointer ${isCurrent ? 'active' : ''}`;
-      slot.onclick = () => selectCustomItem('avatar', item.data);
-      if (item.data.includes("://")) {
+      slot.onclick = () => selectCustomItem('avatar', avatarUrl);
+      if (avatarUrl.includes("://")) {
         slot.innerHTML = `
           ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-          <img src="${item.data}" class="w-10 h-10 object-contain">
+          <img referrerPolicy="no-referrer" src="${avatarUrl}" class="w-10 h-10 object-contain">
         `;
       } else {
         slot.innerHTML = `
           ${isCurrent ? '<div class="inventory-slot-equipped">Equipped</div>' : ''}
-          <span class="text-3xl">${item.data}</span>
+          <span class="text-3xl">${avatarUrl}</span>
         `;
       }
       grid.appendChild(slot);
@@ -3570,7 +3614,7 @@ function renderEvolutionInInventory() {
                     <span class="text-[10px] font-black text-indigo-400 tracking-widest uppercase mb-1 block" id="evo-stage-text-inv">${stageText}</span>
                     <div class="h-40 flex justify-center mb-4 items-center relative perspective-500">
                         <div class="absolute w-28 h-28 rounded-full bg-gradient-to-tr from-yellow-500/10 to-indigo-500/20 blur-xl animate-pulse"></div>
-                        <img id="evo-target-avatar-inv" src="${window.getEvolutionSpriteUrl(pokeKey, window.currentEvolutionIndex, slideTargetName)}" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${slideTargetName}.gif'">
+                        <img id="evo-target-avatar-inv" src="${window.getEvolutionSpriteUrl(pokeKey, window.currentEvolutionIndex, slideTargetName)}" class="w-32 h-32 object-contain drop-shadow-[0_4px_30px_rgba(253,224,71,0.3)] transition-all transform hover:scale-110 relative z-10" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${slideTargetName}.gif'">
                         <div id="evo-lock-overlay-inv" class="absolute inset-0 flex items-center justify-center bg-slate-950/60 rounded-full hidden z-20">
                             <span class="text-white text-3xl drop-shadow-md"><i class="fa-solid fa-lock text-red-500"></i></span>
                         </div>
@@ -4575,7 +4619,7 @@ function renderGameQuestion() {
 
       imagesHtml += `
         <div class="flex flex-row items-center p-5 rounded-2xl bg-slate-950 border border-slate-800/80 gap-4">
-          <img src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-24 w-24 object-contain rounded-xl bg-white p-2 border border-slate-800" alt="Linh kiện">
+          <img referrerPolicy="no-referrer" src="${convertDriveUrl(imgUrl)}" referrerPolicy="no-referrer" class="h-24 w-24 object-contain rounded-xl bg-white p-2 border border-slate-800" alt="Linh kiện">
           <div class="flex-grow">
             <div id="drag-image-target-${idx}" onclick="clearDraggedImageText(${idx})" 
                  class="${slotClass}">
@@ -4935,7 +4979,7 @@ function renderGameQuestion() {
 
       card.className = "image-choice-card border-2 border-slate-800/95 bg-[#131b2e]/60 p-6 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-[#1c2742]/85 transition-all relative overflow-hidden group h-44 shadow-lg" + extraClass;
       card.innerHTML = `
-        <img src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-28 w-auto object-contain transition-transform duration-300 group-hover:scale-105" alt="Lựa chọn">
+        <img referrerPolicy="no-referrer" src="${convertDriveUrl(optImgUrl)}" referrerPolicy="no-referrer" class="h-28 w-auto object-contain transition-transform duration-300 group-hover:scale-105" alt="Lựa chọn">
         <div class="absolute bottom-3 left-3 text-xs font-black uppercase text-slate-400 tracking-wider">Lựa chọn ${idx + 1}</div>
         <div id="image-choice-badge-${idx}" class="${badgeClass}">${badgeInner}</div>
       `;
@@ -5946,7 +5990,7 @@ function renderRewardsStore() {
   filteredRewards.forEach(r => {
     let imgRender = `<div class="text-3xl">${r.image}</div>`;
     if (r.image.startsWith("http")) {
-      imgRender = `<img src="${r.image}" class="w-16 h-16 object-contain filter drop-shadow-md" alt="${r.name}">`;
+      imgRender = `<img referrerPolicy="no-referrer" src="${r.image}" class="w-16 h-16 object-contain filter drop-shadow-md" alt="${r.name}">`;
     } else if (r.type === "frame") {
       imgRender = `<div class="w-16 h-16 rounded-full border-4 ${r.image} bg-slate-800 flex items-center justify-center text-xl text-slate-500"><i class="fa-solid fa-user"></i></div>`;
     } else {
@@ -5971,9 +6015,7 @@ function renderRewardsStore() {
 
     if (r.type === "pokemon") {
       const pokeId = r.id.replace("reward_", "");
-      const baseKey = window.getBasePokemonKey(pokeId);
-      // Check if student owns the exact poke or any other stage from the same family
-      if (currentStudent.unlockedPokemons.some(owned => window.getBasePokemonKey(owned) === baseKey)) {
+      if (isStudentPokemonUnlocked(currentStudent, pokeId)) {
         isOwned = true;
       }
     } else if (r.type === "avatar") {
@@ -6174,6 +6216,11 @@ function isStudentPokemonUnlocked(student, pId) {
   if (window.getBasePokemonKey(student.pokemon || "pikachu") === baseKey) return true;
   if (baseKey === "pikachu" || baseKey === "pichu") return true;
 
+  // Boss unlocks mappings
+  if (baseKey === "dragonite" && unlocked.includes("boss_boss_3")) return true;
+  if (baseKey === "mewtwo" && unlocked.includes("boss_boss_4")) return true;
+  if (baseKey === "charizard" && unlocked.some(id => id.startsWith("boss_") && (id.toLowerCase().includes("thống lĩnh") || id.toLowerCase().includes("ic3") || id === "boss_5"))) return true;
+
   return false;
 }
 window.isStudentPokemonUnlocked = isStudentPokemonUnlocked;
@@ -6285,7 +6332,7 @@ function renderProfileCustomizationContent() {
 
       btn.innerHTML = `
         <div class="relative w-14 h-14 flex items-center justify-center">
-          <img src="${spriteUrl}" class="w-12 h-12 object-contain ${isUnlocked ? 'filter drop-shadow-md' : 'grayscale opacity-40 group-hover:opacity-60 transition-all'}" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${p.baseKey}.gif'">
+          <img referrerPolicy="no-referrer" src="${spriteUrl}" class="w-12 h-12 object-contain ${isUnlocked ? 'filter drop-shadow-md' : 'grayscale opacity-40 group-hover:opacity-60 transition-all'}" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${p.baseKey}.gif'">
           ${!isUnlocked ? `
             <div class="absolute -top-1 -right-1 w-6 h-6 bg-slate-900/90 border border-amber-500/40 rounded-full flex items-center justify-center text-amber-400 shadow-md" title="Chưa thu phục">
               <i class="fa-solid fa-lock text-[9px]"></i>
@@ -6353,7 +6400,7 @@ function renderProfileCustomizationContent() {
       btn.onclick = () => selectCustomItem("avatar", av);
       
       if (av.includes("://")) {
-        btn.innerHTML = `<img src="${av}" class="w-12 h-12 object-contain">`;
+        btn.innerHTML = `<img referrerPolicy="no-referrer" src="${av}" class="w-12 h-12 object-contain">`;
       } else {
         btn.innerHTML = `<span class="text-3xl">${av}</span>`;
       }
@@ -6556,8 +6603,8 @@ function renderLeaderboard() {
           <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 pro-frame-vjp">
             <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-slate-900/60">
               ${finalStudent.currentAvatar && finalStudent.currentAvatar.includes("://") ? 
-                `<img src="${finalStudent.currentAvatar}" class="w-full h-full object-contain">` :
-                `<img src="${window.getPokemonSpriteUrl(currentPoke)}" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${currentPoke}.gif'">`
+                `<img referrerPolicy="no-referrer" src="${finalStudent.currentAvatar}" class="w-full h-full object-contain">` :
+                `<img referrerPolicy="no-referrer" src="${window.getPokemonSpriteUrl(currentPoke)}" class="w-full h-full object-contain scale-125 p-1 drop-shadow-md" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${currentPoke}.gif'">`
               }
             </div>
           </div>
@@ -7000,7 +7047,7 @@ window.renderStudentDashboard = function() {
 
     dashAvatar.src = window.getPokemonSpriteUrl(activePoke);
     dashAvatar.onerror = function() {
-      this.src = `https://projectpokemon.org/images/normal-sprite/${activePoke}.gif`;
+      this.src = `https://play.pokemonshowdown.com/sprites/xyani/${activePoke}.gif`;
       this.onerror = function() {
         this.src = currentStudent.avatar || "https://api.dicebear.com/7.x/bottts/svg?seed=default";
       };
@@ -7247,7 +7294,7 @@ window.renderStudentDashboard = function() {
               <div class="relative flex items-center justify-center my-auto z-10 w-full">
                 <!-- Radiant glow behind avatar -->
                 <div class="absolute w-28 h-28 rounded-full bg-gradient-to-r ${theme.pedestal} filter blur-xl opacity-20 animate-pulse"></div>
-                <img src="${avatarUrl}" class="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-[0_0_15px_${theme.avatarShadow}] hover:scale-110 transition-transform duration-300 scale-125" alt="avatar" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${studentInfo.pokemon || 'pikachu'}.gif'">
+                <img referrerPolicy="no-referrer" src="${avatarUrl}" class="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-[0_0_15px_${theme.avatarShadow}] hover:scale-110 transition-transform duration-300 scale-125" alt="avatar" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${studentInfo.pokemon || 'pikachu'}.gif'">
               </div>
 
               <!-- Golden/Silver/Bronze Emblem right above the nameplate -->
@@ -7373,7 +7420,7 @@ window.renderStudentDashboard = function() {
         <td class="px-4 py-4">
            <div class="flex items-center gap-3">
              <div class="relative">
-               <img src="${window.getPokemonSpriteUrl(window.validateAndGetCorrectPokemonForm(studentInfo))}" class="w-8 h-8 rounded-full bg-[#050811] border-2 ${isMe ? 'border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : index===0 ? 'border-yellow-400' : index===1 ? 'border-slate-300' : index===2 ? 'border-amber-600' : 'border-white/10'} shrink-0 object-contain p-0.5 scale-[1.3]" onerror="this.src='https://projectpokemon.org/images/normal-sprite/${window.validateAndGetCorrectPokemonForm(studentInfo)}.gif'">
+               <img referrerPolicy="no-referrer" src="${window.getPokemonSpriteUrl(window.validateAndGetCorrectPokemonForm(studentInfo))}" class="w-8 h-8 rounded-full bg-[#050811] border-2 ${isMe ? 'border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : index===0 ? 'border-yellow-400' : index===1 ? 'border-slate-300' : index===2 ? 'border-amber-600' : 'border-white/10'} shrink-0 object-contain p-0.5 scale-[1.3]" onerror="this.src='https://play.pokemonshowdown.com/sprites/xyani/${window.validateAndGetCorrectPokemonForm(studentInfo)}.gif'">
                ${isMe ? '<span class="absolute -top-1 -right-1 flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>' : ''}
              </div>
              <div>
@@ -7847,16 +7894,6 @@ function updateStudentTabsLockUI() {
   let lockedTabs = [];
   if (studentClass) {
     lockedTabs = [...(studentClass.lockedTabs || [])];
-    if (studentClass.sheetSchool) {
-      const schoolMasterClass = classes.find(c => c.sheetSchool === studentClass.sheetSchool && (c.sheetClassName === "Tất cả lớp" || c.id.endsWith("_tat_ca_lop")));
-      if (schoolMasterClass && schoolMasterClass.lockedTabs) {
-        schoolMasterClass.lockedTabs.forEach(tab => {
-          if (!lockedTabs.includes(tab)) {
-            lockedTabs.push(tab);
-          }
-        });
-      }
-    }
   }
   
   const tabs = [
