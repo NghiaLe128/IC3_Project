@@ -261,12 +261,27 @@ window.fetchGoogleSheetData = async (spreadsheetId, sheetName = "Tổng quát") 
 };
 
 /**
+ * Helper to convert column index (0-based) or letter to Column Letter (e.g. 0->A, 25->Z, 26->AA, 70->BS)
+ */
+const colIndexToLetter = (colIndex) => {
+  if (typeof colIndex === 'string') return colIndex;
+  if (typeof colIndex !== 'number' || isNaN(colIndex) || colIndex < 0) return 'A';
+  let temp = colIndex;
+  let letter = "";
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+};
+
+/**
  * Update a specific cell in the sheet (Attendance, Score, etc.)
  */
 const updateSheetCell = async (spreadsheetId, sheetName, token, rowIndex, colIndex, value) => {
   const cleanId = extractSpreadsheetId(spreadsheetId);
-  // Convert colIndex to letter (0 -> A, 1 -> B, ...)
-  const colLetter = String.fromCharCode(65 + colIndex);
+  // Convert colIndex to letter (0 -> A, 1 -> B, 26 -> AA, 70 -> BS, or if string passed, use as-is)
+  const colLetter = colIndexToLetter(colIndex);
   const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
   const range = `${quotedSheetName}!${colLetter}${rowIndex}`;
   
@@ -374,7 +389,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
       const sheetName = found.sheetName || config.studentSheetName || "Học sinh";
       const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
       // Fetch headers to find "Điểm danh"
-      const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z1', token);
+      const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:ZZ1', token);
       if (data && data.values) {
         const headers = data.values[0] || [];
         
@@ -390,7 +405,7 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
   
         if (diemDanhCol !== -1) {
           // Read current value
-          const cellData = await fetchSheetsValues(cleanId, sheetName + '!' + String.fromCharCode(65 + diemDanhCol) + found.rowIndex, token);
+          const cellData = await fetchSheetsValues(cleanId, quotedSheetName + '!' + colIndexToLetter(diemDanhCol) + found.rowIndex, token);
           const currentVal = cellData.values && cellData.values[0] && cellData.values[0][0] ? cellData.values[0][0].toLowerCase() : "";
           if (currentVal !== "x") {
             await updateSheetCell(cleanId, sheetName, token, found.rowIndex, diemDanhCol, "x");
@@ -547,20 +562,46 @@ window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
     if (!rowIndex) return { success: false, message: "Không tìm thấy vị trí học sinh trên sheet" };
 
     // Fetch headers
-    const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z1', token);
+    const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:ZZ1', token);
     const headers = data.values && data.values[0] ? data.values[0] : [];
     
     // Find column for the test
-    
     let testCol = -1;
     if (testTitle) {
-      let normalizedTestTitle = testTitle.toLowerCase().replace(/ôn tập\s*/g, "ot").replace(/\s+/g, "");
-      
-      testCol = headers.findIndex(h => {
+      let tLow = testTitle.toLowerCase().trim();
+      let tNorm = tLow.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+      const isBoSung = tLow.includes("bổ sung") || tNorm.includes("bo sung") || tNorm === "bs" || tLow === "bổ sung";
+      const isOtth = tLow.includes("ôn tập tổng hợp") || tNorm.includes("on tap tong hop") || tLow.includes("tổng hợp") || tNorm.includes("tong hop") || tNorm === "otth" || tLow === "otth";
+
+      if (isOtth) {
+        testCol = headers.findIndex(h => {
           if (!h) return false;
-          let normalizedH = h.toLowerCase().replace(/\s+/g, "");
-          return normalizedH.includes(normalizedTestTitle);
-      });
+          let hl = h.toLowerCase().trim();
+          let hNorm = hl.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+          return hl === "otth" || hl.includes("ôn tập tổng hợp") || hNorm.includes("on tap tong hop") || hl.includes("tổng hợp") || hNorm.includes("tong hop");
+        });
+        if (testCol === -1) {
+          testCol = headers.findIndex(h => h && h.trim().toUpperCase() === "OTTH");
+        }
+      } else if (isBoSung) {
+        testCol = headers.findIndex(h => {
+          if (!h) return false;
+          let hl = h.toLowerCase().trim();
+          let hNorm = hl.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+          return hl.includes("bổ sung") || hNorm.includes("bo sung") || hl === "bs";
+        });
+        if (testCol === -1) {
+          testCol = "BS";
+        }
+      } else {
+        let normalizedTestTitle = testTitle.toLowerCase().replace(/ôn tập\s*/g, "ot").replace(/\s+/g, "");
+        
+        testCol = headers.findIndex(h => {
+            if (!h) return false;
+            let normalizedH = h.toLowerCase().replace(/\s+/g, "");
+            return normalizedH.includes(normalizedTestTitle);
+        });
+      }
     }
 
     if (testCol === -1) return { success: false, message: "Không tìm thấy cột điểm phù hợp" };
@@ -570,7 +611,8 @@ window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
     const valueToWrite = (correctCount !== undefined && correctCount !== null) ? correctCount : score;
     
     // Read current score from sheet to check if we should update
-    const scoreCellRange = sheetName + '!' + String.fromCharCode(65 + testCol) + rowIndex;
+    const colLetter = colIndexToLetter(testCol);
+    const scoreCellRange = quotedSheetName + '!' + colLetter + rowIndex;
     const currentScoreData = await fetchSheetsValues(cleanId, scoreCellRange, token);
     const currentScoreStr = currentScoreData.values && currentScoreData.values[0] && currentScoreData.values[0][0] ? currentScoreData.values[0][0] : "";
     const currentScoreVal = parseInt(currentScoreStr);
@@ -591,7 +633,7 @@ window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
       if (xlCol !== -1 && noteCol !== -1) {
          let type = "";
          let note = "";
-         const headerName = headers[testCol];
+         const headerName = typeof testCol === 'number' && headers[testCol] ? headers[testCol] : "";
          if (headerName.includes("(45)")) {
             const val = valueToWrite;
             if (val >= 41 || (correctCount === undefined && val >= 91)) {
@@ -639,7 +681,7 @@ window.syncCheatToGoogleSheet = async (cheatReason) => {
     if (!rowIndex) return { success: false, message: "Không tìm thấy vị trí học sinh trên sheet" };
 
     // Fetch headers
-    const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:Z1', token);
+    const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:ZZ1', token);
     const headers = data.values && data.values[0] ? data.values[0] : [];
     
     const noteCol = findColumnIndex(headers, ["ghi chú"]);
@@ -647,7 +689,7 @@ window.syncCheatToGoogleSheet = async (cheatReason) => {
     
     if (noteCol !== -1) {
       // Get current note
-      const cellData = await fetchSheetsValues(cleanId, sheetName + '!' + String.fromCharCode(65 + noteCol) + rowIndex, token);
+      const cellData = await fetchSheetsValues(cleanId, quotedSheetName + '!' + colIndexToLetter(noteCol) + rowIndex, token);
       let currentNote = cellData.values && cellData.values[0] && cellData.values[0][0] ? cellData.values[0][0] : "";
       
       if (currentNote && !currentNote.includes(cheatReason)) {
@@ -661,7 +703,7 @@ window.syncCheatToGoogleSheet = async (cheatReason) => {
     
     if (cheatCol !== -1) {
       // Increment cheat counter
-      const cellData = await fetchSheetsValues(cleanId, sheetName + '!' + String.fromCharCode(65 + cheatCol) + rowIndex, token);
+      const cellData = await fetchSheetsValues(cleanId, quotedSheetName + '!' + colIndexToLetter(cheatCol) + rowIndex, token);
       let currentCheat = cellData.values && cellData.values[0] && cellData.values[0][0] ? parseInt(cellData.values[0][0]) || 0 : 0;
       
       await updateSheetCell(cleanId, sheetName, token, rowIndex, cheatCol, (currentCheat + 1).toString());
