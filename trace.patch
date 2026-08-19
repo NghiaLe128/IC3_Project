@@ -1,0 +1,93 @@
+--- assets/js/google-sheets.js
++++ assets/js/google-sheets.js
+@@ -343,15 +343,18 @@
+ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, inputPassword, googleUser, sheetStudentsList) => {
+   try {
++    console.log("login step 1: starting...");
+     // Find precise student matching school, class AND row index to handle overlapping indices across sheets
+     const found = sheetStudentsList.find(s => 
+       s.rowIndex === parseInt(studentRowIndex) &&
+       s.className.toLowerCase() === className.toLowerCase() &&
+       s.school.toLowerCase() === school.toLowerCase()
+     );
++    console.log("login step 2: found student?", !!found);
+ 
+     if (!found) return { success: false, message: "Không tìm thấy học sinh này trong bảng tính!" };
+     
+     // Helper to generate a unique clean ID
+     const cleanStringForId = (str) => {
+@@ -367,23 +370,27 @@
+     const db = window.db;
+     const fStore = window.fStore;
++    console.log("login step 3: getting db/fStore", !!db, !!fStore);
+     if (!db || !fStore) {
+         throw new Error("Hệ thống Database chưa sẵn sàng, vui lòng thử lại sau vài giây!");
+     }
+ 
+     // Check if user already exists in Firestore "users" collection
++    console.log("login step 4: getting userDocSnap");
+     const userDocRef = fStore.doc(db, "users", generatedEmail);
+     const userDocSnap = await fStore.getDoc(userDocRef);
++    console.log("login step 5: userDocSnap fetched");
+     let firestoreUser = null;
+ 
+     if (userDocSnap.exists()) {
+       firestoreUser = userDocSnap.data();
+     }
+ 
+     // Validate against the original Google Sheet password
+     if (found.password !== inputPassword) {
+       return { success: false, message: "Mật khẩu không khớp với file Sheet!" };
+     }
++    console.log("login step 6: password valid");
+ 
+     // Mark Attendance
+     const token = sessionStorage.getItem("google_sheets_token");
+     const config = await window.getGoogleSheetsConfig();
++    console.log("login step 7: config fetched", !!config);
+     if (config) {
+       const cleanId = extractSpreadsheetId(config.spreadsheetId);
+@@ -395,20 +402,23 @@
+       
+       // Fetch headers to find "Điểm danh"
++      console.log("login step 8: fetching attendance headers");
+       const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:ZZ1', token);
+       if (data && data.values) {
+         const headers = data.values[0] || [];
+         
+         const today = new Date();
+         const dateStr1 = `${today.getDate()}/${today.getMonth() + 1}`;
+         const dateStr2 = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
+         
+         const diemDanhCol = headers.findIndex(h => {
+            if (!h) return false;
+            const hl = h.toLowerCase();
+            return hl.includes("điểm danh") && (hl.includes(dateStr1) || hl.includes(dateStr2));
+         });
+   
+         if (diemDanhCol !== -1) {
++          console.log("login step 9: checking attendance cell");
+           // Read current value
+           const cellData = await fetchSheetsValues(cleanId, quotedSheetName + '!' + colIndexToLetter(diemDanhCol) + found.rowIndex, token);
+           const currentVal = cellData.values && cellData.values[0] && cellData.values[0][0] ? cellData.values[0][0].toLowerCase() : "";
+           if (currentVal !== "x") {
++            console.log("login step 10: updating attendance cell");
+             await updateSheetCell(cleanId, sheetName, token, found.rowIndex, diemDanhCol, "x");
+           }
+         }
+       }
+     }
+ 
++    console.log("login step 11: fetching classes list");
+     let targetClassId = "";
+     let classesList = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+     
+     if (classesList.length === 0) {
++      console.log("login step 12: fetching classes from firestore");
+       const classesRef = fStore.collection(db, "classes");
+       const classesSnap = await fStore.getDocs(classesRef);
+       classesList = classesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+       window.IC3_CACHE[window.IC3_KEYS.CLASSES] = classesList;
+     }
++    console.log("login step 13: classes fetched");
+ 

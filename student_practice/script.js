@@ -122,21 +122,19 @@ async function initEduApp() {
   const isAuthed = await checkStudentAuth();
   
   if (isAuthed) {
-    hideGlobalLoader();
+    const authScreen = document.getElementById("screen-auth");
+    const dashboardScreen = document.getElementById("screen-dashboard");
+    if (authScreen) authScreen.classList.add("hidden");
+    if (dashboardScreen) dashboardScreen.classList.remove("hidden");
+    
+    window.hideGlobalLoader();
     setupDashboardRealtime();
     renderStudentDashboard();
     switchTab("tests");
     startClock();
   } else {
     await setupLoginScreen();
-    hideGlobalLoader();
-  }
-}
-
-function hideGlobalLoader() {
-  const loader = document.getElementById("edu-app-loader");
-  if (loader) {
-    loader.classList.add("hidden");
+    window.hideGlobalLoader();
   }
 }
 
@@ -160,7 +158,20 @@ async function checkStudentAuth() {
     
     // Find student in Firestore cache
     const students = window.IC3_CACHE[window.IC3_KEYS.STUDENTS] || [];
-    const found = students.find(s => s.email === user.email);
+    let found = students.find(s => s.email === user.email);
+
+    if (!found) {
+       // Fetch from Firestore
+       const studentDocRef = window.fStore.doc(window.db, window.IC3_KEYS.STUDENTS, user.email);
+       const studentDoc = await window.fStore.getDoc(studentDocRef);
+       if (studentDoc.exists()) {
+           found = studentDoc.data();
+           if (!window.IC3_CACHE[window.IC3_KEYS.STUDENTS]) {
+             window.IC3_CACHE[window.IC3_KEYS.STUDENTS] = [];
+           }
+           window.IC3_CACHE[window.IC3_KEYS.STUDENTS].push(found);
+       }
+    }
     
     if (found) {
       currentStudent = found;
@@ -313,17 +324,25 @@ async function handleLoginSubmit(e) {
     }
     
     // Call existing Sheets integration auth function from global scope
-    const authResult = await window.loginStudentWithGoogleSheet({
+    const authResult = await window.loginStudentWithGoogleSheet(
       school,
       className,
       rowIndex,
-      email: studentObj.email,
-      name: studentObj.name,
-      password: password
-    });
+      password,
+      null,
+      cachedSheetStudents
+    );
     
     if (authResult && authResult.success) {
       // Reload UI
+      localStorage.setItem("ic3_current_user", JSON.stringify(authResult.user));
+      
+      const pendingStr = localStorage.getItem("pendingStudentData");
+      if (pendingStr && pendingStr !== "") {
+         window.location.href = "../pokemon-select.html";
+         return;
+      }
+
       document.getElementById("screen-auth").classList.add("hidden");
       await initEduApp();
     } else {
@@ -467,11 +486,24 @@ function renderTestsList(blockId = "all", query = "") {
   
   const allTests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const allScores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
+
+  // Determine student's block
+  let studentBlock = currentStudent?.blockId;
+  if (!studentBlock && currentStudent?.classId) {
+     const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+     const studentClass = classes.find(c => c.id === currentStudent.classId);
+     if (studentClass && studentClass.blockId) {
+        studentBlock = studentClass.blockId;
+     }
+  }
   
   // Filter by block
   let filtered = allTests;
   if (blockId !== "all") {
     filtered = allTests.filter(t => t.blockId === blockId || t.level === blockId);
+  } else if (studentBlock) {
+    // If blockId is "all" but student has a specific block, show tests for that block or general tests
+    filtered = allTests.filter(t => !t.blockId || t.blockId === "all" || t.blockId === studentBlock || t.level === studentBlock || t.level === "all");
   }
   
   // Filter by query
@@ -1917,11 +1949,11 @@ async function submitFinishedExam() {
     await window.saveData(window.IC3_KEYS.SCORES, allScores, scoreEntry.id);
     
     // Auto-award badges or achievements if they exist, keeping educational simplicity
-    hideGlobalLoader();
+    window.hideGlobalLoader();
     showScoreReport(scorePercent, correctCount, elapsedText);
   } catch (err) {
     console.error("Error saving score results:", err);
-    hideGlobalLoader();
+    window.hideGlobalLoader();
     Swal.fire('Lỗi đồng bộ', 'Không thể gửi học bạ lên đám mây. Vui lòng kiểm tra kết nối mạng!', 'error');
     showScoreReport(scorePercent, correctCount, elapsedText); // Still show report
   }

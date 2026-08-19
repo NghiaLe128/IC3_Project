@@ -10,11 +10,11 @@ import {
   enableIndexedDbPersistence, 
   collection, 
   doc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
+  getDocs as firebaseGetDocs, 
+  setDoc as firebaseSetDoc, 
+  updateDoc as firebaseUpdateDoc, 
+  deleteDoc as firebaseDeleteDoc, 
+  getDoc as firebaseGetDoc, 
   query, 
   where, 
   limit, 
@@ -24,6 +24,23 @@ import {
   onSnapshot,
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+
+const withTimeout = (promise, ms = 15000, errorMsg = "Kết nối đến máy chủ bị quá thời gian (Timeout). Vui lòng thử lại.") => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+  ]);
+};
+
+const getDocs = async (query) => withTimeout(firebaseGetDocs(query), 15000);
+const setDoc = async (docRef, data, options) => withTimeout(firebaseSetDoc(docRef, data, options), 15000);
+const updateDoc = async (docRef, data) => withTimeout(firebaseUpdateDoc(docRef, data), 15000);
+const deleteDoc = async (docRef) => withTimeout(firebaseDeleteDoc(docRef), 15000);
+const getDoc = async (docRef) => {
+  const snap = await withTimeout(firebaseGetDoc(docRef), 15000);
+  return wrapDocSnapshot(snap);
+};
+
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
@@ -142,14 +159,20 @@ try {
   if (dbId && dbId !== "" && dbId !== "(default)") {
     console.log("📂 Attempting to use named Firestore database:", dbId);
     try {
-      db = getFirestore(app, dbId);
+      db = initializeFirestore(app, {
+        experimentalForceLongPolling: true
+      }, dbId);
     } catch (e) {
       console.warn("⚠️ Named database initialization failed, falling back to default:", e);
-      db = getFirestore(app);
+      db = initializeFirestore(app, {
+        experimentalForceLongPolling: true
+      });
     }
   } else {
     console.log("📂 Using default Firestore database");
-    db = getFirestore(app);
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true
+    });
   }
   
   auth = getAuth(app);
@@ -167,27 +190,55 @@ try {
 console.log("📂 Firestore instance state:", db ? "INITIALIZED" : "FAILED");
 
 // Enable Offline Persistence
-if (db) {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn("Firestore Persistence failed: Multiple tabs open.");
-    } else if (err.code === 'unimplemented-browser') {
-      console.warn("Firestore Persistence failed: Browser not supported.");
-    } else {
-      console.warn("Firestore Persistence error:", err.message);
-    }
-  });
-}
+// if (db) {
+//   enableIndexedDbPersistence(db).catch((err) => {
+//     if (err.code === 'failed-precondition') {
+//       console.warn("Firestore Persistence failed: Multiple tabs open.");
+//     } else if (err.code === 'unimplemented-browser') {
+//       console.warn("Firestore Persistence failed: Browser not supported.");
+//     } else {
+//       console.warn("Firestore Persistence error:", err.message);
+//     }
+//   });
+// }
 
 // Expose Firebase services and methods to window for global access
 window.db = db;
 window.auth = auth;
 window.fStore = { 
   getFirestore, initializeFirestore, enableIndexedDbPersistence, 
-  collection, doc, getDocs, setDoc, updateDoc, deleteDoc, 
-  getDoc, query, where, limit, orderBy, arrayUnion, arrayRemove, 
+  collection, doc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDoc, 
+  query, where, limit, orderBy, arrayUnion, arrayRemove, 
   onSnapshot 
 };
+
+function wrapDocSnapshot(snap) {
+  if (!snap) return snap;
+  if (typeof snap.exists === 'function') return snap;
+  
+  const existsVal = !!snap.exists;
+  try {
+    Object.defineProperty(snap, 'exists', {
+      get: function() { return () => existsVal; },
+      configurable: true
+    });
+  } catch (e) {
+    console.warn("⚠️ Could not redefine .exists on snapshot, using Proxy fallback.");
+    return new Proxy(snap, {
+      get: (target, prop) => {
+        if (prop === 'exists') return () => existsVal;
+        const val = target[prop];
+        return typeof val === 'function' ? val.bind(target) : val;
+      }
+    });
+  }
+  return snap;
+}
 window.fAuth = {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   GoogleAuthProvider, signInWithPopup
@@ -196,11 +247,17 @@ window.fAuth = {
 // Also expose individually for scripts that expect them in global scope
 window.collection = collection;
 window.doc = doc;
-window.getDocs = getDocs;
+window.getDocs = async (query) => {
+  const snap = await firebaseGetDocs(query);
+  return snap;
+};
 window.setDoc = setDoc;
 window.updateDoc = updateDoc;
 window.deleteDoc = deleteDoc;
-window.getDoc = getDoc;
+window.getDoc = async (docRef) => {
+  const snap = await firebaseGetDoc(docRef);
+  return wrapDocSnapshot(snap);
+};
 window.query = query;
 window.where = where;
 window.limit = limit;
@@ -438,10 +495,10 @@ const initLoader = () => {
   }
 
   // Fail-safe timeout (e.g. 8 seconds) in case of connection failure or offline issues
-  setTimeout(hideGlobalLoader, 8000);
+  setTimeout(() => window.hideGlobalLoader(), 8000);
 };
 
-const hideGlobalLoader = () => {
+window.hideGlobalLoader = () => {
   const loader = document.getElementById('ic3-global-loader') || document.getElementById('edu-app-loader');
   if (loader) {
     loader.classList.add('opacity-0', 'pointer-events-none');
@@ -478,7 +535,7 @@ const getPortal = () => {
   const path = window.location.pathname;
   if (path.includes("/admin/")) return "admin";
   if (path.includes("/teacher/")) return "teacher";
-  if (path.includes("/student/") || path.includes("/student_practice/")) return "student";
+  if (path.includes("/student/") || path.includes("/student_practice/") || path.includes("/student_test/") || path.includes("pokemon-select.html")) return "student";
   return "root";
 };
 
@@ -799,6 +856,37 @@ async function initData() {
       window.saveData(IC3_KEYS.POKEMONS, defaultPokemons, defaultPokemons.map(p => p.id));
     }
 
+    // Initialize Settings if empty or missing google_sheets
+    let settingsList = window.IC3_CACHE[IC3_KEYS.SETTINGS] || [];
+    const sheetConfig = settingsList.find(s => s.id === "google_sheets");
+    const hasGoogleSheets = !!sheetConfig;
+    
+    if (!hasGoogleSheets || !sheetConfig.spreadsheetId || sheetConfig.spreadsheetId === "1PImM58yM9_W6Kk3XmYI5qWn-yD1Z6H-Y") {
+      console.log("🛠️ Initializing or fixing default Google Sheets configuration...");
+      const defaultConfig = {
+        id: "google_sheets",
+        spreadsheetId: "1_T54jBg20fY7Z9gRuEnLVTwh9uPEwZcnVD-OzFr4LfA", // Set default provided by user
+        studentSheetName: "Tổng quát",
+        scoresSheetName: "Tổng quát",
+        updatedAt: new Date().toISOString(),
+        configuredBy: "system@ic3lms.edu.vn"
+      };
+      
+      try {
+        await setDoc(doc(db, IC3_KEYS.SETTINGS, "google_sheets"), defaultConfig);
+        if (!window.IC3_CACHE[IC3_KEYS.SETTINGS]) window.IC3_CACHE[IC3_KEYS.SETTINGS] = [];
+        
+        const idx = window.IC3_CACHE[IC3_KEYS.SETTINGS].findIndex(s => s.id === "google_sheets");
+        if (idx !== -1) {
+           window.IC3_CACHE[IC3_KEYS.SETTINGS][idx] = defaultConfig;
+        } else {
+           window.IC3_CACHE[IC3_KEYS.SETTINGS].push(defaultConfig);
+        }
+      } catch (err) {
+        console.warn("Failed to seed google_sheets config:", err.message);
+      }
+    }
+
     console.log("✅ Cloud Data Initialization Optimized & Complete");
 
   } catch (error) {
@@ -807,7 +895,7 @@ async function initData() {
     isInitializing = false;
     window.IC3_DB_INITIALIZED = true;
     window.dispatchEvent(new CustomEvent('ic3-db-ready'));
-    hideGlobalLoader();
+    window.hideGlobalLoader();
   }
 }
 

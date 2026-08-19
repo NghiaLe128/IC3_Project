@@ -303,7 +303,7 @@
       <p>© 2026 IC3 Sparks LMS. Thiết kế trò chơi hóa chuyên nghiệp hỗ trợ luyện thi chứng chỉ tin học quốc tế.</p>
     </footer>
 
-    <script type="module" src="/assets/js/db-init.js"></script>
+    <script type="module" src="/assets/js/db-init.js?v=5"></script>
     <script type="module">
       // Check if user is already logged in, then auto-redirect
       async function initApp() {
@@ -656,6 +656,10 @@
             // 3. Load students list
             const studentSheetName = config.studentSheetName || "Học sinh";
             cachedSheetStudents = await window.fetchGoogleSheetData(config.spreadsheetId, studentSheetName);
+            
+            if (!cachedSheetStudents || cachedSheetStudents.length === 0) {
+              throw new Error("Bảng tính Google Sheet chưa có dữ liệu học sinh hoặc ID không đúng. Giáo viên cần kiểm tra lại.");
+            }
 
             // 4. Populate School Select
             const schoolSelect = document.getElementById('sheetSchoolSelect');

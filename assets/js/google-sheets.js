@@ -112,6 +112,10 @@ const findColumnIndex = (headers, namesToMatch) => {
  * Supports comma-separated sheet names to merge multiple school/class sheets in parallel
  */
 window.fetchGoogleSheetData = async (spreadsheetId, sheetName = "Tổng quát") => {
+  if (!spreadsheetId) {
+    console.warn("⚠️ No Spreadsheet ID provided to fetchGoogleSheetData.");
+    return [];
+  }
   const cleanId = extractSpreadsheetId(spreadsheetId);
   const token = sessionStorage.getItem("google_sheets_token");
 
@@ -250,7 +254,8 @@ window.fetchGoogleSheetData = async (spreadsheetId, sheetName = "Tổng quát") 
     }
 
     if (allParsedStudents.length === 0) {
-      throw new Error("Không thể tải dữ liệu học sinh từ bất kỳ Tab nào được chỉ định. Hãy kiểm tra lại tên Sheet hoặc quyền truy cập.");
+      console.warn("⚠️ Không thể tải dữ liệu học sinh từ bất kỳ Tab nào được chỉ định. (Sheet trống hoặc ID không đúng)");
+      return [];
     }
 
     return allParsedStudents;

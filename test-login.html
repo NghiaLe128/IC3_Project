@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+
+const firebaseConfig = {
+  projectId: "semiotic-particle-j7c1c",
+  appId: "1:649030206931:web:6ac41f24aab9adbf119b26",
+  apiKey: "AIzaSyAnYixCv685zyY_gaxrmtd8sV738lmY5dw",
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+getDoc(doc(db, "users", "test")).then(snap => console.log("OK", snap.exists())).catch(err => console.error("ERR", err));
+</script>
+</body>
+</html>

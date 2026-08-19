@@ -178,6 +178,7 @@ app.use("/admin", express.static(path.join(__dirname, "admin")));
 app.use("/teacher", express.static(path.join(__dirname, "teacher")));
 app.use("/student", express.static(path.join(__dirname, "student")));
 app.use("/student_practice", express.static(path.join(__dirname, "student_practice")));
+app.use("/student_test", express.static(path.join(__dirname, "student_test")));
 
 // Serve root directory static files (e.g. main index.html landing page)
 app.use(express.static(__dirname));
@@ -197,6 +198,10 @@ app.get("/student/*", (req, res) => {
 
 app.get("/student_practice/*", (req, res) => {
   res.sendFile(path.join(__dirname, "student_practice", "index.html"));
+});
+
+app.get("/student_test/*", (req, res) => {
+  res.sendFile(path.join(__dirname, "student_test", "index.html"));
 });
 
 app.get("*", (req, res) => {
