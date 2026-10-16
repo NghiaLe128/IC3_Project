@@ -109,6 +109,16 @@ function convertDriveUrl(url) {
   return url;
 }
 
+// Format item text helper to prevent [object Object] rendering
+function formatItemText(item) {
+  if (item === undefined || item === null) return "";
+  if (typeof item === "object") {
+    return item.text || item.title || item.name || item.term || item.definition || item.label || item.value || item.content || item.left || item.right || item.desc || (item.toString && item.toString() !== "[object Object]" ? item.toString() : JSON.stringify(item));
+  }
+  return String(item);
+}
+window.formatItemText = formatItemText;
+
 // 3. App Initialization
 document.addEventListener("DOMContentLoaded", () => {
   if (window.IC3_DB_INITIALIZED) {
@@ -462,21 +472,174 @@ function renderStudentDashboard() {
   }
 }
 
+// Helper: Retrieve the student's assigned grade block (Khối 3, Khối 4, etc.)
+function getStudentBlockId() {
+  if (!currentStudent) return "block_3";
+  
+  // 1. Direct blockId
+  if (currentStudent.blockId && currentStudent.blockId.startsWith("block_")) {
+    return currentStudent.blockId;
+  }
+  
+  // 2. Derive from schoolClass, className, sheetClassName, or session
+  const classStr = (currentStudent.schoolClass || currentStudent.className || currentStudent.sheetClassName || sessionStorage.getItem("sheet_student_class") || "").toString();
+  const match = classStr.match(/([3-8])/);
+  if (match) {
+    return `block_${match[1]}`;
+  }
+  
+  // 3. Look up in IC3_CACHE Classes
+  if (currentStudent.classId) {
+    const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+    const foundClass = classes.find(c => c.id === currentStudent.classId);
+    if (foundClass) {
+      if (foundClass.blockId) return foundClass.blockId;
+      const cMatch = (foundClass.name || "").match(/([3-8])/);
+      if (cMatch) return `block_${cMatch[1]}`;
+    }
+  }
+  
+  return currentStudent.blockId || "block_3";
+}
+
 // 8. Filters and Search on available tests
 window.filterByBlock = function(blockId) {
   blockFilterValue = blockId;
-  document.querySelectorAll(".block-filter-btn").forEach(btn => {
-    btn.className = "block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200";
-  });
-  
-  // Style the active button
-  event.currentTarget.className = "block-filter-btn px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm border border-transparent";
   renderTestsList(blockFilterValue, testSearchQuery);
 };
 
 window.handleTestSearch = function() {
   testSearchQuery = document.getElementById("testSearchInput").value.trim().toLowerCase();
   renderTestsList(blockFilterValue, testSearchQuery);
+};
+
+// Helper: Extract 45 random questions from comprehensive pool for Mock Exam
+function getMockExamQuestions(blockNum) {
+  const allTests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+  const studentBlock = `block_${blockNum}`;
+
+  // 1. Get tests belonging to this student's grade/block
+  const blockTests = allTests.filter(t => {
+    if (t.blockId === studentBlock || t.level === studentBlock) return true;
+    if (t.blockId === `Khối ${blockNum}` || t.level === `Khối ${blockNum}`) return true;
+    const titleLow = (t.title || t.name || "").toLowerCase();
+    if (titleLow.includes(`khối ${blockNum}`) || titleLow.includes(`k${blockNum}`) || titleLow.includes(`lớp ${blockNum}`) || titleLow.includes(`khoi ${blockNum}`)) {
+      return true;
+    }
+    if (t.blockId === "all" || !t.blockId) {
+      const otherGrades = [3, 4, 5, 6, 7, 8].filter(g => g !== parseInt(blockNum));
+      const belongsOther = otherGrades.some(g => titleLow.includes(`khối ${g}`) || titleLow.includes(`k${g}`) || titleLow.includes(`lớp ${g}`) || titleLow.includes(`khoi ${g}`));
+      if (!belongsOther) return true;
+    }
+    return false;
+  });
+
+  // 2. Identify "Tổng hợp" / "OTTH" tests
+  const tongHopTests = blockTests.filter(t => {
+    const title = (t.title || t.name || "").toLowerCase().trim();
+    const titleNorm = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    return title.includes("tổng hợp") || titleNorm.includes("tong hop") || title.includes("otth") || titleNorm.includes("otth");
+  });
+
+  // 3. Pool question IDs from "Tổng hợp" tests first
+  let candidateQuestionIds = new Set();
+  tongHopTests.forEach(t => {
+    if (Array.isArray(t.questions)) {
+      t.questions.forEach(qid => candidateQuestionIds.add(qid));
+    }
+  });
+
+  // If pool has fewer than 45 questions, pool from ALL other tests of the grade
+  if (candidateQuestionIds.size < 45) {
+    blockTests.forEach(t => {
+      if (Array.isArray(t.questions)) {
+        t.questions.forEach(qid => candidateQuestionIds.add(qid));
+      }
+    });
+  }
+
+  // If still fewer than 45, check allQuestions tagged with this block
+  if (candidateQuestionIds.size < 45) {
+    allQuestions.forEach(q => {
+      if (q.blockId === studentBlock || q.blockId === `Khối ${blockNum}`) {
+        candidateQuestionIds.add(q.id);
+      }
+    });
+  }
+
+  // Resolve question objects
+  let pool = allQuestions.filter(q => candidateQuestionIds.has(q.id));
+
+  // Fallback if pool is empty: use available questions in allQuestions
+  if (pool.length === 0) {
+    pool = [...allQuestions];
+  }
+
+  // Shuffle pool (Fisher-Yates)
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  // Pick 45 random questions (or maximum available)
+  const targetCount = Math.min(45, shuffled.length);
+  return shuffled.slice(0, targetCount);
+}
+
+// Global handler for Mock Exam (Thi thử)
+window.handleStartMockExam = function(mode = "exam") {
+  const studentBlock = getStudentBlockId();
+  const blockNum = studentBlock ? studentBlock.replace(/\D/g, "") : "3";
+  const selectedQuestions = getMockExamQuestions(blockNum);
+
+  if (!selectedQuestions || selectedQuestions.length === 0) {
+    Swal.fire('Lỗi', 'Chưa có câu hỏi nào trong ngân hàng bộ đề tổng hợp!', 'warning');
+    return;
+  }
+
+  const count = selectedQuestions.length;
+  const mockTest = {
+    id: "MOCK_EXAM_RANDOM_45",
+    title: `Đề Thi Thử IC3 Chuẩn (${count} Câu Ngẫu Nhiên)`,
+    name: `Đề Thi Thử IC3 Chuẩn (${count} Câu Ngẫu Nhiên)`,
+    description: `Đề thi thử gồm ${count} câu hỏi được bốc ngẫu nhiên từ ngân hàng bộ đề tổng hợp chuẩn IC3 Sparks.`,
+    blockId: studentBlock,
+    duration: 45, // 45 minutes
+    questions: selectedQuestions.map(q => q.id),
+    rawMockQuestions: selectedQuestions,
+    isMockExam: true
+  };
+
+  const isPractice = mode === "practice";
+  const modeText = isPractice ? "Ôn tập 📖 (Làm từng câu & xem giải thích ngay)" : "Kiểm tra ⏱️ (Bấm giờ 45 phút & tính điểm chuẩn)";
+  const desc = isPractice 
+    ? `Hệ thống đã tự động bốc <b>ngẫu nhiên ${count} câu hỏi</b> từ ngân hàng bộ đề tổng hợp.<br>Bạn có thể làm từng câu và kiểm tra đáp án, lời giải chi tiết tức thì.`
+    : `Thời gian làm bài: <b>45 phút</b> (${count} câu ngẫu nhiên).<br><span class="text-red-500 font-bold">Lưu ý: Hệ thống giám sát chống chuyển tab / rời màn hình thi (tối đa 3 lần nhắc nhở trước khi tự động nộp).</span>`;
+
+  Swal.fire({
+    title: `Bắt đầu Thi Thử IC3?`,
+    html: `<div class="text-left space-y-2.5 text-sm text-gray-600">
+             <div class="flex items-center gap-2">
+               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white uppercase tracking-wider shadow-sm">🔥 THI THỬ CHUẨN</span>
+               <span class="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">${count} câu ngẫu nhiên</span>
+             </div>
+             <p class="font-extrabold text-gray-900 text-base">Đề Thi Thử IC3 Tổng Hợp</p>
+             <p class="font-medium">Chế độ: <span class="${isPractice ? 'text-emerald-600' : 'text-amber-600'} font-bold">${modeText}</span></p>
+             <div class="text-xs bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl leading-relaxed text-amber-900">${desc}</div>
+           </div>`,
+    icon: isPractice ? 'info' : 'question',
+    showCancelButton: true,
+    confirmButtonColor: isPractice ? '#10b981' : '#f59e0b',
+    cancelButtonColor: '#64748B',
+    confirmButtonText: isPractice ? 'Bắt đầu ôn tập thử' : 'Bắt đầu Thi Thử ngay',
+    cancelButtonText: 'Quay lại'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      startPlayingTest(mockTest, mode);
+    }
+  });
 };
 
 function renderTestsList(blockId = "all", query = "") {
@@ -487,46 +650,212 @@ function renderTestsList(blockId = "all", query = "") {
   const allTests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const allScores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
 
-  // Determine student's block
-  let studentBlock = currentStudent?.blockId;
-  if (!studentBlock && currentStudent?.classId) {
-     const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
-     const studentClass = classes.find(c => c.id === currentStudent.classId);
-     if (studentClass && studentClass.blockId) {
-        studentBlock = studentClass.blockId;
-     }
-  }
+  // Determine current student's grade/block
+  const studentBlock = getStudentBlockId();
+  const blockNum = studentBlock ? studentBlock.replace(/\D/g, "") : "3";
   
-  // Filter by block
-  let filtered = allTests;
-  if (blockId !== "all") {
-    filtered = allTests.filter(t => t.blockId === blockId || t.level === blockId);
-  } else if (studentBlock) {
-    // If blockId is "all" but student has a specific block, show tests for that block or general tests
-    filtered = allTests.filter(t => !t.blockId || t.blockId === "all" || t.blockId === studentBlock || t.level === studentBlock || t.level === "all");
+  // Update badge UI
+  const blockTextEl = document.getElementById("studentBlockText");
+  const blockLabels = {
+    block_3: "Khối 3", block_4: "Khối 4", block_5: "Khối 5", block_6: "Khối 6", block_7: "Khối 7", block_8: "Khối 8"
+  };
+  const currentBlockLabel = blockLabels[studentBlock] || `Khối ${blockNum}`;
+  if (blockTextEl) {
+    blockTextEl.innerText = currentBlockLabel;
   }
+
+  // Filter tests ONLY belonging to this student's grade/block
+  let filtered = allTests.filter(t => {
+    // Direct block match
+    if (t.blockId === studentBlock || t.level === studentBlock) return true;
+    if (t.blockId === `Khối ${blockNum}` || t.level === `Khối ${blockNum}`) return true;
+    
+    // Check title for grade number (e.g. "Khối 3", "K3", "Lớp 3")
+    const titleLow = (t.title || t.name || "").toLowerCase();
+    if (titleLow.includes(`khối ${blockNum}`) || titleLow.includes(`k${blockNum}`) || titleLow.includes(`lớp ${blockNum}`) || titleLow.includes(`khoi ${blockNum}`)) {
+      return true;
+    }
+    
+    // If test is unassigned or generic, ensure it doesn't belong to another grade
+    if (t.blockId === "all" || !t.blockId) {
+      const otherGrades = [3, 4, 5, 6, 7, 8].filter(g => g !== parseInt(blockNum));
+      const belongsOther = otherGrades.some(g => titleLow.includes(`khối ${g}`) || titleLow.includes(`k${g}`) || titleLow.includes(`lớp ${g}`) || titleLow.includes(`khoi ${g}`));
+      if (!belongsOther) return true;
+    }
+    
+    return false;
+  });
   
-  // Filter by query
+  // Filter by search query within student's block tests
   if (query) {
-    filtered = filtered.filter(t => t.name && t.name.toLowerCase().includes(query));
+    const qLower = query.toLowerCase();
+    filtered = filtered.filter(t => {
+      const name = (t.title || t.name || "").toLowerCase();
+      const desc = (t.description || "").toLowerCase();
+      return name.includes(qLower) || desc.includes(qLower);
+    });
+  }
+  
+  // Sort tests: Ôn tập 1, 2, 3, 4, 5... -> Bổ sung -> Đề ôn tập tổng hợp
+  filtered.sort((a, b) => {
+    const getTestSortWeight = (test) => {
+      const title = (test.title || test.name || "").toLowerCase().trim();
+      const titleNorm = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+
+      // 1. "Đề ôn tập tổng hợp" / "Tổng hợp" / "OTTH" (Cuối cùng)
+      const isTongHop = title.includes("tổng hợp") || titleNorm.includes("tong hop") || title.includes("otth") || titleNorm.includes("otth");
+      if (isTongHop) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 90000 + num;
+      }
+
+      // 2. "Đề bổ sung" / "Bổ sung" / "BS" (Kế cuối, trước tổng hợp)
+      const isBoSung = title.includes("bổ sung") || titleNorm.includes("bo sung") || title.includes("bs") || titleNorm.includes("bs");
+      if (isBoSung) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 80000 + num;
+      }
+
+      // 3. Các đề có đánh số: Ôn tập 1, 2, 3, 4, 5...
+      let cleanedTitle = titleNorm
+        .replace(/khoi\s*\d+/g, "")
+        .replace(/k\s*\d+/g, "")
+        .replace(/lop\s*\d+/g, "")
+        .replace(/block[_\s]*\d+/g, "");
+
+      const numMatch = cleanedTitle.match(/\d+/);
+      if (numMatch) {
+        return parseInt(numMatch[0], 10);
+      }
+
+      const rawNumMatch = title.match(/\d+/);
+      if (rawNumMatch) {
+        return parseInt(rawNumMatch[0], 10);
+      }
+
+      return 50000;
+    };
+
+    const weightA = getTestSortWeight(a);
+    const weightB = getTestSortWeight(b);
+
+    if (weightA !== weightB) {
+      return weightA - weightB;
+    }
+    return (a.title || a.name || "").localeCompare((b.title || b.name || ""), 'vi');
+  });
+
+  // Check if mock exam card should be visible
+  const queryLower = (query || "").trim().toLowerCase();
+  const showMockExam = !queryLower || 
+    queryLower.includes("thi thử") || 
+    queryLower.includes("thithu") || 
+    queryLower.includes("tổng hợp") || 
+    queryLower.includes("tong hop") || 
+    queryLower.includes("ngẫu nhiên") || 
+    queryLower.includes("45");
+
+  if (filtered.length === 0 && !showMockExam) {
+    emptyState.classList.remove("hidden");
+    return;
+  }
+  emptyState.classList.add("hidden");
+
+  // RENDER OPTION "THI THỬ" LÀM NỔI BẬT Ở VỊ TRÍ ĐẦU TIÊN
+  if (showMockExam) {
+    const personalMockAttempts = allScores.filter(s => 
+      (s.testId === "MOCK_EXAM_RANDOM_45" || (s.testTitle || "").toLowerCase().includes("thi thử")) && 
+      (s.studentEmail || "").toLowerCase() === (currentStudent?.email || "").toLowerCase()
+    );
+    const globalMockAttempts = allScores.filter(s => 
+      s.testId === "MOCK_EXAM_RANDOM_45" || (s.testTitle || "").toLowerCase().includes("thi thử")
+    );
+
+    const mockCard = document.createElement("div");
+    mockCard.className = "relative bg-gradient-to-br from-amber-50/90 via-white to-orange-50/70 rounded-3xl border-2 border-amber-400 p-6 shadow-xl shadow-amber-500/10 hover:shadow-2xl hover:shadow-amber-500/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between gap-5 overflow-hidden ring-4 ring-amber-400/20 group";
+    
+    mockCard.innerHTML = `
+      <!-- Top Special Ribbon -->
+      <div class="absolute -top-3.5 -right-3.5 z-10">
+        <span class="px-4 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white text-[10px] font-black rounded-bl-2xl rounded-tr-3xl shadow-md uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-fire text-yellow-200 animate-pulse"></i> NỔI BẬT • THI THỬ
+        </span>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Badge row -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-crown text-yellow-200"></i> ${currentBlockLabel}
+          </span>
+          <span class="px-2.5 py-1 bg-amber-100/90 text-amber-800 text-[10px] font-black rounded-lg uppercase tracking-wider border border-amber-300/80 flex items-center gap-1">
+            <i class="fa-solid fa-dice text-amber-600"></i> 45 Câu ngẫu nhiên
+          </span>
+          <span class="px-2.5 py-1 bg-rose-50 text-rose-700 text-[10px] font-black rounded-lg uppercase tracking-wider border border-rose-200/80 flex items-center gap-1">
+            <i class="fa-solid fa-stopwatch text-rose-500"></i> 45 phút
+          </span>
+        </div>
+
+        <!-- Header details -->
+        <div>
+          <h4 class="font-black text-gray-900 text-lg leading-tight tracking-tight flex items-center gap-2 group-hover:text-amber-700 transition-colors">
+            <span class="text-xl">🎯</span> ĐỀ THI THỬ IC3 TỔNG HỢP
+          </h4>
+          <p class="text-xs text-gray-600 mt-1.5 line-clamp-2 leading-relaxed">
+            Mô phỏng kỳ thi IC3 chuẩn quốc tế: Hệ thống tự động trích xuất <b>ngẫu nhiên 45 câu hỏi</b> từ ngân hàng bộ đề tổng hợp, bấm giờ 45 phút và chấm điểm tức thì.
+          </p>
+        </div>
+      </div>
+
+      <!-- Attempt statistics counts -->
+      <div class="p-3 bg-white/95 border border-amber-200/80 rounded-2xl flex items-center justify-between text-xs shadow-sm">
+        <div class="text-left">
+          <span class="text-[9px] font-bold text-gray-400 block uppercase">Bạn đã thi thử</span>
+          <span class="font-black text-amber-600 text-sm">${personalMockAttempts.length} lần</span>
+        </div>
+        <div class="h-6 w-px bg-amber-200"></div>
+        <div class="text-right">
+          <span class="text-[9px] font-bold text-gray-400 block uppercase">Hệ thống</span>
+          <span class="font-black text-blue-600 text-sm">${globalMockAttempts.length} lượt thi</span>
+        </div>
+      </div>
+      
+      <!-- Action Buttons footer with Practice and Timed Exam options -->
+      <div class="grid grid-cols-2 gap-2.5 border-t border-amber-200/80 pt-4">
+        <button onclick="handleStartMockExam('practice')" class="py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer">
+          <i class="fa-solid fa-book-open text-[11px]"></i> Ôn tập thử
+        </button>
+        <button onclick="handleStartMockExam('exam')" class="py-2.5 px-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/25 active:scale-95 transition-all cursor-pointer">
+          <i class="fa-solid fa-bolt text-yellow-200 text-[11px]"></i> Vào Thi Thử
+        </button>
+      </div>
+    `;
+    container.appendChild(mockCard);
   }
   
   if (filtered.length === 0) {
-    emptyState.classList.remove("hidden");
+    if (!showMockExam) {
+      emptyState.classList.remove("hidden");
+    }
     return;
   }
   emptyState.classList.add("hidden");
   
   filtered.forEach(test => {
-    // Attempt statistics calculation (personal vs all)
-    const personalAttempts = allScores.filter(s => s.testId === test.id && s.studentEmail === currentStudent.email);
+    // Attempt statistics calculation (personal vs all) with case-insensitive email match
+    const personalAttempts = allScores.filter(s => 
+      s.testId === test.id && 
+      (s.studentEmail || "").toLowerCase() === (currentStudent?.email || "").toLowerCase()
+    );
     const globalAttempts = allScores.filter(s => s.testId === test.id);
     
-    // Map class names based on blocks
     const blockLabels = {
       block_3: "Khối 3", block_4: "Khối 4", block_5: "Khối 5", block_6: "Khối 6", block_7: "Khối 7", block_8: "Khối 8"
     };
-    const blockText = blockLabels[test.blockId] || test.level || "Tự do";
+    const blockText = blockLabels[test.blockId] || test.level || `Khối ${blockNum}`;
+    const testTitle = test.title || test.name || "Bộ đề thi ôn tập";
     
     const card = document.createElement("div");
     card.className = "bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:shadow-premium hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-5 relative overflow-hidden";
@@ -540,7 +869,7 @@ function renderTestsList(blockId = "all", query = "") {
         </div>
         
         <!-- Header details -->
-        <h4 class="font-extrabold text-gray-900 text-base leading-tight tracking-tight">${test.name || "Bộ đề thi ôn tập"}</h4>
+        <h4 class="font-extrabold text-gray-900 text-base leading-tight tracking-tight">${testTitle}</h4>
         <p class="text-xs text-gray-400 line-clamp-2">${test.description || "Hãy kiểm tra kiến thức của mình thông qua bộ đề ôn tập chứng chỉ IC3."}</p>
       </div>
 
@@ -557,10 +886,13 @@ function renderTestsList(blockId = "all", query = "") {
         </div>
       </div>
       
-      <!-- Action Buttons footer -->
-      <div class="grid grid-cols-1 gap-3 border-t border-gray-100 pt-4">
-        <button onclick="handleStartTest('${test.id}', 'exam')" class="py-2.5 px-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-sm shadow-sky-500/20 transition-colors">
-          <i class="fa-solid fa-stopwatch text-[10px]"></i> Bắt đầu làm bài thi
+      <!-- Action Buttons footer with BOTH Practice and Exam options -->
+      <div class="grid grid-cols-2 gap-2.5 border-t border-gray-100 pt-4">
+        <button onclick="handleStartTest('${test.id}', 'practice')" class="py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer">
+          <i class="fa-solid fa-book-open text-[11px]"></i> Ôn tập
+        </button>
+        <button onclick="handleStartTest('${test.id}', 'exam')" class="py-2.5 px-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-sky-500/20 active:scale-95 transition-all cursor-pointer">
+          <i class="fa-solid fa-stopwatch text-[11px]"></i> Kiểm tra
         </button>
       </div>
     `;
@@ -568,11 +900,98 @@ function renderTestsList(blockId = "all", query = "") {
   });
 }
 
-// 9. Results history table rendering
+// 9. Results history table rendering with pagination
+let historyCurrentPage = 1;
+const HISTORY_ITEMS_PER_PAGE = 8;
+
+window.changeHistoryPage = function(page) {
+  historyCurrentPage = page;
+  renderScoresHistory();
+};
+
+function renderHistoryPagination(totalItems, currentPage, totalPages) {
+  const container = document.getElementById("historyPaginationContainer");
+  const info = document.getElementById("historyPaginationInfo");
+  const btnContainer = document.getElementById("historyPaginationButtons");
+  
+  if (!container || !info || !btnContainer) return;
+  
+  if (totalItems === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  
+  const startIdx = (currentPage - 1) * HISTORY_ITEMS_PER_PAGE + 1;
+  const endIdx = Math.min(currentPage * HISTORY_ITEMS_PER_PAGE, totalItems);
+  info.innerText = `Hiển thị ${startIdx} - ${endIdx} trong tổng số ${totalItems} bài thi đã làm`;
+  
+  btnContainer.innerHTML = "";
+  
+  if (totalPages <= 1) {
+    return;
+  }
+  
+  const btnBase = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border";
+  const normalBtn = `${btnBase} bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900 cursor-pointer shadow-2xs`;
+  const activeBtn = `${btnBase} bg-blue-600 text-white border-blue-600 shadow-sm cursor-default`;
+  const disabledBtn = `${btnBase} bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50`;
+  
+  // Previous button
+  const prevBtn = document.createElement("button");
+  prevBtn.innerHTML = `<i class="fa-solid fa-angle-left mr-1"></i> Trước`;
+  prevBtn.className = currentPage === 1 ? disabledBtn : normalBtn;
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = () => window.changeHistoryPage(currentPage - 1);
+  btnContainer.appendChild(prevBtn);
+  
+  // Dynamic page list
+  const pagesToShow = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+  } else {
+    pagesToShow.push(1);
+    if (currentPage > 3) pagesToShow.push("...");
+    
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) {
+      pagesToShow.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) pagesToShow.push("...");
+    pagesToShow.push(totalPages);
+  }
+  
+  pagesToShow.forEach(p => {
+    if (p === "...") {
+      const span = document.createElement("span");
+      span.className = "px-2 py-1 text-xs text-gray-400 font-bold";
+      span.innerText = "...";
+      btnContainer.appendChild(span);
+    } else {
+      const pageBtn = document.createElement("button");
+      pageBtn.innerText = p;
+      pageBtn.className = p === currentPage ? activeBtn : normalBtn;
+      pageBtn.onclick = () => window.changeHistoryPage(p);
+      btnContainer.appendChild(pageBtn);
+    }
+  });
+  
+  // Next button
+  const nextBtn = document.createElement("button");
+  nextBtn.innerHTML = `Sau <i class="fa-solid fa-angle-right ml-1"></i>`;
+  nextBtn.className = currentPage === totalPages ? disabledBtn : normalBtn;
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = () => window.changeHistoryPage(currentPage + 1);
+  btnContainer.appendChild(nextBtn);
+}
+
 function renderScoresHistory() {
   const tbody = document.getElementById("historyTableBody");
   const emptyState = document.getElementById("historyEmptyState");
   const countBadge = document.getElementById("historyCountBadge");
+  const paginationContainer = document.getElementById("historyPaginationContainer");
   
   tbody.innerHTML = "";
   
@@ -580,12 +999,13 @@ function renderScoresHistory() {
   const allScores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   
   // Filter for scores belonging to current student
-  const filtered = allScores.filter(s => s.studentEmail === currentStudent.email);
+  const filtered = allScores.filter(s => (s.studentEmail || "").toLowerCase() === (currentStudent?.email || "").toLowerCase());
   
   countBadge.innerText = `${filtered.length} bài đã làm`;
   
   if (filtered.length === 0) {
     emptyState.classList.remove("hidden");
+    if (paginationContainer) paginationContainer.classList.add("hidden");
     return;
   }
   emptyState.classList.add("hidden");
@@ -595,9 +1015,17 @@ function renderScoresHistory() {
     return new Date(b.completedAt || 0) - new Date(a.completedAt || 0);
   });
   
-  sorted.forEach((scoreEntry, index) => {
+  const totalPages = Math.ceil(sorted.length / HISTORY_ITEMS_PER_PAGE) || 1;
+  if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+  if (historyCurrentPage < 1) historyCurrentPage = 1;
+  
+  const startIndex = (historyCurrentPage - 1) * HISTORY_ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + HISTORY_ITEMS_PER_PAGE, sorted.length);
+  const pageItems = sorted.slice(startIndex, endIndex);
+  
+  pageItems.forEach((scoreEntry, index) => {
     const matchingTest = allTests.find(t => t.id === scoreEntry.testId);
-    const testTitle = matchingTest ? matchingTest.name : "Đề thi đã bị xóa";
+    const testTitle = matchingTest ? (matchingTest.title || matchingTest.name || scoreEntry.testTitle || "Bộ đề thi") : (scoreEntry.testTitle || "Bộ đề thi");
     const modeLabel = scoreEntry.mode === "exam" ? "Kiểm tra ⏱️" : "Luyện tập 📖";
     const modeClass = scoreEntry.mode === "exam" ? "text-indigo-600 bg-indigo-50 border-indigo-100" : "text-emerald-600 bg-emerald-50 border-emerald-100";
     
@@ -605,7 +1033,7 @@ function renderScoresHistory() {
     tr.className = "hover:bg-gray-50 transition-colors";
     
     tr.innerHTML = `
-      <td class="p-5 font-bold text-gray-400 text-xs">${index + 1}</td>
+      <td class="p-5 font-bold text-gray-400 text-xs">${startIndex + index + 1}</td>
       <td class="p-5">
         <span class="font-extrabold text-gray-900 block leading-tight">${testTitle}</span>
         <span class="text-[10px] text-gray-400 block font-medium mt-1">ID: ${scoreEntry.testId}</span>
@@ -621,13 +1049,15 @@ function renderScoresHistory() {
       <td class="p-5 font-semibold text-gray-500 text-xs">${scoreEntry.completedAt ? new Date(scoreEntry.completedAt).toLocaleDateString('vi-VN') : "Chưa rõ"}</td>
       <td class="p-5 text-right">
         <button onclick="reviewTest('${scoreEntry.testId}', ${safeStringify(scoreEntry).replace(/"/g, '&quot;')})" 
-                class="px-3.5 py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 text-gray-600 hover:text-blue-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1 inline-flex">
+                class="px-3.5 py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 text-gray-600 hover:text-blue-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1 inline-flex cursor-pointer">
           Xem bài <i class="fa-solid fa-eye text-[9px]"></i>
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+  
+  renderHistoryPagination(sorted.length, historyCurrentPage, totalPages);
 }
 
 // 10. Leaderboard rendering
@@ -732,8 +1162,111 @@ function renderLeaderboard() {
   });
 }
 
+// Anti-cheat tracking state
+let cheatViolationCount = 0;
+const MAX_CHEAT_VIOLATIONS = 3;
+let lastViolationTimestamp = 0;
+let isExamSubmitted = false;
+
+// Helper: Kiểm tra chính xác học sinh có ĐANG TRONG LÚC LÀM BÀI ôn tập hay kiểm tra không
+function isCurrentlyTakingTest() {
+  const testingScreen = document.getElementById("screen-testing");
+  if (!testingScreen || testingScreen.classList.contains("hidden")) return false;
+  if (!activePlayingTest) return false;
+  if (isReviewingExam) return false;
+  if (isExamSubmitted) return false;
+  
+  const scoreModal = document.getElementById("scoreReportModal");
+  if (scoreModal && !scoreModal.classList.contains("hidden")) return false;
+  
+  if (currentTestMode !== "exam" && currentTestMode !== "practice") return false;
+  
+  return true;
+}
+
+function handleExamTabViolation(reason) {
+  // Chỉ kích hoạt cảnh báo vi phạm khi học sinh đang trong lúc làm bài ôn tập hoặc kiểm tra
+  if (!isCurrentlyTakingTest()) return;
+  if (typeof Swal !== "undefined" && Swal.isVisible()) return;
+  
+  const now = Date.now();
+  if (now - lastViolationTimestamp < 2500) return; // Debounce 2.5s
+  lastViolationTimestamp = now;
+  
+  cheatViolationCount++;
+  
+  const isPractice = currentTestMode === "practice";
+  const modeTitle = isPractice ? "Ôn tập" : "Kiểm tra";
+  const modeAction = isPractice ? "TỰ ĐỘNG NỘP BÀI ÔN TẬP" : "TỰ ĐỘNG THU BÀI THI";
+  
+  if (cheatViolationCount < MAX_CHEAT_VIOLATIONS) {
+    Swal.fire({
+      icon: 'warning',
+      title: `⚠️ CẢNH BÁO VI PHẠM (Lần ${cheatViolationCount}/${MAX_CHEAT_VIOLATIONS})`,
+      html: `<div class="text-left space-y-2.5 text-sm text-gray-700">
+               <p class="font-bold text-red-600">Phát hiện hành vi: ${reason}!</p>
+               <p class="text-xs leading-relaxed text-gray-600">
+                 Quy chế làm bài <b>${modeTitle}</b>: Học sinh tập trung làm bài, <b>tuyệt đối không được chuyển tab, mở ứng dụng khác hoặc rời khỏi màn hình bài làm</b>.
+               </p>
+               <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-600">
+                 Cảnh báo: Nếu tiếp tục vi phạm thêm ${MAX_CHEAT_VIOLATIONS - cheatViolationCount} lần nữa, hệ thống sẽ <b>${modeAction}</b> ngay lập tức!
+               </div>
+             </div>`,
+      confirmButtonText: 'Tôi hiểu và tiếp tục làm bài',
+      confirmButtonColor: '#0ea5e9',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    });
+  } else {
+    Swal.fire({
+      icon: 'error',
+      title: `🚨 ĐÃ ${modeAction}!`,
+      html: `<div class="text-left space-y-2 text-sm text-gray-700">
+               <p class="font-bold text-red-600">Bạn đã vi phạm quy chế chuyển tab/rời bài làm quá ${MAX_CHEAT_VIOLATIONS} lần!</p>
+               <p class="text-xs text-gray-600">Hệ thống đã tự động khóa bài và lưu điểm số hiện tại của bạn.</p>
+             </div>`,
+      confirmButtonText: 'Xem kết quả',
+      confirmButtonColor: '#ef4444',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(() => {
+      submitFinishedExam();
+    });
+  }
+}
+
+// Anti-Cheat Window & Tab Event Listeners
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    handleExamTabViolation("chuyển sang tab hoặc ứng dụng khác");
+  }
+});
+
+window.addEventListener("blur", () => {
+  handleExamTabViolation("rời khỏi cửa sổ bài làm");
+});
+
+window.addEventListener("beforeunload", (e) => {
+  if (isCurrentlyTakingTest()) {
+    const isPractice = currentTestMode === "practice";
+    e.preventDefault();
+    e.returnValue = `Bạn đang làm bài ${isPractice ? 'ôn tập' : 'kiểm tra'}! Nếu rời đi bài làm sẽ bị hủy/kết thúc.`;
+    return e.returnValue;
+  }
+});
+
+document.addEventListener("contextmenu", (e) => {
+  if (isCurrentlyTakingTest()) {
+    e.preventDefault();
+  }
+});
+
 // 11. Test runner launching logic
-window.handleStartTest = function(testId, mode) {
+window.handleStartTest = function(testId, mode = "exam") {
+  if (testId === "MOCK_EXAM_RANDOM_45") {
+    handleStartMockExam(mode);
+    return;
+  }
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const target = tests.find(t => t.id === testId);
   
@@ -742,25 +1275,29 @@ window.handleStartTest = function(testId, mode) {
     return;
   }
   
-  const modeText = "Kiểm tra ⏱️";
-  const desc = `Bài thi có thời gian ${target.duration || 30} phút. Hệ thống sẽ tự động nộp bài khi hết giờ.`;
+  const testTitle = target.title || target.name || "Bộ đề thi IC3";
+  const isPractice = mode === "practice";
+  const modeText = isPractice ? "Ôn tập 📖 (Làm từng câu & xem đáp án ngay)" : "Kiểm tra ⏱️ (Đảo câu & nộp bài xong mới biết điểm)";
+  const desc = isPractice 
+    ? `Chế độ ôn tập giúp bạn kiểm tra đáp án ngay sau mỗi câu hỏi, kèm lời giải chi tiết và không giới hạn thời gian làm bài.<br><span class="text-amber-600 font-bold">Lưu ý: Hệ thống giám sát tập trung (cảnh báo khi chuyển tab hoặc rời khỏi bài làm).</span>`
+    : `Thời gian làm bài: <b>${target.duration || 30} phút</b>.<br><span class="text-red-500 font-bold">Lưu ý: Hệ thống giám sát chống chuyển tab / rời màn hình thi (tối đa 3 lần nhắc nhở trước khi tự động nộp).</span>`;
     
   Swal.fire({
-    title: `Bắt đầu làm bài?`,
-    html: `<div class="text-left space-y-2 text-sm text-gray-600">
-             <p class="font-bold text-gray-900">Tên đề: ${target.name}</p>
-             <p class="font-medium">Chế độ: <span class="text-sky-600 font-bold">${modeText}</span></p>
-             <p class="text-xs bg-gray-50 border border-gray-200 p-2.5 rounded-lg">${desc}</p>
+    title: `Bắt đầu ${isPractice ? 'Ôn tập' : 'Làm bài thi'}?`,
+    html: `<div class="text-left space-y-2.5 text-sm text-gray-600">
+             <p class="font-bold text-gray-900 text-base">Tên đề: ${testTitle}</p>
+             <p class="font-medium">Chế độ: <span class="${isPractice ? 'text-emerald-600' : 'text-sky-600'} font-bold">${modeText}</span></p>
+             <div class="text-xs bg-gray-50 border border-gray-200 p-3 rounded-xl leading-relaxed text-gray-700">${desc}</div>
            </div>`,
-    icon: 'info',
+    icon: isPractice ? 'info' : 'question',
     showCancelButton: true,
-    confirmButtonColor: '#0ea5e9',
+    confirmButtonColor: isPractice ? '#10b981' : '#0ea5e9',
     cancelButtonColor: '#64748B',
-    confirmButtonText: 'Đồng ý thi',
+    confirmButtonText: isPractice ? 'Bắt đầu ôn tập' : 'Bắt đầu kiểm tra',
     cancelButtonText: 'Quay lại'
   }).then((result) => {
     if (result.isConfirmed) {
-      startPlayingTest(target, "exam");
+      startPlayingTest(target, mode);
     }
   });
 };
@@ -769,62 +1306,50 @@ function startPlayingTest(test, mode) {
   activePlayingTest = test;
   currentTestMode = mode;
   isReviewingExam = false;
+  isExamSubmitted = false;
   activeQuestionIndex = 0;
   correctAnswersCount = 0;
   testStartTime = new Date();
+  
+  // Reset anti-cheat state for new exam or practice
+  cheatViolationCount = 0;
+  lastViolationTimestamp = 0;
   
   // 1. Process questions
   const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   let testQRefs = test.questions || [];
   
   // Filter questions that belong to this test
-  let matchedQuestions = allQuestions.filter(q => testQRefs.includes(q.id));
+  let matchedQuestions = (test.rawMockQuestions && test.rawMockQuestions.length > 0)
+    ? [...test.rawMockQuestions]
+    : allQuestions.filter(q => testQRefs.includes(q.id));
   
   if (matchedQuestions.length === 0) {
     Swal.fire('Lỗi đề thi', 'Giáo viên chưa thêm câu hỏi nào vào bộ đề này!', 'error');
     return;
   }
-  
-function safeStringify(obj) {
-  if (obj === undefined) return "undefined";
-  const cache = new WeakSet();
-  return JSON.stringify(obj, (key, value) => {
-    if (typeof value === "object" && value !== null) {
-      if (value instanceof Node || value instanceof Window) return undefined;
-      if (cache.has(value)) return undefined;
-      cache.add(value);
+
+  // If in exam mode or mock exam: shuffle questions order so each exam is randomized!
+  if (mode === "exam" || test.isMockExam) {
+    matchedQuestions = [...matchedQuestions];
+    for (let i = matchedQuestions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matchedQuestions[i], matchedQuestions[j]] = [matchedQuestions[j], matchedQuestions[i]];
     }
-    return value;
-  });
-}
-
-function safeDeepClone(obj) {
-  if (obj === null || typeof obj !== "object") return obj;
-  if (typeof structuredClone === "function") {
-    try {
-      return structuredClone(obj);
-    } catch (e) {}
   }
-  try {
-    return JSON.parse(safeStringify(obj));
-  } catch (e) {
-    return obj;
-  }
-}
 
-  // Standard option shuffler from student app
+  // Standard option shuffler for choice questions
   testQuestions = matchedQuestions.map(originalQ => {
     const clonedQ = safeDeepClone(originalQ);
     
     // Shuffler only if not table_match/hotspot/fill_blank/drag text
     if (["choice", "multiple_choice", "image_choice", "multi_choice"].includes(clonedQ.type) && Array.isArray(clonedQ.options)) {
-      // Map original option and record indices to properly grade after shuffler
       const optionsWithMetadata = clonedQ.options.map((opt, index) => ({
         text: opt,
         originalIndex: index
       }));
       
-      // Shuffle
+      // Shuffle options
       for (let i = optionsWithMetadata.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [optionsWithMetadata[i], optionsWithMetadata[j]] = [optionsWithMetadata[j], optionsWithMetadata[i]];
@@ -858,14 +1383,17 @@ function safeDeepClone(obj) {
   
   if (mode === "exam") {
     startTimer();
+  } else {
+    if (testTimerInterval) clearInterval(testTimerInterval);
   }
   
   // 4. Update Header UI
-  document.getElementById("testingTitle").innerText = test.name;
+  const testTitle = test.title || test.name || "Bộ đề thi IC3";
+  document.getElementById("testingTitle").innerText = testTitle;
   const modeBadge = document.getElementById("testingModeBadge");
-  modeBadge.innerText = mode === "exam" ? "Kiểm tra ⏱️" : "Luyện tập 📖";
+  modeBadge.innerText = mode === "exam" ? "Kiểm tra ⏱️" : "Ôn tập 📖";
   modeBadge.className = mode === "exam" 
-    ? "px-2.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200"
+    ? "px-2.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-sky-100 text-sky-700 border border-sky-200"
     : "px-2.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200";
     
   // 5. Unhide playing UI overlay
@@ -894,11 +1422,36 @@ function renderActiveQuestion() {
   document.getElementById("progressBarFill").style.width = `${progressPercent}%`;
   document.getElementById("sidebarProgressPercentText").innerText = `Tiến trình làm bài: ${progressPercent}%`;
   document.getElementById("sidebarProgressBarFill").style.width = `${progressPercent}%`;
-  document.getElementById("mobile-sidebarProgressPercentText").innerText = `Tiến trình làm bài: ${progressPercent}%`;
-  document.getElementById("mobile-sidebarProgressBarFill").style.width = `${progressPercent}%`;
+  if (document.getElementById("mobile-sidebarProgressPercentText")) {
+    document.getElementById("mobile-sidebarProgressPercentText").innerText = `Tiến trình làm bài: ${progressPercent}%`;
+  }
+  if (document.getElementById("mobile-sidebarProgressBarFill")) {
+    document.getElementById("mobile-sidebarProgressBarFill").style.width = `${progressPercent}%`;
+  }
+  
+  // Review Mode UI state adjustments
+  const topSubmitBtn = document.getElementById("topBarSubmitBtn");
+  const exitBtn = document.getElementById("btnExitTest");
+  const timerBox = document.getElementById("testingTimerBox");
+  
+  if (isReviewingExam) {
+    if (topSubmitBtn) topSubmitBtn.classList.add("hidden");
+    if (timerBox) timerBox.classList.add("hidden");
+    if (exitBtn) {
+      exitBtn.innerHTML = '<i class="fa-solid fa-arrow-left mr-1"></i> Quay về danh sách';
+      exitBtn.onclick = () => window.handleExitReviewMode();
+    }
+  } else {
+    if (topSubmitBtn) topSubmitBtn.classList.remove("hidden");
+    if (timerBox) timerBox.classList.toggle("hidden", currentTestMode !== "exam");
+    if (exitBtn) {
+      exitBtn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1"></i> Thoát bài làm';
+      exitBtn.onclick = () => window.handleExitPlaying();
+    }
+  }
   
   // Render question text
-  document.getElementById("questionBody").innerHTML = q.question;
+  document.getElementById("questionBody").innerHTML = formatItemText(q.question);
   
   // Question Image Attachment check
   const imgContainer = document.getElementById("questionImgContainer");
@@ -928,16 +1481,16 @@ function renderActiveQuestion() {
   // Render based on question type
   const type = q.type || "choice";
   
-  if (type === "choice" || type === "true_false") {
-    // Single choice options
-    let savedAnswerIdx = "";
+  if (type === "choice" || type === "true_false" || type === "multiple_choice") {
+    let savedAnswer = "";
     if (isQuestionAnswered) {
-      savedAnswerIdx = currentTestMode === "practice" ? userAnswers[activeQuestionIndex] : examUserAnswers[activeQuestionIndex];
+      savedAnswer = currentTestMode === "practice" ? userAnswers[activeQuestionIndex] : examUserAnswers[activeQuestionIndex];
     } else if (currentTestMode === "exam") {
-      savedAnswerIdx = examUserAnswers[activeQuestionIndex];
+      savedAnswer = examUserAnswers[activeQuestionIndex];
     }
     
-    q.options.forEach((opt, idx) => {
+    (q.options || []).forEach((opt, idx) => {
+      const optText = formatItemText(opt);
       const btn = document.createElement("button");
       btn.type = "button";
       btn.id = `choice-option-${idx}`;
@@ -945,8 +1498,13 @@ function renderActiveQuestion() {
       let optionStateClass = "border-gray-200 hover:bg-gray-50 text-gray-800";
       let iconHtml = "";
       
-      const isSelected = savedAnswerIdx !== "" && parseInt(savedAnswerIdx) === idx;
-      const isCorrect = idx === q.correctIndex;
+      const isSelected = savedAnswer !== "" && savedAnswer !== undefined && (
+        parseInt(savedAnswer) === idx || 
+        String(savedAnswer) === String(idx) || 
+        optText === savedAnswer ||
+        (typeof savedAnswer === "string" && optText.startsWith(savedAnswer))
+      );
+      const isCorrect = isOptionCorrectForQuestion(q, idx, optText, idx);
       
       if (isQuestionAnswered) {
         if (isCorrect) {
@@ -963,20 +1521,18 @@ function renderActiveQuestion() {
       
       btn.className = `option-btn w-full p-4 sm:p-5 rounded-2xl border text-left font-semibold text-sm sm:text-base flex items-center justify-between shadow-sm active:scale-98 transition-all duration-150 ${optionStateClass}`;
       btn.innerHTML = `
-        <span class="flex-grow pr-4">${opt}</span>
+        <span class="flex-grow pr-4">${optText}</span>
         <span class="shrink-0">${iconHtml}</span>
       `;
       
       btn.onclick = () => {
         if (isAnswerChecked) return;
-        // Clear all selections
         document.querySelectorAll(".option-btn").forEach(el => {
           el.className = "option-btn w-full p-4 sm:p-5 rounded-2xl border text-left font-semibold text-sm sm:text-base flex items-center justify-between shadow-sm active:scale-98 transition-all duration-150 border-gray-200 hover:bg-gray-50 text-gray-800";
           const subIcon = el.querySelector(".shrink-0");
           if (subIcon) subIcon.innerHTML = "";
         });
         
-        // Apply selection
         btn.className = "option-btn w-full p-4 sm:p-5 rounded-2xl border text-left font-extrabold text-sm sm:text-base flex items-center justify-between shadow-sm active:scale-98 transition-all duration-150 border-blue-600 bg-blue-50/50 text-blue-700";
         const iconContainer = btn.querySelector(".shrink-0");
         if (iconContainer) iconContainer.innerHTML = '<i class="fa-solid fa-circle-dot text-blue-600 text-lg"></i>';
@@ -991,7 +1547,6 @@ function renderActiveQuestion() {
       optionsContainer.appendChild(btn);
     });
     
-    // Show explanation if practice evaluated
     if (isQuestionAnswered && q.explanation) {
       showExplanationBox(q.explanation);
     }
@@ -1016,12 +1571,13 @@ function renderActiveQuestion() {
     if (!Array.isArray(savedSelected)) savedSelected = [];
     window.multiChoiceSelected = savedSelected;
     
-    q.options.forEach((opt, idx) => {
+    (q.options || []).forEach((opt, idx) => {
+      const optText = formatItemText(opt);
       const btn = document.createElement("button");
       btn.type = "button";
       
-      const isSelected = savedSelected.includes(idx);
-      const isCorrect = q.correctIndices.includes(idx);
+      const isSelected = savedSelected.includes(idx) || savedSelected.includes(String(idx)) || savedSelected.includes(optText);
+      const isCorrect = Array.isArray(q.correctIndices) && (q.correctIndices.includes(idx) || q.correctIndices.includes(String(idx)));
       
       let optionStateClass = "border-gray-200 hover:bg-gray-50 text-gray-800";
       let boxClass = "w-5 h-5 rounded border border-gray-400 flex items-center justify-center mr-3 shrink-0";
@@ -1046,7 +1602,7 @@ function renderActiveQuestion() {
       btn.className = `w-full p-4 sm:p-5 rounded-2xl border text-left font-semibold text-sm sm:text-base flex items-center shadow-sm active:scale-98 transition-all duration-150 ${optionStateClass}`;
       btn.innerHTML = `
         <span id="multi-check-box-${idx}" class="${boxClass}">${boxInner}</span>
-        <span class="flex-grow">${opt}</span>
+        <span class="flex-grow">${optText}</span>
       `;
       
       btn.onclick = () => {
@@ -1091,7 +1647,7 @@ function renderActiveQuestion() {
     const grid = document.createElement("div");
     grid.className = "grid grid-cols-2 gap-4 w-full";
     
-    q.options.forEach((optImgUrl, idx) => {
+    (q.options || []).forEach((optImgUrl, idx) => {
       const card = document.createElement("div");
       
       let borderClass = "border-gray-200 hover:border-blue-300";
@@ -1168,16 +1724,15 @@ function renderActiveQuestion() {
     let isCorrect = false;
     
     if (isQuestionAnswered) {
-      isCorrect = savedVal.trim().toLowerCase() === q.answer.trim().toLowerCase();
+      isCorrect = (savedVal || "").toString().trim().toLowerCase() === (q.answer || "").toString().trim().toLowerCase();
       evaluationClass = isCorrect ? "border-emerald-500 bg-emerald-50/40 text-emerald-700" : "border-red-500 bg-red-50/40 text-red-700";
     }
     
     wrapper.innerHTML = `
-      <input type="text" id="blank-input" placeholder="Gõ câu trả lời của bạn vào đây..." value="${savedVal}" ${isQuestionAnswered ? "disabled" : ""}
+      <input type="text" id="blank-input" placeholder="Gõ câu trả lời của bạn vào đây..." value="${savedVal || ""}" ${isQuestionAnswered ? "disabled" : ""}
         class="w-full bg-gray-50 border-2 rounded-2xl px-5 py-4 font-bold text-sm sm:text-base focus:outline-none transition-all ${evaluationClass}">
     `;
     
-    // Bind change listener
     setTimeout(() => {
       const input = document.getElementById("blank-input");
       if (input) {
@@ -1195,7 +1750,7 @@ function renderActiveQuestion() {
       if (!isCorrect) {
         const correctInfo = document.createElement("div");
         correctInfo.className = "p-3.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold flex items-center gap-2 border border-emerald-100";
-        correctInfo.innerHTML = `<i class="fa-solid fa-circle-check text-base text-emerald-600"></i> Đáp án đúng là: <span class="underline">${q.answer}</span>`;
+        correctInfo.innerHTML = `<i class="fa-solid fa-circle-check text-base text-emerald-600"></i> Đáp án đúng là: <span class="underline">${formatItemText(q.answer)}</span>`;
         wrapper.appendChild(correctInfo);
       }
       if (q.explanation) {
@@ -1206,38 +1761,43 @@ function renderActiveQuestion() {
     optionsContainer.appendChild(wrapper);
     
   } else if (type === "drag_text") {
-    let savedAnswers = new Array(q.rows.length).fill("");
+    const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+    let savedAnswers = new Array(rowCount).fill("");
     if (isQuestionAnswered) {
       const stored = currentTestMode === "practice" ? userAnswers[activeQuestionIndex] : examUserAnswers[activeQuestionIndex];
       try {
         savedAnswers = typeof stored === "string" ? JSON.parse(stored) : stored;
       } catch (e) {
-        savedAnswers = stored || new Array(q.rows.length).fill("");
+        savedAnswers = stored || new Array(rowCount).fill("");
       }
     } else if (currentTestMode === "exam" && examUserAnswers[activeQuestionIndex]) {
       const stored = examUserAnswers[activeQuestionIndex];
       try {
         savedAnswers = typeof stored === "string" ? JSON.parse(stored) : stored;
       } catch (e) {
-        savedAnswers = stored || new Array(q.rows.length).fill("");
+        savedAnswers = stored || new Array(rowCount).fill("");
       }
     }
+    if (!Array.isArray(savedAnswers)) savedAnswers = new Array(rowCount).fill("");
     window.draggedTextAnswers = savedAnswers;
     
     const wrapper = document.createElement("div");
     wrapper.className = "space-y-4 w-full";
     
     let rowsHtml = `<div class="space-y-3">`;
-    q.rows.forEach((row, rIdx) => {
-      const placed = savedAnswers[rIdx];
-      const correct = q.correctAnswers[rIdx];
+    (q.rows || []).forEach((row, rIdx) => {
+      const rowText = formatItemText(row);
+      const placed = formatItemText(savedAnswers[rIdx]);
+      const correct = formatItemText(q.correctAnswers ? q.correctAnswers[rIdx] : "");
       
       let slotClass = "border-2 border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/20 text-blue-500 font-bold text-xs";
       let slotText = "Nhấp thẻ từ bên dưới...";
       let tipHtml = "";
       
+      const isRowCorrect = placed !== "" && (placed === correct || savedAnswers[rIdx] == (q.correctAnswers ? q.correctAnswers[rIdx] : ""));
+      
       if (isQuestionAnswered) {
-        if (placed === correct) {
+        if (isRowCorrect) {
           slotClass = "border border-emerald-500 bg-emerald-50 text-emerald-700 font-black text-xs";
           slotText = placed;
         } else {
@@ -1252,7 +1812,7 @@ function renderActiveQuestion() {
       
       rowsHtml += `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-white border border-gray-200 gap-3">
-          <span class="text-sm font-semibold text-gray-800 flex-1 break-words">${row}</span>
+          <span class="text-sm font-semibold text-gray-800 flex-1 break-words">${rowText}</span>
           <div class="shrink-0 w-full sm:w-auto">
             <div id="drag-text-target-${rIdx}" onclick="clearDraggedText(${rIdx})" 
                  class="${slotClass} w-full sm:w-56 min-h-12 flex items-center justify-center rounded-xl p-2.5 cursor-pointer text-center break-words">
@@ -1267,18 +1827,19 @@ function renderActiveQuestion() {
     
     let poolHtml = "";
     if (!isQuestionAnswered) {
-      window.currentDragOptions = q.options;
+      window.currentDragOptions = (q.options || []).map(formatItemText);
       poolHtml = `
         <div class="p-4 rounded-2xl bg-gray-50 border border-gray-200 mt-4">
           <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wider mb-2.5">Thẻ từ khóa có sẵn (nhấp chọn):</span>
           <div class="flex flex-wrap gap-2" id="drag-text-pool">
-            ${q.options.map((opt, idx) => {
-              const isUsed = savedAnswers.includes(opt);
+            ${(q.options || []).map((opt, idx) => {
+              const optText = formatItemText(opt);
+              const isUsed = savedAnswers.map(formatItemText).includes(optText);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
                 <button id="drag-text-pool-btn-${idx}" onclick="placeDraggedText(${idx})" 
                         class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 duration-100 ${disabledClass}">
-                  ${opt}
+                  ${optText}
                 </button>
               `;
             }).join("")}
@@ -1295,38 +1856,42 @@ function renderActiveQuestion() {
     }
     
   } else if (type === "drag_image_text") {
-    let savedAnswers = new Array(q.leftImages.length).fill("");
+    const count = Array.isArray(q.leftImages) ? q.leftImages.length : 0;
+    let savedAnswers = new Array(count).fill("");
     if (isQuestionAnswered) {
       const stored = currentTestMode === "practice" ? userAnswers[activeQuestionIndex] : examUserAnswers[activeQuestionIndex];
       try {
         savedAnswers = typeof stored === "string" ? JSON.parse(stored) : stored;
       } catch (e) {
-        savedAnswers = stored || new Array(q.leftImages.length).fill("");
+        savedAnswers = stored || new Array(count).fill("");
       }
     } else if (currentTestMode === "exam" && examUserAnswers[activeQuestionIndex]) {
       const stored = examUserAnswers[activeQuestionIndex];
       try {
         savedAnswers = typeof stored === "string" ? JSON.parse(stored) : stored;
       } catch (e) {
-        savedAnswers = stored || new Array(q.leftImages.length).fill("");
+        savedAnswers = stored || new Array(count).fill("");
       }
     }
+    if (!Array.isArray(savedAnswers)) savedAnswers = new Array(count).fill("");
     window.draggedTextAnswers = savedAnswers;
     
     const wrapper = document.createElement("div");
     wrapper.className = "space-y-4 w-full";
     
     let imagesHtml = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">`;
-    q.leftImages.forEach((imgUrl, idx) => {
-      const placed = savedAnswers[idx];
-      const correct = q.correctAnswers[idx];
+    (q.leftImages || []).forEach((imgUrl, idx) => {
+      const placed = formatItemText(savedAnswers[idx]);
+      const correct = formatItemText(q.correctAnswers ? q.correctAnswers[idx] : "");
       
       let slotClass = "border-2 border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/20 text-blue-500 font-bold text-xs";
       let slotText = "Nhấp chọn từ bên dưới...";
       let tipHtml = "";
       
+      const isRowCorrect = placed !== "" && (placed === correct || savedAnswers[idx] == (q.correctAnswers ? q.correctAnswers[idx] : ""));
+      
       if (isQuestionAnswered) {
-        if (placed === correct) {
+        if (isRowCorrect) {
           slotClass = "border border-emerald-500 bg-emerald-50 text-emerald-700 font-black text-xs";
           slotText = placed;
         } else {
@@ -1356,18 +1921,19 @@ function renderActiveQuestion() {
     
     let poolHtml = "";
     if (!isQuestionAnswered) {
-      window.currentDragOptions = q.options;
+      window.currentDragOptions = (q.options || []).map(formatItemText);
       poolHtml = `
         <div class="p-4 rounded-2xl bg-gray-50 border border-gray-200 mt-4">
           <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wider mb-2.5">Thẻ tên gọi phù hợp (nhấp chọn):</span>
           <div class="flex flex-wrap gap-2" id="drag-image-pool">
-            ${q.options.map((opt, idx) => {
-              const isUsed = savedAnswers.includes(opt);
+            ${(q.options || []).map((opt, idx) => {
+              const optText = formatItemText(opt);
+              const isUsed = savedAnswers.map(formatItemText).includes(optText);
               const disabledClass = isUsed ? " opacity-30 pointer-events-none" : "";
               return `
                 <button id="drag-image-pool-btn-${idx}" onclick="placeDraggedImageText(${idx})" 
                         class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 duration-100 ${disabledClass}">
-                  ${opt}
+                  ${optText}
                 </button>
               `;
             }).join("")}
@@ -1400,6 +1966,7 @@ function renderActiveQuestion() {
         savedAnswers = stored || [];
       }
     }
+    if (!Array.isArray(savedAnswers)) savedAnswers = [];
     
     const wrapper = document.createElement("div");
     wrapper.className = "w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm";
@@ -1408,16 +1975,22 @@ function renderActiveQuestion() {
       <table class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-            <th class="p-4 w-1/2">${q.headers ? q.headers[0] : "Khái niệm"}</th>
-            <th class="p-4 w-1/2">${q.headers ? q.headers[1] : "Tính chất ghép nối"}</th>
+            <th class="p-4 w-1/2">${q.headers ? formatItemText(q.headers[0]) : "Khái niệm"}</th>
+            <th class="p-4 w-1/2">${q.headers ? formatItemText(q.headers[1]) : "Tính chất ghép nối"}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
     `;
     
-    q.rows.forEach((row, rIdx) => {
-      const placedIdx = savedAnswers[rIdx];
-      const correctIdx = q.correctAnswers[rIdx];
+    (q.rows || []).forEach((row, rIdx) => {
+      const rowText = formatItemText(row);
+      const placedVal = savedAnswers[rIdx];
+      const correctVal = q.correctAnswers ? q.correctAnswers[rIdx] : undefined;
+      
+      const placedOptText = placedVal !== undefined && placedVal !== "" ? (q.options && q.options[placedVal] !== undefined ? formatItemText(q.options[placedVal]) : formatItemText(placedVal)) : "";
+      const correctOptText = correctVal !== undefined && correctVal !== "" ? (q.options && q.options[correctVal] !== undefined ? formatItemText(q.options[correctVal]) : formatItemText(correctVal)) : "";
+      
+      const isRowCorrect = placedOptText !== "" && (placedVal == correctVal || placedOptText === correctOptText);
       
       let selectClass = "w-full bg-gray-50 border border-gray-200 text-gray-800 text-xs font-semibold rounded-xl p-2.5 outline-none transition-all cursor-pointer";
       let disabledAttr = "";
@@ -1425,27 +1998,28 @@ function renderActiveQuestion() {
       
       if (isQuestionAnswered) {
         disabledAttr = "disabled";
-        if (parseInt(placedIdx) === correctIdx) {
+        if (isRowCorrect) {
           selectClass = "w-full bg-emerald-50 border border-emerald-400 text-emerald-700 text-xs font-bold rounded-xl p-2.5 outline-none transition-all";
         } else {
           selectClass = "w-full bg-red-50 border border-red-400 text-red-700 text-xs font-bold rounded-xl p-2.5 outline-none transition-all";
-          tipHtml = `<span class="block text-xs font-bold text-emerald-600 mt-1"><i class="fa-solid fa-circle-check"></i> Đúng: ${q.options[correctIdx]}</span>`;
+          tipHtml = `<span class="block text-xs font-bold text-emerald-600 mt-1"><i class="fa-solid fa-circle-check"></i> Đúng: ${correctOptText}</span>`;
         }
-      } else if (placedIdx !== undefined && placedIdx !== "") {
+      } else if (placedVal !== undefined && placedVal !== "") {
         selectClass = "w-full bg-blue-50/50 border border-blue-500 text-blue-700 text-xs font-bold rounded-xl p-2.5 outline-none transition-all cursor-pointer";
       }
       
       tableHtml += `
         <tr>
-          <td class="p-4 text-xs sm:text-sm font-semibold text-gray-700 break-words">${row}</td>
+          <td class="p-4 text-xs sm:text-sm font-semibold text-gray-700 break-words">${rowText}</td>
           <td class="p-4">
             <select id="table-match-select-${rIdx}" onchange="changeTableMatchSelect(${rIdx})" ${disabledAttr}
                     class="${selectClass}">
               <option value="">-- Chọn đáp án --</option>
-              ${q.options.map((opt, oIdx) => {
-                const isSelected = placedIdx !== undefined && placedIdx !== "" && parseInt(placedIdx) === oIdx;
+              ${(q.options || []).map((opt, oIdx) => {
+                const optText = formatItemText(opt);
+                const isSelected = placedVal !== undefined && placedVal !== "" && (parseInt(placedVal) === oIdx || String(placedVal) === String(oIdx) || placedOptText === optText);
                 return `
-                  <option value="${oIdx}" ${isSelected ? "selected" : ""}>${opt}</option>
+                  <option value="${oIdx}" ${isSelected ? "selected" : ""}>${optText}</option>
                 `;
               }).join("")}
             </select>
@@ -1583,10 +2157,17 @@ function renderActiveQuestion() {
   
   btnPrev.classList.toggle("hidden", activeQuestionIndex === 0);
   
-  if (currentTestMode === "practice") {
+  if (isReviewingExam) {
+    btnNext.innerHTML = activeQuestionIndex === testQuestions.length - 1 
+      ? '<i class="fa-solid fa-arrow-left mr-1.5"></i> Quay về danh sách'
+      : 'Câu tiếp theo <i class="fa-solid fa-chevron-right ml-1.5"></i>';
+    btnNext.className = activeQuestionIndex === testQuestions.length - 1
+      ? "px-8 py-3.5 rounded-2xl bg-gray-700 hover:bg-gray-800 text-white text-xs sm:text-sm font-bold shadow-md shadow-gray-700/20 transition-all active:scale-95 text-center w-full sm:w-auto"
+      : "px-8 py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95 text-center w-full sm:w-auto";
+  } else if (currentTestMode === "practice") {
     if (isAnswerChecked) {
       btnNext.innerHTML = activeQuestionIndex === testQuestions.length - 1 
-        ? 'Nộp bài ôn tập <i class="fa-solid fa-flag-checkered ml-1.5"></i>'
+        ? 'Hoàn thành ôn tập <i class="fa-solid fa-flag-checkered ml-1.5"></i>'
         : 'Câu tiếp theo <i class="fa-solid fa-chevron-right ml-1.5"></i>';
       btnNext.className = "px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/10 transition-all active:scale-95";
     } else {
@@ -1595,9 +2176,11 @@ function renderActiveQuestion() {
     }
   } else if (currentTestMode === "exam") {
     btnNext.innerHTML = activeQuestionIndex === testQuestions.length - 1 
-      ? 'Nộp bài thi <i class="fa-solid fa-flag-checkered ml-1.5"></i>'
+      ? 'Nộp bài thi <i class="fa-solid fa-paper-plane ml-1.5"></i>'
       : 'Câu tiếp theo <i class="fa-solid fa-chevron-right ml-1.5"></i>';
-    btnNext.className = "px-8 py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95 text-center w-full sm:w-auto";
+    btnNext.className = activeQuestionIndex === testQuestions.length - 1
+      ? "px-8 py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-sky-600/20 transition-all active:scale-95 text-center w-full sm:w-auto"
+      : "px-8 py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95 text-center w-full sm:w-auto";
   }
 }
 
@@ -1765,6 +2348,16 @@ window.handlePrevQuestion = function() {
 window.handleNextQuestion = function() {
   const q = testQuestions[activeQuestionIndex];
   
+  if (isReviewingExam) {
+    if (activeQuestionIndex < testQuestions.length - 1) {
+      activeQuestionIndex++;
+      renderActiveQuestion();
+    } else {
+      window.handleExitReviewMode();
+    }
+    return;
+  }
+  
   if (currentTestMode === "practice") {
     if (!isAnswerChecked) {
       // Evaluate practice answer immediately
@@ -1870,6 +2463,7 @@ function startTimer() {
 }
 
 window.handleSubmitExam = function() {
+  if (isReviewingExam) return;
   // Count unanswered
   let unanswered = 0;
   if (currentTestMode === "exam") {
@@ -1899,6 +2493,7 @@ window.handleSubmitExam = function() {
 // 15. Formulate score calculations & Sync back to DB
 async function submitFinishedExam() {
   if (testTimerInterval) clearInterval(testTimerInterval);
+  isExamSubmitted = true;
   showGlobalLoader("Đang tổng hợp điểm số và cập nhật học bạ...");
   
   let correctCount = 0;
@@ -1919,10 +2514,13 @@ async function submitFinishedExam() {
   const secs = totalSecondsSpent % 60;
   const elapsedText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   
+  const testTitle = activePlayingTest.title || activePlayingTest.name || "Bộ đề thi IC3";
+  
   // Construct dynamic score object
   const scoreEntry = {
     id: `${currentStudent.email.replace(/[.@]/g, "_")}_${activePlayingTest.id}_${Date.now()}`,
     testId: activePlayingTest.id,
+    testTitle: testTitle,
     studentEmail: currentStudent.email,
     studentName: currentStudent.name,
     classId: currentStudent.classId,
@@ -1932,6 +2530,8 @@ async function submitFinishedExam() {
     totalCount: testQuestions.length,
     timeSpent: elapsedText,
     mode: currentTestMode,
+    userAnswers: currentTestMode === "exam" ? [...examUserAnswers] : [...userAnswers],
+    questions: testQuestions.map(q => ({ ...q })),
     completedAt: new Date().toISOString()
   };
   
@@ -1943,20 +2543,19 @@ async function submitFinishedExam() {
     await window.saveData(window.IC3_KEYS.SCORES, allScores, scoreEntry.id);
     
     if (window.syncScoreToGoogleSheet) {
-       const syncRes = await window.syncScoreToGoogleSheet(scorePercent, activePlayingTest.name, correctCount);
+       const syncRes = await window.syncScoreToGoogleSheet(scorePercent, testTitle, correctCount);
        if (!syncRes.success) {
           console.warn("Failed to sync score to Google Sheet:", syncRes.message);
        }
     }
     
-    // Auto-award badges or achievements if they exist, keeping educational simplicity
     window.hideGlobalLoader();
     showScoreReport(scorePercent, correctCount, elapsedText);
   } catch (err) {
     console.error("Error saving score results:", err);
     window.hideGlobalLoader();
     Swal.fire('Lỗi đồng bộ', 'Không thể gửi học bạ lên đám mây. Vui lòng kiểm tra kết nối mạng!', 'error');
-    showScoreReport(scorePercent, correctCount, elapsedText); // Still show report
+    showScoreReport(scorePercent, correctCount, elapsedText);
   }
 }
 
@@ -1966,23 +2565,45 @@ function showScoreReport(score, correct, timeSpent) {
   const title = document.getElementById("modalReportTitle");
   const statusLabel = document.getElementById("modalReportStatus");
   
-  document.getElementById("modalReportTestName").innerText = activePlayingTest.name;
-  document.getElementById("modalReportScore").innerText = score;
-  document.getElementById("modalReportCorrectDetails").innerText = `${correct}/${testQuestions.length} câu trả lời đúng`;
+  const total = testQuestions.length || 45;
+  const score10 = Number(((correct / total) * 10).toFixed(1));
+
+  document.getElementById("modalReportTestName").innerText = activePlayingTest.title || activePlayingTest.name || "Bộ đề thi IC3";
+  
+  const score10El = document.getElementById("modalReportScore10");
+  if (score10El) score10El.innerText = score10.toFixed(1);
+
+  const scoreEl = document.getElementById("modalReportScore");
+  if (scoreEl) scoreEl.innerText = score;
+
+  document.getElementById("modalReportCorrectDetails").innerText = `${correct}/${total} câu trả lời đúng`;
   document.getElementById("modalReportTimeSpent").innerText = timeSpent;
   
-  // Determine success status based on 70% pass requirement
-  const isPass = score >= 70;
-  if (isPass) {
+  // Quy chuẩn: 41/45 là loại giỏi, 1 nửa câu tới 41 thì loại khá
+  const thresGioi = (total === 45) ? 41 : Math.ceil(total * (41 / 45));
+  const thresKha = Math.ceil(total / 2);
+
+  if (correct >= thresGioi) {
     icon.innerHTML = "🏆";
     icon.className = "w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-md border border-emerald-100 bg-emerald-50 mb-6 animate-bounce";
-    title.innerText = "BÀI THI HOÀN THÀNH!";
-    statusLabel.innerText = "ĐẠT CHỈ TIÊU";
-    statusLabel.className = "text-sm font-black text-emerald-500 block mt-0.5";
+    title.innerText = "BÀI THI XUẤT SẮC!";
+    statusLabel.innerText = "LOẠI GIỎI (XUẤT SẮC)";
+    statusLabel.className = "text-sm font-black text-emerald-600 block mt-0.5";
     
     // Burst congratulations confetti!
     if (window.confetti) {
       window.confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+    }
+  } else if (correct >= thresKha) {
+    icon.innerHTML = "⭐";
+    icon.className = "w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-md border border-blue-100 bg-blue-50 mb-6";
+    title.innerText = "BÀI THI HOÀN THÀNH!";
+    statusLabel.innerText = "LOẠI KHÁ (ĐẠT CHỈ TIÊU)";
+    statusLabel.className = "text-sm font-black text-blue-600 block mt-0.5";
+    
+    // Burst congratulations confetti!
+    if (window.confetti) {
+      window.confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
     }
   } else {
     icon.innerHTML = "📝";
@@ -1999,7 +2620,16 @@ window.handleCloseScoreReport = function() {
   document.getElementById("scoreReportModal").classList.add("hidden");
   document.getElementById("screen-testing").classList.add("hidden");
   
-  // Refresh views
+  // Clean up testing state completely so violation warnings don't trigger outside tests
+  activePlayingTest = null;
+  currentTestMode = "";
+  isReviewingExam = false;
+  isExamSubmitted = false;
+  cheatViolationCount = 0;
+  lastViolationTimestamp = 0;
+  
+  // Refresh views and show newest results on page 1
+  historyCurrentPage = 1;
   renderStudentDashboard();
   switchTab("tests");
 };
@@ -2021,45 +2651,25 @@ function renderSidebarListGrid() {
     
     let btnClass = "bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200";
     
-    if (isCurrent) {
+    if (isReviewingExam) {
+      const studentAns = currentTestMode === "practice" ? userAnswers[idx] : examUserAnswers[idx];
+      const correct = isAnswerCorrect(q, studentAns);
+      if (correct) {
+        btnClass = isCurrent 
+          ? "bg-emerald-500 text-white border-2 border-emerald-600 ring-4 ring-emerald-300 font-black scale-105" 
+          : "bg-emerald-500 text-white border-emerald-500";
+        done++;
+      } else {
+        btnClass = isCurrent 
+          ? "bg-red-500 text-white border-2 border-red-600 ring-4 ring-red-300 font-black scale-105" 
+          : "bg-red-500 text-white border-red-500";
+        todo++;
+      }
+    } else if (isCurrent) {
       btnClass = "bg-white text-blue-600 border-2 border-blue-600 ring-2 ring-blue-500/15 font-black scale-105 animate-pulse";
     } else if (isPractAnswered) {
-      // In practice, evaluate if they got it right/wrong to color the circle immediately!
       const ans = userAnswers[idx];
-      let correct = false;
-      
-      const type = q.type || "choice";
-      if (type === "choice" || type === "true_false" || type === "image_choice") {
-        correct = parseInt(ans) === q.correctIndex;
-      } else if (type === "fill_blank") {
-        correct = ans && ans.trim().toLowerCase() === q.answer.trim().toLowerCase();
-      } else if (type === "drag_text" || type === "drag_image_text" || type === "table_match") {
-        try {
-          const parsed = typeof ans === "string" ? JSON.parse(ans) : ans;
-          correct = Array.isArray(parsed) && parsed.every((val, i) => val === q.correctAnswers[i]);
-        } catch(e) {}
-      } else if (type === "hotspot") {
-        try {
-          const clicks = typeof ans === "string" ? JSON.parse(ans) : ans;
-          if (Array.isArray(clicks) && clicks.length >= (q.requiredCount || 1)) {
-            let allValid = true;
-            clicks.forEach(click => {
-              let hit = false;
-              (q.hotspots || []).forEach(area => {
-                if (click.x >= area.x && click.x <= area.x + area.w && click.y >= area.y && click.y <= area.y + area.h) hit = true;
-              });
-              if (!hit) allValid = false;
-            });
-            correct = allValid;
-          }
-        } catch(e) {}
-      } else if (type === "multi_choice") {
-        try {
-          const parsed = typeof ans === "string" ? JSON.parse(ans) : ans;
-          correct = Array.isArray(parsed) && parsed.every(val => q.correctIndices.includes(val));
-        } catch(e) {}
-      }
-      
+      const correct = isAnswerCorrect(q, ans);
       btnClass = correct ? "bg-emerald-500 text-white border-emerald-500" : "bg-red-500 text-white border-red-500";
       done++;
     } else if (isExamAnswered) {
@@ -2116,19 +2726,31 @@ window.toggleMobileNavPanel = function(forceState) {
 };
 
 window.confirmExitPlaying = function() {
+  if (isReviewingExam) {
+    window.handleExitReviewMode();
+    return;
+  }
+  const isPractice = currentTestMode === "practice";
+  const actionWord = isPractice ? "bài ôn tập" : "bài kiểm tra";
   Swal.fire({
-    title: 'Thoát khỏi bài làm?',
+    title: `Thoát khỏi ${actionWord}?`,
     text: 'Các kết quả chưa hoàn thành sẽ không được lưu lại.',
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#EF4444',
     cancelButtonColor: '#64748B',
     confirmButtonText: 'Đồng ý thoát',
-    cancelButtonText: 'Tiếp tục thi'
+    cancelButtonText: 'Tiếp tục làm'
   }).then((result) => {
     if (result.isConfirmed) {
       if (testTimerInterval) clearInterval(testTimerInterval);
       document.getElementById("screen-testing").classList.add("hidden");
+      activePlayingTest = null;
+      currentTestMode = "";
+      isReviewingExam = false;
+      isExamSubmitted = false;
+      cheatViolationCount = 0;
+      lastViolationTimestamp = 0;
     }
   });
 };
@@ -2137,35 +2759,44 @@ window.handleExitPlaying = function() {
   window.confirmExitPlaying();
 };
 
+window.handleExitReviewMode = function() {
+  isReviewingExam = false;
+  activePlayingTest = null;
+  currentTestMode = "";
+  isExamSubmitted = false;
+  cheatViolationCount = 0;
+  lastViolationTimestamp = 0;
+  document.getElementById("screen-testing").classList.add("hidden");
+  renderScoresHistory();
+};
+
 // 18. Detailed Exam Reviewing Mode support
 window.reviewTest = function(testId, scoreEntry) {
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
-  const targetTest = tests.find(t => t.id === testId);
-  
-  if (!targetTest) {
-    Swal.fire('Lỗi', 'Thông tin bộ đề của kết quả này đã bị xóa khỏi hệ thống!', 'error');
-    return;
-  }
+  const targetTest = tests.find(t => t.id === testId) || { id: testId, title: scoreEntry?.testTitle, name: scoreEntry?.testTitle || "Bộ đề thi" };
   
   // Set exam playing parameters in review mode
   activePlayingTest = targetTest;
-  currentTestMode = scoreEntry.mode || "exam";
+  currentTestMode = (scoreEntry && scoreEntry.mode) || "exam";
   isReviewingExam = true;
   activeQuestionIndex = 0;
   
-  // Set simulated answers list based on database score entries
-  const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
-  let testQRefs = targetTest.questions || [];
-  testQuestions = allQuestions.filter(q => testQRefs.includes(q.id));
-  
-  if (currentTestMode === "exam") {
-    // Re-pack simulated exam entries or practice entries
-    // Find matching score fields or pre-calculate
-    // Let's check how the stored answers are reconstructed
-    examUserAnswers = new Array(testQuestions.length).fill("");
-    // If the database stored separate answers, load them.
-    // If not, we just show correctness indicators and correct choices.
+  if (scoreEntry && Array.isArray(scoreEntry.questions) && scoreEntry.questions.length > 0) {
+    testQuestions = scoreEntry.questions.map(q => safeDeepClone(q));
   } else {
+    const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+    let testQRefs = targetTest.questions || [];
+    testQuestions = allQuestions.filter(q => testQRefs.includes(q.id)).map(q => safeDeepClone(q));
+  }
+  
+  if (scoreEntry && Array.isArray(scoreEntry.userAnswers) && scoreEntry.userAnswers.length > 0) {
+    if (currentTestMode === "exam") {
+      examUserAnswers = [...scoreEntry.userAnswers];
+    } else {
+      userAnswers = [...scoreEntry.userAnswers];
+    }
+  } else {
+    examUserAnswers = new Array(testQuestions.length).fill("");
     userAnswers = new Array(testQuestions.length).fill("");
   }
   
@@ -2173,7 +2804,8 @@ window.reviewTest = function(testId, scoreEntry) {
   document.getElementById("testingTimerBox").classList.add("hidden");
   
   // Header indicators
-  document.getElementById("testingTitle").innerText = `Xem lại: ${targetTest.name}`;
+  const titleText = targetTest.title || targetTest.name || scoreEntry?.testTitle || "Bộ đề thi";
+  document.getElementById("testingTitle").innerText = `Xem lại: ${titleText}`;
   const modeBadge = document.getElementById("testingModeBadge");
   modeBadge.innerText = "XEM LẠI BÀI";
   modeBadge.className = "px-2.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-300";

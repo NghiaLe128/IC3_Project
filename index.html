@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IC3 Sparks LMS - Hệ thống luyện thi IC3 thông minh</title>
+    <title>IC3 LMS - Hệ thống luyện thi IC3 thông minh</title>
+    <meta name="description" content="Hệ thống quản lý học tập (LMS) luyện thi chứng chỉ tin học quốc tế IC3 cho học sinh cấp 1, 2, 3 với thiết kế trò chơi hóa sinh động." />
+    <meta property="og:title" content="IC3 LMS - Hệ thống luyện thi IC3 thông minh" />
+    <meta property="og:description" content="Hệ thống quản lý học tập (LMS) luyện thi chứng chỉ tin học quốc tế IC3 cho học sinh cấp 1, 2, 3 với thiết kế trò chơi hóa sinh động." />
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,9 +69,12 @@
         </div>
         <span class="font-poppins font-bold text-2xl bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">IC3 SPARKS LMS</span>
       </div>
-      <div class="flex items-center gap-4 text-sm text-gray-400">
-        <span class="hidden md:inline"><i class="fa-solid fa-circle-check text-green-400 mr-1"></i> Phiên bản 2026.1</span>
-        <span class="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-indigo-300">Gamified Learning</span>
+      <div class="flex items-center gap-3 text-sm text-gray-400">
+        <a href="/kiemtra/index.html" class="px-3.5 py-1.5 rounded-full bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400/50 text-blue-200 text-xs font-bold transition-all flex items-center gap-1.5">
+          <i class="fa-solid fa-file-signature text-blue-400"></i>
+          <span>Cổng Kiểm Tra Đề</span>
+        </a>
+        <span class="hidden md:inline text-xs"><i class="fa-solid fa-circle-check text-green-400 mr-1"></i> Phiên bản 2026.1</span>
       </div>
     </header>
 
@@ -172,12 +178,19 @@
           </form>
 
           <!-- Google Student Login Button -->
-          <div class="mt-6 pt-6 border-t border-slate-700/50">
+          <div class="mt-6 pt-6 border-t border-slate-700/50 space-y-3">
             <button type="button" id="googleStudentBtn"
               class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 hover:border-emerald-400/60 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-100 font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 transform hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
               <i class="fa-solid fa-file-excel text-emerald-400 text-xl"></i>
-              <span>Đăng nhập bằng Google Sheet</span>
+              <span>Đăng nhập học sinh bằng Google Sheet</span>
             </button>
+
+            <!-- Direct Exam Portal Button -->
+            <a href="/kiemtra/index.html"
+              class="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600/30 via-indigo-600/30 to-purple-600/30 border border-blue-400/40 hover:border-blue-300 hover:from-blue-600/40 hover:to-indigo-600/40 text-blue-100 font-extrabold rounded-xl shadow-lg flex items-center justify-center gap-3 transform hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+              <i class="fa-solid fa-file-signature text-blue-400 text-xl"></i>
+              <span>Cổng Kiểm Tra Đề (Tự động điền điểm & lớp vào Sheet)</span>
+            </a>
           </div>
 
           <!-- Quick Access Demo Buttons -->
@@ -640,6 +653,9 @@
           googleStudentBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu...';
 
           try {
+            // Clear any stale OAuth token so sheet operations reliably use server-side proxy
+            sessionStorage.removeItem("google_sheets_token");
+
             if (!window.googleSignInStudent) {
               throw new Error("Google Sheets module chưa sẵn sàng. Vui lòng thử lại sau giây lát!");
             }

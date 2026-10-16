@@ -1016,28 +1016,33 @@ document.addEventListener("DOMContentLoaded", () => {
 async function startStudentApp() {
   // Load custom evolutions from Cloud/Firestore
   try {
-    const colRef = window.fStore.collection(window.db, "pokemonEvolutions");
-    const snapshot = await window.fStore.getDocs(colRef);
-    const customEvoMap = {};
-    const customEvoImagesMap = {};
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      if (data.forms) {
-        customEvoMap[docSnap.id] = data.forms;
-      }
-      if (data.images) {
-        let images = data.images;
-        if (images && Array.isArray(images)) {
-          images = images.map(img => img ? img.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/") : img);
+    if (typeof window.loadPokemonEvolutions === 'function') {
+      await window.loadPokemonEvolutions();
+    } else if (window.fStore && window.db) {
+      const colRef = window.fStore.collection(window.db, "pokemonEvolutions");
+      const snapshot = await window.fStore.getDocs(colRef);
+      const customEvoMap = {};
+      const customEvoImagesMap = {};
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const base = data.basePokemon || docSnap.id;
+        if (data.forms && base) {
+          customEvoMap[base] = data.forms;
         }
-        customEvoImagesMap[docSnap.id] = images;
-      }
-    });
-    Object.assign(window.evoMap, customEvoMap);
-    window.evoImagesMap = customEvoImagesMap;
-    console.log("Loaded custom pokemonEvolutions successfully", window.evoMap, window.evoImagesMap);
+        if (data.images) {
+          let images = data.images;
+          if (images && Array.isArray(images)) {
+            images = images.map(img => img ? img.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/") : img);
+          }
+          customEvoImagesMap[base] = images;
+        }
+      });
+      Object.assign(window.evoMap, customEvoMap);
+      window.evoImagesMap = { ...(window.evoImagesMap || {}), ...customEvoImagesMap };
+      window.currentEvoImagesMap = window.evoImagesMap;
+    }
   } catch (e) {
-    console.error("Error loading pokemonEvolutions on student side:", e);
+    console.warn("Non-fatal: Using default/cached evolutions on student side:", e ? e.message : e);
   }
 
   if (!await checkStudentAuth()) return;
@@ -2776,30 +2781,55 @@ function renderBattleArena() {
   // Filter tests belonging to this specific grade block
   const gradeTests = tests.filter(t => t.blockId === studentBlockId);
 
-  // Custom sort: Ôn tập 1, 2, 3, 4, 5, ..., Tổng hợp, Bổ sung
+  // Custom sort: Ôn tập 1, 2, 3, 4, 5, ..., Bổ sung, Đề ôn tập tổng hợp
   gradeTests.sort((a, b) => {
-    const getTestSortScore = (title) => {
-      const lowerTitle = (title || "").toLowerCase();
-      if (lowerTitle.includes("bổ sung") || lowerTitle.includes("bo sung")) {
-        return 10000;
+    const getTestSortWeight = (test) => {
+      const title = (test.title || test.name || "").toLowerCase().trim();
+      const titleNorm = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+
+      // 1. "Đề ôn tập tổng hợp" / "Tổng hợp" / "OTTH" (Cuối cùng)
+      const isTongHop = title.includes("tổng hợp") || titleNorm.includes("tong hop") || title.includes("otth") || titleNorm.includes("otth");
+      if (isTongHop) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 90000 + num;
       }
-      if (lowerTitle.includes("tổng hợp") || lowerTitle.includes("tong hop")) {
-        return 9000;
+
+      // 2. "Đề bổ sung" / "Bổ sung" / "BS" (Kế cuối, trước tổng hợp)
+      const isBoSung = title.includes("bổ sung") || titleNorm.includes("bo sung") || title.includes("bs") || titleNorm.includes("bs");
+      if (isBoSung) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 80000 + num;
       }
-      const numberMatch = lowerTitle.match(/\d+/);
-      if (numberMatch) {
-        return parseInt(numberMatch[0], 10);
+
+      // 3. Các đề có đánh số: Ôn tập 1, 2, 3, 4, 5...
+      let cleanedTitle = titleNorm
+        .replace(/khoi\s*\d+/g, "")
+        .replace(/k\s*\d+/g, "")
+        .replace(/lop\s*\d+/g, "")
+        .replace(/block[_\s]*\d+/g, "");
+
+      const numMatch = cleanedTitle.match(/\d+/);
+      if (numMatch) {
+        return parseInt(numMatch[0], 10);
       }
-      return 1000;
+
+      const rawNumMatch = title.match(/\d+/);
+      if (rawNumMatch) {
+        return parseInt(rawNumMatch[0], 10);
+      }
+
+      return 50000;
     };
 
-    const scoreA = getTestSortScore(a.title);
-    const scoreB = getTestSortScore(b.title);
+    const weightA = getTestSortWeight(a);
+    const weightB = getTestSortWeight(b);
 
-    if (scoreA !== scoreB) {
-      return scoreA - scoreB;
+    if (weightA !== weightB) {
+      return weightA - weightB;
     }
-    return (a.title || "").localeCompare(b.title || "", 'vi');
+    return (a.title || a.name || "").localeCompare((b.title || b.name || ""), 'vi');
   });
 
   if (gradeTests.length === 0) {
@@ -6127,6 +6157,103 @@ function buyStoreItem(id, cost, type) {
 
 
 // ==================== HISTORY LOG ENGINE ====================
+let historyCurrentPage = 1;
+const HISTORY_ITEMS_PER_PAGE = 8;
+
+function renderHistoryPagination(totalItems, currentPage) {
+  const container = document.getElementById("historyPaginationContainer");
+  if (!container) return;
+  
+  const totalPages = Math.ceil(totalItems / HISTORY_ITEMS_PER_PAGE) || 1;
+  if (totalItems <= HISTORY_ITEMS_PER_PAGE) {
+    container.innerHTML = `
+      <div class="text-xs text-slate-400 font-medium">
+        Hiển thị <span class="font-bold text-white">${totalItems}</span> kết quả
+      </div>
+    `;
+    return;
+  }
+  
+  const startIdx = (currentPage - 1) * HISTORY_ITEMS_PER_PAGE + 1;
+  const endIdx = Math.min(currentPage * HISTORY_ITEMS_PER_PAGE, totalItems);
+  
+  let pageButtonsHtml = '';
+  
+  // Previous button
+  pageButtonsHtml += `
+    <button 
+      onclick="window.goToHistoryPage(${currentPage - 1})"
+      ${currentPage === 1 ? 'disabled' : ''}
+      class="px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-bold transition-all ${currentPage === 1 ? 'text-slate-600 cursor-not-allowed bg-white/5' : 'text-slate-300 hover:bg-white/10 hover:text-white bg-slate-900'}"
+      title="Trang trước"
+    >
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+  `;
+  
+  // Page numbers logic
+  let pages = [];
+  if (totalPages <= 5) {
+    for (let p = 1; p <= totalPages; p++) pages.push(p);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    const startP = Math.max(2, currentPage - 1);
+    const endP = Math.min(totalPages - 1, currentPage + 1);
+    for (let p = startP; p <= endP; p++) {
+      if (!pages.includes(p)) pages.push(p);
+    }
+    if (currentPage < totalPages - 2) pages.push('...');
+    if (!pages.includes(totalPages)) pages.push(totalPages);
+  }
+  
+  pages.forEach(p => {
+    if (p === '...') {
+      pageButtonsHtml += `<span class="px-2 py-1 text-slate-600 text-xs font-bold select-none">...</span>`;
+    } else {
+      const isActive = p === currentPage;
+      pageButtonsHtml += `
+        <button 
+          onclick="window.goToHistoryPage(${p})"
+          class="min-w-[32px] h-8 px-2 rounded-lg text-xs font-black transition-all ${isActive ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'bg-slate-900 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'}"
+        >
+          ${p}
+        </button>
+      `;
+    }
+  });
+  
+  // Next button
+  pageButtonsHtml += `
+    <button 
+      onclick="window.goToHistoryPage(${currentPage + 1})"
+      ${currentPage === totalPages ? 'disabled' : ''}
+      class="px-2.5 py-1.5 rounded-lg border border-white/10 text-xs font-bold transition-all ${currentPage === totalPages ? 'text-slate-600 cursor-not-allowed bg-white/5' : 'text-slate-300 hover:bg-white/10 hover:text-white bg-slate-900'}"
+      title="Trang sau"
+    >
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  `;
+  
+  container.innerHTML = `
+    <div class="text-xs text-slate-400 font-medium">
+      Hiển thị <span class="font-bold text-white">${startIdx}</span> - <span class="font-bold text-white">${endIdx}</span> trong tổng số <span class="font-bold text-white">${totalItems}</span> lần làm bài
+    </div>
+    <div class="flex items-center gap-1.5 flex-wrap">
+      ${pageButtonsHtml}
+    </div>
+  `;
+}
+
+window.goToHistoryPage = function(page) {
+  const scores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
+  const studentScores = scores.filter(s => s.studentEmail === currentStudent.email);
+  const totalPages = Math.ceil(studentScores.length / HISTORY_ITEMS_PER_PAGE) || 1;
+  if (page < 1 || page > totalPages) return;
+  historyCurrentPage = page;
+  renderScoresHistory();
+};
+
 function renderScoresHistory() {
   if (!currentStudent.unlockedPokemons) {
     currentStudent.unlockedPokemons = window.initializeUnlockedPokemons(currentStudent);
@@ -6140,13 +6267,21 @@ function renderScoresHistory() {
 
   if (studentScores.length === 0) {
     body.innerHTML = `<tr><td colspan="6" class="px-5 py-6 text-center text-slate-500 text-xs italic">Bạn chưa làm bài thi nào. Hãy bắt đầu hành trình thám hiểm để tạo nên lịch sử!</td></tr>`;
+    renderHistoryPagination(0, 1);
     return;
   }
 
   // Sort by date descending
-  studentScores.sort((a, b) => new Date(b.date) - new Date(a.date));
+  studentScores.sort((a, b) => new Date(b.date || b.completedAt || 0) - new Date(a.date || a.completedAt || 0));
 
-  studentScores.forEach(sc => {
+  const totalPages = Math.ceil(studentScores.length / HISTORY_ITEMS_PER_PAGE) || 1;
+  if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+  if (historyCurrentPage < 1) historyCurrentPage = 1;
+
+  const startIndex = (historyCurrentPage - 1) * HISTORY_ITEMS_PER_PAGE;
+  const pageScores = studentScores.slice(startIndex, startIndex + HISTORY_ITEMS_PER_PAGE);
+
+  pageScores.forEach(sc => {
     const test = tests.find(t => t.id === sc.testId) || { title: sc.testId };
     
     let statusText = "";
@@ -6169,18 +6304,20 @@ function renderScoresHistory() {
     const tr = document.createElement("tr");
     tr.className = "hover:bg-indigo-950/20 transition-all text-xs";
     tr.innerHTML = `
-      <td class="px-5 py-3.5 font-bold text-white max-w-xs truncate">${test.title}</td>
+      <td class="px-5 py-3.5 font-bold text-white max-w-xs truncate">${test.title || test.name || "Đề thi"}</td>
       <td class="px-5 py-3.5 text-center font-mono font-black text-sm text-yellow-400">
         ${sc.score}/100
         ${(sc.correctCount !== undefined && sc.totalCount !== undefined) ? `<span class="block text-[10px] text-slate-400 font-bold mt-0.5">(${sc.correctCount}/${sc.totalCount})</span>` : ''}
       </td>
-      <td class="px-5 py-3.5 text-center font-mono text-slate-400"><i class="fa-regular fa-clock mr-1 text-indigo-400"></i>${sc.timeSpent}</td>
-      <td class="px-5 py-3.5 text-slate-400">${sc.date}</td>
-      <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained} EXP | +${sc.coinsGained} <i class="fa-solid fa-coins"></i>${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
+      <td class="px-5 py-3.5 text-center font-mono text-slate-400"><i class="fa-regular fa-clock mr-1 text-indigo-400"></i>${sc.timeSpent || "00:00"}</td>
+      <td class="px-5 py-3.5 text-slate-400">${sc.date || (sc.completedAt ? sc.completedAt.split('T')[0] : "Hôm nay")}</td>
+      <td class="px-5 py-3.5 text-yellow-500 font-bold">+${sc.expGained || 0} EXP | +${sc.coinsGained || 0} <i class="fa-solid fa-coins"></i>${sc.bananasGained ? ` | +${sc.bananasGained} 🍌` : ''}</td>
       <td class="px-5 py-3.5 text-center">${statusText}</td>
     `;
     body.appendChild(tr);
   });
+
+  renderHistoryPagination(studentScores.length, historyCurrentPage);
 }
 
 

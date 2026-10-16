@@ -79,6 +79,7 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 16px;
+  overflow-y: auto;
 }
 
 .modal-input {

@@ -291,15 +291,25 @@ const updateSheetCell = async (spreadsheetId, sheetName, token, rowIndex, colInd
   const range = `${quotedSheetName}!${colLetter}${rowIndex}`;
   
   if (token) {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-    await fetch(url, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ values: [[value]] })
-    });
-  } else {
-    // Fallback to server-side proxy (No student login required)
-    await fetch('/api/sheets/proxy', {
+    try {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: [[value]] })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      console.warn("⚠️ Direct Sheets PUT returned status:", res.status, "- falling back to proxy.");
+    } catch (e) {
+      console.warn("⚠️ Direct Sheets PUT failed, falling back to proxy:", e.message);
+    }
+  }
+
+  // Fallback to server-side proxy (No student login required)
+  try {
+    const res = await fetch('/api/sheets/proxy', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -309,6 +319,14 @@ const updateSheetCell = async (spreadsheetId, sheetName, token, rowIndex, colInd
         body: { values: [[value]] }
       })
     });
+    if (res.ok) {
+      return await res.json();
+    }
+    console.warn("⚠️ Proxy Sheets PUT returned non-ok status:", res.status);
+    return { success: false };
+  } catch (proxyError) {
+    console.warn("⚠️ Proxy Sheets PUT failed:", proxyError.message);
+    return { success: false, error: proxyError.message };
   }
 };
 
@@ -318,13 +336,22 @@ const updateSheetCell = async (spreadsheetId, sheetName, token, rowIndex, colInd
 const fetchSheetsValues = async (spreadsheetId, range, token) => {
   const cleanId = extractSpreadsheetId(spreadsheetId);
   if (token) {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return res.json();
-  } else {
-    // Server-side proxy fallback
+    try {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      console.warn("⚠️ Direct Sheets GET returned status:", res.status, "- falling back to proxy.");
+    } catch (e) {
+      console.warn("⚠️ Direct Sheets GET failed, falling back to proxy:", e.message);
+    }
+  }
+
+  // Server-side proxy fallback
+  try {
     const res = await fetch('/api/sheets/proxy', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -334,7 +361,14 @@ const fetchSheetsValues = async (spreadsheetId, range, token) => {
         method: "GET"
       })
     });
-    return res.json();
+    if (res.ok) {
+      return await res.json();
+    }
+    console.warn("⚠️ Proxy Sheets GET returned non-ok status:", res.status);
+    return { values: [] };
+  } catch (proxyError) {
+    console.warn("⚠️ Proxy Sheets GET failed:", proxyError.message);
+    return { values: [], error: proxyError.message };
   }
 };
 
@@ -386,37 +420,41 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
       return { success: false, message: "Mật khẩu không khớp với file Sheet!" };
     }
 
-    // Mark Attendance
-    const token = sessionStorage.getItem("google_sheets_token");
-    const config = await window.getGoogleSheetsConfig();
-    if (config) {
-      const cleanId = extractSpreadsheetId(config.spreadsheetId);
-      const sheetName = found.sheetName || config.studentSheetName || "Học sinh";
-      const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
-      // Fetch headers to find "Điểm danh"
-      const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:ZZ1', token);
-      if (data && data.values) {
-        const headers = data.values[0] || [];
-        
-        const today = new Date();
-        const dateStr1 = `${today.getDate()}/${today.getMonth() + 1}`;
-        const dateStr2 = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
-        
-        const diemDanhCol = headers.findIndex(h => {
-           if (!h) return false;
-           const hl = h.toLowerCase();
-           return hl.includes("điểm danh") && (hl.includes(dateStr1) || hl.includes(dateStr2));
-        });
-  
-        if (diemDanhCol !== -1) {
-          // Read current value
-          const cellData = await fetchSheetsValues(cleanId, quotedSheetName + '!' + colIndexToLetter(diemDanhCol) + found.rowIndex, token);
-          const currentVal = cellData.values && cellData.values[0] && cellData.values[0][0] ? cellData.values[0][0].toLowerCase() : "";
-          if (currentVal !== "x") {
-            await updateSheetCell(cleanId, sheetName, token, found.rowIndex, diemDanhCol, "x");
+    // Mark Attendance (Safe non-blocking execution)
+    try {
+      const token = sessionStorage.getItem("google_sheets_token");
+      const config = await window.getGoogleSheetsConfig();
+      if (config && config.spreadsheetId) {
+        const cleanId = extractSpreadsheetId(config.spreadsheetId);
+        const sheetName = found.sheetName || config.studentSheetName || "Học sinh";
+        const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
+        // Fetch headers to find "Điểm danh"
+        const data = await fetchSheetsValues(cleanId, quotedSheetName + '!A1:ZZ1', token);
+        if (data && data.values) {
+          const headers = data.values[0] || [];
+          
+          const today = new Date();
+          const dateStr1 = `${today.getDate()}/${today.getMonth() + 1}`;
+          const dateStr2 = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}`;
+          
+          const diemDanhCol = headers.findIndex(h => {
+             if (!h) return false;
+             const hl = h.toLowerCase();
+             return hl.includes("điểm danh") && (hl.includes(dateStr1) || hl.includes(dateStr2));
+          });
+    
+          if (diemDanhCol !== -1) {
+            // Read current value
+            const cellData = await fetchSheetsValues(cleanId, quotedSheetName + '!' + colIndexToLetter(diemDanhCol) + found.rowIndex, token);
+            const currentVal = cellData.values && cellData.values[0] && cellData.values[0][0] ? cellData.values[0][0].toLowerCase() : "";
+            if (currentVal !== "x") {
+              await updateSheetCell(cleanId, sheetName, token, found.rowIndex, diemDanhCol, "x");
+            }
           }
         }
       }
+    } catch (attError) {
+      console.warn("⚠️ Attendance auto-marking skipped due to non-blocking issue:", attError.message);
     }
 
     let targetClassId = "";
@@ -490,12 +528,19 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
         await fStore.setDoc(userDocRef, userData);
       }
     } else {
+      const blockNumMatch = className.match(/([3-8])/);
+      const studentBlockId = blockNumMatch ? `block_${blockNumMatch[1]}` : "block_3";
+      
       studentData = {
         email: generatedEmail, 
         name: found.name, 
         schoolClass: `${school} - ${className}`,
         classId: targetClassId, 
-        blockId: "block_3",
+        blockId: studentBlockId,
+        sheetRowIndex: found.rowIndex,
+        sheetName: found.sheetName || "",
+        sheetSchool: school,
+        sheetClassName: className,
         level: "Beginner", 
         exp: 150, 
         maxExp: 500, 
@@ -545,7 +590,12 @@ window.loginStudentWithGoogleSheet = async (school, className, studentRowIndex, 
 
     return { success: true, user: userData };
   } catch (error) {
-    return { success: false, message: "Lỗi hệ thống: " + error.message };
+    console.error("❌ Exception during Google Sheet login:", error);
+    let errorMsg = error.message || "Không xác định";
+    if (errorMsg === "Load failed" || errorMsg.includes("Failed to fetch") || errorMsg.includes("network")) {
+      errorMsg = "Không thể kết nối đến máy chủ Google Sheet hoặc mạng bị gián đoạn. Vui lòng kiểm tra lại kết nối mạng và thử lại!";
+    }
+    return { success: false, message: "Lỗi hệ thống: " + errorMsg };
   }
 };
 
@@ -562,7 +612,21 @@ window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
     const cleanId = extractSpreadsheetId(config.spreadsheetId);
     const sheetName = sessionStorage.getItem("sheet_student_tab_name") || config.studentSheetName || "Học sinh";
     const quotedSheetName = `'${sheetName.replace(/'/g, "''")}'`;
-    const rowIndex = sessionStorage.getItem("sheet_student_row_index");
+    let rowIndex = sessionStorage.getItem("sheet_student_row_index");
+    if (!rowIndex && window.currentStudent) {
+      if (window.currentStudent.sheetRowIndex) {
+        rowIndex = window.currentStudent.sheetRowIndex;
+      } else if (window.cachedSheetStudents && window.cachedSheetStudents.length > 0) {
+        const found = window.cachedSheetStudents.find(s => 
+          s.name && window.currentStudent.name && 
+          s.name.trim().toLowerCase() === window.currentStudent.name.trim().toLowerCase()
+        );
+        if (found && found.rowIndex) {
+          rowIndex = found.rowIndex;
+          sessionStorage.setItem("sheet_student_row_index", found.rowIndex);
+        }
+      }
+    }
 
     if (!rowIndex) return { success: false, message: "Không tìm thấy vị trí học sinh trên sheet" };
 
@@ -596,16 +660,42 @@ window.syncScoreToGoogleSheet = async (score, testTitle, correctCount) => {
           return hl.includes("bổ sung") || hNorm.includes("bo sung") || hl === "bs";
         });
         if (testCol === -1) {
-          testCol = "BS";
+          testCol = headers.findIndex(h => h && h.trim().toUpperCase() === "BS");
         }
       } else {
-        let normalizedTestTitle = testTitle.toLowerCase().replace(/ôn tập\s*/g, "ot").replace(/\s+/g, "");
+        // 1. Direct normalized match
+        const cleanT = tNorm.replace(/ôn tập\s*/g, "ot").replace(/on tap\s*/g, "ot").replace(/đề\s*/g, "de").replace(/de\s*/g, "de").replace(/bài\s*/g, "bai").replace(/bai\s*/g, "bai").replace(/[^a-z0-9]/g, "");
         
         testCol = headers.findIndex(h => {
-            if (!h) return false;
-            let normalizedH = h.toLowerCase().replace(/\s+/g, "");
-            return normalizedH.includes(normalizedTestTitle);
+          if (!h) return false;
+          const hNorm = h.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+          const cleanH = hNorm.replace(/ôn tập\s*/g, "ot").replace(/on tap\s*/g, "ot").replace(/đề\s*/g, "de").replace(/de\s*/g, "de").replace(/bài\s*/g, "bai").replace(/bai\s*/g, "bai").replace(/[^a-z0-9]/g, "");
+          return cleanH === cleanT || cleanH.includes(cleanT) || cleanT.includes(cleanH);
         });
+
+        // 2. Number based match (e.g. Test "Đề 1" -> matches "Đề 1 (45)", "OT1", "Đề 1", "Bài 1", "1")
+        if (testCol === -1) {
+          const numMatch = tLow.match(/(?:đề|bài|ot|ôn tập|lần|test|kt|de)\s*(\d+)/i) || tLow.match(/(\d+)/);
+          if (numMatch) {
+            const testNum = numMatch[1];
+            testCol = headers.findIndex(h => {
+              if (!h) return false;
+              const hNorm = h.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+              const hNumMatch = hNorm.match(/(?:đề|bài|ot|ôn tập|lần|test|kt|de)\s*(\d+)/i) || hNorm.match(/(\d+)/);
+              if (hNumMatch && hNumMatch[1] === testNum) {
+                // If it has matching number and is an OT or De or Bai column
+                if (hNorm.includes("ot") || hNorm.includes("de") || hNorm.includes("bai") || hNorm.includes("test") || hNorm.includes("on tap") || hNorm.includes("de thi")) {
+                  return true;
+                }
+                // Or if header is just the number like "1", "2", "3"
+                if (hNorm === testNum || hNorm.startsWith(testNum + " ") || hNorm.startsWith(testNum + "(")) {
+                  return true;
+                }
+              }
+              return false;
+            });
+          }
+        }
       }
     }
 
@@ -720,3 +810,267 @@ window.syncCheatToGoogleSheet = async (cheatReason) => {
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * Automatically fill score and class name for student into Google Sheet
+ * Used by dedicated exam portal (kiemtra)
+ */
+window.syncExamResultToGoogleSheet = async ({ studentName, className, school, testTitle, score, score10, correctCount, totalCount, rank, timeSpent }) => {
+  const token = sessionStorage.getItem("google_sheets_token");
+
+  try {
+    const config = await window.getGoogleSheetsConfig();
+    const spreadsheetId = (config && config.spreadsheetId) ? config.spreadsheetId : "1_T54jBg20fY7Z9gRuEnLVTwh9uPEwZcnVD-OzFr4LfA";
+    const cleanId = extractSpreadsheetId(spreadsheetId);
+
+    // 1. Determine target sheet tab
+    let availableTabs = [];
+    try {
+      const metaRes = await fetch('/api/sheets/proxy', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spreadsheetId: cleanId, method: "METADATA" })
+      });
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        if (meta && meta.sheets) {
+          availableTabs = meta.sheets.map(s => s.properties.title);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query sheet metadata:", e);
+    }
+
+    let targetTab = "";
+    const norm = (s) => (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    const normSchool = norm(school);
+
+    if (school && availableTabs.length > 0) {
+      // Find tab that best matches the school
+      targetTab = availableTabs.find(tab => {
+        const nTab = norm(tab);
+        return nTab === normSchool || nTab.includes(normSchool) || normSchool.includes(nTab);
+      });
+    }
+
+    if (!targetTab) {
+      targetTab = sessionStorage.getItem("sheet_student_tab_name") || (config && config.studentSheetName) || "Tổng quát";
+    }
+
+    console.log(`📊 Syncing exam to Google Sheet [${cleanId}], Tab: [${targetTab}] for ${studentName} (${className} - ${school})`);
+
+    // 2. Fetch headers and existing rows from target tab
+    const quotedTargetTab = `'${targetTab.replace(/'/g, "''")}'`;
+    const sheetData = await fetchSheetsValues(cleanId, `${quotedTargetTab}!A1:ZZ500`, token);
+    const rows = (sheetData && sheetData.values) ? sheetData.values : [];
+    const headers = rows.length > 0 ? rows[0] : [];
+
+    if (headers.length === 0) {
+      console.warn("⚠️ No headers found in sheet tab:", targetTab);
+      return { success: false, message: "Không tìm thấy cấu trúc cột trong bảng tính" };
+    }
+
+    // 3. Locate columns
+    const colStt = findColumnIndex(headers, ["stt", "no"]);
+    const colHo = findColumnIndex(headers, ["họ", "last name"]);
+    const colTen = findColumnIndex(headers, ["tên", "first name"]);
+    const colHoTen = findColumnIndex(headers, ["họ và tên", "họ tên", "full name", "tên học sinh"]);
+    const colTruong = findColumnIndex(headers, ["trường", "school"]);
+    const colLop = findColumnIndex(headers, ["lớp", "class"]);
+    const colXL = findColumnIndex(headers, ["xl", "xếp loại"]);
+    const colGhiChu = findColumnIndex(headers, ["ghi chú", "note"]);
+
+    // Find test column
+    let testCol = -1;
+    if (testTitle) {
+      const tLow = testTitle.toLowerCase().trim();
+      const tNorm = norm(tLow);
+      const isBoSung = tLow.includes("bổ sung") || tNorm.includes("bo sung") || tNorm === "bs";
+      const isOtth = tLow.includes("ôn tập tổng hợp") || tNorm.includes("on tap tong hop") || tLow.includes("tổng hợp") || tNorm.includes("tong hop") || tNorm === "otth";
+
+      if (isOtth) {
+        testCol = headers.findIndex(h => {
+          if (!h) return false;
+          const hl = norm(h);
+          return hl === "otth" || hl.includes("tong hop");
+        });
+      } else if (isBoSung) {
+        testCol = headers.findIndex(h => {
+          if (!h) return false;
+          const hl = norm(h);
+          return hl.includes("bo sung") || hl === "bs";
+        });
+      } else {
+        // Direct string search
+        const cleanT = tNorm.replace(/ôn tập\s*/g, "ot").replace(/on tap\s*/g, "ot").replace(/đề\s*/g, "de").replace(/de\s*/g, "de").replace(/bài\s*/g, "bai").replace(/bai\s*/g, "bai").replace(/[^a-z0-9]/g, "");
+        testCol = headers.findIndex(h => {
+          if (!h) return false;
+          const cleanH = norm(h).replace(/ôn tập\s*/g, "ot").replace(/on tap\s*/g, "ot").replace(/đề\s*/g, "de").replace(/de\s*/g, "de").replace(/bài\s*/g, "bai").replace(/bai\s*/g, "bai").replace(/[^a-z0-9]/g, "");
+          return cleanH === cleanT || (cleanT && cleanH.includes(cleanT)) || (cleanH && cleanT.includes(cleanH));
+        });
+
+        // Number-based search (e.g. Test "1" matches "OT 1 (45)", "OT 1", "Đề 1")
+        if (testCol === -1) {
+          const numMatch = tLow.match(/(?:đề|bài|ot|ôn tập|lần|test|kt|de)\s*(\d+)/i) || tLow.match(/(\d+)/);
+          if (numMatch) {
+            const testNum = numMatch[1];
+            testCol = headers.findIndex(h => {
+              if (!h) return false;
+              const hNorm = norm(h);
+              const hNumMatch = hNorm.match(/(?:đề|bài|ot|ôn tập|lần|test|kt|de)\s*(\d+)/i) || hNorm.match(/(\d+)/);
+              if (hNumMatch && hNumMatch[1] === testNum) {
+                return true;
+              }
+              if (hNorm === testNum || hNorm.startsWith(testNum + " ") || hNorm.startsWith(testNum + "(")) {
+                return true;
+              }
+              return false;
+            });
+          }
+        }
+      }
+    }
+
+    const valueToWrite = (correctCount !== undefined && correctCount !== null) ? correctCount : score;
+
+    // 4. Search for student row in sheet
+    let targetRowIndex = -1;
+    const cleanStudentName = norm(studentName).replace(/\s+/g, " ");
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length === 0) continue;
+
+      let rFullName = "";
+      if (colHo !== -1 && colTen !== -1) {
+        const ho = r[colHo] ? String(r[colHo]).trim() : "";
+        const ten = r[colTen] ? String(r[colTen]).trim() : "";
+        rFullName = `${ho} ${ten}`.trim();
+      } else if (colHoTen !== -1 && r[colHoTen]) {
+        rFullName = String(r[colHoTen]).trim();
+      } else if (colTen !== -1 && r[colTen]) {
+        rFullName = String(r[colTen]).trim();
+      }
+
+      const cleanRName = norm(rFullName).replace(/\s+/g, " ");
+      if (cleanRName && (cleanRName === cleanStudentName || cleanRName.includes(cleanStudentName) || cleanStudentName.includes(cleanRName))) {
+        targetRowIndex = i + 1; // 1-indexed
+        break;
+      }
+    }
+
+    // 5. Fill score and class into sheet
+    if (targetRowIndex > 0) {
+      console.log(`✅ Found existing student in sheet at row ${targetRowIndex}. Updating Class & Score...`);
+      // Update Class column (Fill tên lớp)
+      if (colLop !== -1 && className) {
+        await updateSheetCell(cleanId, targetTab, token, targetRowIndex, colLop, className);
+      }
+      // Update Test Score column (Fill điểm)
+      if (testCol !== -1) {
+        await updateSheetCell(cleanId, targetTab, token, targetRowIndex, testCol, valueToWrite);
+      }
+      // Update School if empty
+      if (colTruong !== -1 && school) {
+        const currentSchool = rows[targetRowIndex - 1] ? rows[targetRowIndex - 1][colTruong] : "";
+        if (!currentSchool) {
+          await updateSheetCell(cleanId, targetTab, token, targetRowIndex, colTruong, school);
+        }
+      }
+      // Update XL & Ghi Chú (Quy chuẩn: 41/45 là loại A/Giỏi, 1 nửa câu tới 41 là B/Khá, dưới 1 nửa là C)
+      const tot = totalCount || 45;
+      const thresGioi = (tot === 45) ? 41 : Math.ceil(tot * (41 / 45));
+      const thresKha = Math.ceil(tot / 2);
+      const scoreOn10 = (score10 !== undefined && score10 !== null) 
+        ? Number(score10).toFixed(1) 
+        : (((correctCount || 0) / tot) * 10).toFixed(1);
+      const rankLabel = rank || (valueToWrite >= thresGioi ? "Giỏi" : (valueToWrite >= thresKha ? "Khá" : "Cần cố gắng"));
+
+      if (colXL !== -1) {
+        const xlVal = valueToWrite >= thresGioi ? "A" : (valueToWrite >= thresKha ? "B" : "C");
+        await updateSheetCell(cleanId, targetTab, token, targetRowIndex, colXL, xlVal);
+      }
+      if (colGhiChu !== -1) {
+        const note = `Điểm: ${scoreOn10}/10 (${rankLabel}) • TG: ${timeSpent || "Vừa xong"}`;
+        await updateSheetCell(cleanId, targetTab, token, targetRowIndex, colGhiChu, note);
+      }
+
+      return {
+        success: true,
+        action: "updated",
+        tab: targetTab,
+        rowIndex: targetRowIndex,
+        testCol,
+        classCol: colLop,
+        scoreWritten: valueToWrite,
+        classWritten: className
+      };
+    } else {
+      // Student not found -> Append new row with School, Class, Name, and Score!
+      console.log(`➕ Student not found in sheet. Appending new row with Class (${className}) and Score (${valueToWrite})...`);
+      const newRow = new Array(headers.length).fill("");
+      
+      if (colStt !== -1) newRow[colStt] = rows.length; // Next STT
+      
+      // Name split
+      const nameParts = studentName.trim().split(/\s+/);
+      if (colHo !== -1 && colTen !== -1) {
+        if (nameParts.length > 1) {
+          newRow[colTen] = nameParts.pop();
+          newRow[colHo] = nameParts.join(" ");
+        } else {
+          newRow[colTen] = studentName.trim();
+          newRow[colHo] = "";
+        }
+      } else if (colHoTen !== -1) {
+        newRow[colHoTen] = studentName.trim();
+      } else if (colTen !== -1) {
+        newRow[colTen] = studentName.trim();
+      }
+
+      if (colTruong !== -1 && school) newRow[colTruong] = school;
+      if (colLop !== -1 && className) newRow[colLop] = className; // FILL TÊN LỚP!
+      if (testCol !== -1) newRow[testCol] = valueToWrite; // FILL ĐIỂM!
+      
+      const tot = totalCount || 45;
+      const thresGioi = (tot === 45) ? 41 : Math.ceil(tot * (41 / 45));
+      const thresKha = Math.ceil(tot / 2);
+      const scoreOn10 = (score10 !== undefined && score10 !== null) 
+        ? Number(score10).toFixed(1) 
+        : (((correctCount || 0) / tot) * 10).toFixed(1);
+      const rankLabel = rank || (valueToWrite >= thresGioi ? "Giỏi" : (valueToWrite >= thresKha ? "Khá" : "Cần cố gắng"));
+
+      if (colXL !== -1) {
+        const xlVal = valueToWrite >= thresGioi ? "A" : (valueToWrite >= thresKha ? "B" : "C");
+        newRow[colXL] = xlVal;
+      }
+      if (colGhiChu !== -1) {
+        newRow[colGhiChu] = `Điểm: ${scoreOn10}/10 (${rankLabel}) • Tự động lưu (${timeSpent || "Vừa xong"})`;
+      }
+
+      // Append row via proxy
+      const appendRes = await fetch('/api/sheets/proxy', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spreadsheetId: cleanId,
+          range: `${quotedTargetTab}!A1`,
+          method: "APPEND",
+          body: { values: [newRow] }
+        })
+      });
+
+      return {
+        success: appendRes.ok,
+        action: "appended",
+        tab: targetTab,
+        scoreWritten: valueToWrite,
+        classWritten: className
+      };
+    }
+  } catch (error) {
+    console.error("❌ Exception during Google Sheet exam sync:", error);
+    return { success: false, error: error.message };
+  }
+};
+

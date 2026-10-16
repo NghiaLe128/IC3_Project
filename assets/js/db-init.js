@@ -25,19 +25,19 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 
-const withTimeout = (promise, ms = 15000, errorMsg = "Kết nối đến máy chủ bị quá thời gian (Timeout). Vui lòng thử lại.") => {
+const withTimeout = (promise, ms = 30000, errorMsg = "Kết nối đến máy chủ bị quá thời gian (Timeout). Vui lòng thử lại.") => {
   return Promise.race([
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
   ]);
 };
 
-const getDocs = async (query) => withTimeout(firebaseGetDocs(query), 15000);
-const setDoc = async (docRef, data, options) => withTimeout(firebaseSetDoc(docRef, data, options), 15000);
-const updateDoc = async (docRef, data) => withTimeout(firebaseUpdateDoc(docRef, data), 15000);
-const deleteDoc = async (docRef) => withTimeout(firebaseDeleteDoc(docRef), 15000);
+const getDocs = async (query) => withTimeout(firebaseGetDocs(query), 30000);
+const setDoc = async (docRef, data, options) => withTimeout(firebaseSetDoc(docRef, data, options), 30000);
+const updateDoc = async (docRef, data) => withTimeout(firebaseUpdateDoc(docRef, data), 30000);
+const deleteDoc = async (docRef) => withTimeout(firebaseDeleteDoc(docRef), 30000);
 const getDoc = async (docRef) => {
-  const snap = await withTimeout(firebaseGetDoc(docRef), 15000);
+  const snap = await withTimeout(firebaseGetDoc(docRef), 30000);
   return wrapDocSnapshot(snap);
 };
 
@@ -160,18 +160,18 @@ try {
     console.log("📂 Attempting to use named Firestore database:", dbId);
     try {
       db = initializeFirestore(app, {
-        experimentalForceLongPolling: true
+        experimentalAutoDetectLongPolling: true
       }, dbId);
     } catch (e) {
       console.warn("⚠️ Named database initialization failed, falling back to default:", e);
       db = initializeFirestore(app, {
-        experimentalForceLongPolling: true
+        experimentalAutoDetectLongPolling: true
       });
     }
   } else {
     console.log("📂 Using default Firestore database");
     db = initializeFirestore(app, {
-      experimentalForceLongPolling: true
+      experimentalAutoDetectLongPolling: true
     });
   }
   
@@ -535,7 +535,9 @@ const getPortal = () => {
   const path = window.location.pathname;
   if (path.includes("/admin/")) return "admin";
   if (path.includes("/teacher/")) return "teacher";
-  if (path.includes("/student/") || path.includes("/student_practice/") || path.includes("/student_test/") || path.includes("pokemon-select.html")) return "student";
+  if (path.includes("pokemon-select.html")) return "pokemon-select";
+  if (path.includes("/kiemtra/") || path.includes("/exam/")) return "kiemtra";
+  if (path.includes("/student/") || path.includes("/student_practice/") || path.includes("/student_test/")) return "student";
   return "root";
 };
 
@@ -726,9 +728,16 @@ async function initData() {
   if (portal === "admin") {
     collectionsToFetch = Object.values(IC3_KEYS).filter(k => k !== IC3_KEYS.CURRENT_USER);
   } else if (portal === "teacher") {
-    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.REWARDS, IC3_KEYS.TEACHERS];
+    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.REWARDS, IC3_KEYS.TEACHERS, IC3_KEYS.SCORES];
   } else if (portal === "student") {
+    // Avoid fetching all 3200+ scores in Phase 1 since Phase 2 queries the top 200 and student scores selectively
     collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.REWARDS, IC3_KEYS.BOSSES, IC3_KEYS.POKEMONS, IC3_KEYS.SETTINGS];
+  } else if (portal === "kiemtra") {
+    // For dedicated exam portal, fetch classes, tests, questions, settings, scores
+    collectionsToFetch = [IC3_KEYS.CLASSES, IC3_KEYS.TESTS, IC3_KEYS.QUESTIONS, IC3_KEYS.SETTINGS, IC3_KEYS.SCORES];
+  } else if (portal === "pokemon-select") {
+    // On pokemon starter selection screen, only settings and pokemons are required
+    collectionsToFetch = [IC3_KEYS.SETTINGS, IC3_KEYS.POKEMONS];
   }
 
   try {
@@ -783,11 +792,21 @@ async function initData() {
       const studentsSnap = await getDocs(collection(db, IC3_KEYS.STUDENTS));
       window.IC3_CACHE[IC3_KEYS.STUDENTS] = studentsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       
-      console.log(`☁️ Fetching recent top scores...`);
+      console.log(`☁️ Fetching recent top scores and user scores...`);
       // Fetch top 200 scores so the block ranking on dashboard has data
       const scoreQuery = query(collection(db, IC3_KEYS.SCORES), orderBy("score", "desc"), limit(200));
       const scoreSnap = await getDocs(scoreQuery);
-      window.IC3_CACHE[IC3_KEYS.SCORES] = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      const allTopScores = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+
+      const myScoreQuery = query(collection(db, IC3_KEYS.SCORES), where("studentEmail", "==", currentUser.email));
+      const myScoreSnap = await getDocs(myScoreQuery);
+      const myScores = myScoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+
+      // Merge and deduplicate
+      const scoreMap = new Map();
+      allTopScores.forEach(s => scoreMap.set(s.id, s));
+      myScores.forEach(s => scoreMap.set(s.id, s));
+      window.IC3_CACHE[IC3_KEYS.SCORES] = Array.from(scoreMap.values());
     }
 
 
@@ -934,6 +953,9 @@ window.forceLogoutEveryone = async () => {
 window.loginUser = async (email, password) => {
   try {
     console.log(`🔐 Attempting manual database login for: ${email}`);
+    if (!db) {
+      return { success: false, message: "Hệ thống đang kết nối cơ sở dữ liệu, vui lòng đợi giây lát rồi thử lại!" };
+    }
     const userDocRef = doc(db, IC3_KEYS.USERS, email);
     const userDoc = await getDoc(userDocRef);
     
@@ -980,7 +1002,11 @@ window.loginUser = async (email, password) => {
     return { success: false, message: "Tài khoản không tồn tại!" };
   } catch (error) {
     console.error("Login error:", error);
-    return { success: false, message: "Lỗi hệ thống: " + error.message };
+    let errorMsg = error.message || "Không xác định";
+    if (errorMsg === "Load failed" || errorMsg.includes("Failed to fetch") || errorMsg.includes("network")) {
+      errorMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại!";
+    }
+    return { success: false, message: "Lỗi hệ thống: " + errorMsg };
   }
 };
 
@@ -1070,6 +1096,11 @@ window.saveData = async (key, data, specificItemId = null) => {
       }
     }
 
+    try {
+      window.dispatchEvent(new CustomEvent(`ic3-${key}-updated`, { detail: data }));
+      window.dispatchEvent(new CustomEvent('ic3-data-updated', { detail: { key, data } }));
+    } catch (e) {}
+
     return { success: true };
   } catch (error) {
     console.error(`❌ Sync error for [${key}]:`, error);
@@ -1141,31 +1172,69 @@ window.showToast = function(message, type = 'success') {
 initData();
 
 
+// Pre-populate default and cached Pokemon evolutions immediately so UI never has missing evolution data
+const DEFAULT_EVO_MAP = {
+    "bulbasaur": ["bulbasaur", "ivysaur", "venusaur", "venusaur-mega"],
+    "charmander": ["charmander", "charmeleon", "charizard", "charizard-megax", "charizard-megay"],
+    "squirtle": ["squirtle", "wartortle", "blastoise", "blastoise-mega"],
+    "pikachu": ["pichu", "pikachu", "raichu", "raichu-alola"],
+    "eevee": ["eevee", "vaporeon", "jolteon", "flareon", "espeon", "umbreon", "sylveon"],
+    "snorlax": ["munchlax", "snorlax"],
+    "gengar": ["gastly", "haunter", "gengar", "gengar-mega"],
+    "lucario": ["riolu", "lucario", "lucario-mega"],
+    "dragonite": ["dratini", "dragonair", "dragonite"],
+    "mewtwo": ["mewtwo", "mewtwo-megax", "mewtwo-megay"],
+    "rayquaza": ["rayquaza", "rayquaza-mega"],
+    "arceus": ["arceus"]
+};
+
+// Immediate sync setup
+try {
+    const cachedEvo = localStorage.getItem("ic3_pokemon_evolutions");
+    const cachedImages = localStorage.getItem("ic3_pokemon_evo_images");
+    window.evoMap = { ...DEFAULT_EVO_MAP, ...(cachedEvo ? JSON.parse(cachedEvo) : {}) };
+    if (cachedImages) {
+        window.currentEvoImagesMap = JSON.parse(cachedImages);
+        window.evoImagesMap = window.currentEvoImagesMap;
+    }
+} catch (e) {
+    window.evoMap = { ...DEFAULT_EVO_MAP };
+}
+
 window.loadPokemonEvolutions = async function() {
     try {
-        const snapshot = await getDocs(collection(db, "pokemonEvolutions"));
+        if (!db) {
+            return;
+        }
+        const snapshot = await withTimeout(firebaseGetDocs(collection(db, "pokemonEvolutions")), 30000);
         const newEvoMap = {};
         const newEvoImagesMap = {};
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
-            if (data.forms && data.basePokemon) {
-                newEvoMap[data.basePokemon] = data.forms;
+            const base = data.basePokemon || docSnap.id;
+            if (data.forms && base) {
+                newEvoMap[base] = data.forms;
                 let images = data.images;
                 if (images && Array.isArray(images)) {
                     images = images.map(img => img ? img.replace("https://projectpokemon.org/images/normal-sprite/", "https://play.pokemonshowdown.com/sprites/xyani/") : img);
                 }
-                newEvoImagesMap[data.basePokemon] = images || data.forms.map(f => `https://play.pokemonshowdown.com/sprites/xyani/${f}.gif`);
+                newEvoImagesMap[base] = images || data.forms.map(f => `https://play.pokemonshowdown.com/sprites/xyani/${f}.gif`);
             }
         });
-        window.currentEvoImagesMap = { ...(window.currentEvoImagesMap || {}), ...newEvoImagesMap };
         if (Object.keys(newEvoMap).length > 0) {
             window.evoMap = { ...(window.evoMap || {}), ...newEvoMap };
+            window.currentEvoImagesMap = { ...(window.currentEvoImagesMap || {}), ...newEvoImagesMap };
+            window.evoImagesMap = { ...(window.evoImagesMap || {}), ...newEvoImagesMap };
+            try {
+                localStorage.setItem("ic3_pokemon_evolutions", JSON.stringify(window.evoMap));
+                localStorage.setItem("ic3_pokemon_evo_images", JSON.stringify(window.currentEvoImagesMap));
+            } catch (storageErr) {}
             // trigger re-renders if methods exist
             if (typeof renderInventory === "function") renderInventory();
             if (typeof renderProfileCustomizationContent === "function") renderProfileCustomizationContent();
         }
     } catch (e) {
-        console.error("Failed to load pokemon evolutions", e);
+        console.warn("⚠️ Non-fatal: Could not refresh pokemon evolutions from cloud (" + (e ? e.message : "") + "). Using cached/default evolutions.");
     }
 };
 

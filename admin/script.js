@@ -1028,10 +1028,60 @@ function renderTestsGrid() {
   };
 
   const filterBlock = document.getElementById("filterTestBlock") ? document.getElementById("filterTestBlock").value : "all";
-  let testsToRender = tests;
+  let testsToRender = [...tests];
   if (filterBlock !== "all") {
     testsToRender = tests.filter(t => t.blockId === filterBlock);
   }
+
+  testsToRender.sort((a, b) => {
+    const getTestSortWeight = (test) => {
+      const title = (test.title || test.name || "").toLowerCase().trim();
+      const titleNorm = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+
+      // 1. "Đề ôn tập tổng hợp" / "Tổng hợp" / "OTTH" (Cuối cùng)
+      const isTongHop = title.includes("tổng hợp") || titleNorm.includes("tong hop") || title.includes("otth") || titleNorm.includes("otth");
+      if (isTongHop) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 90000 + num;
+      }
+
+      // 2. "Đề bổ sung" / "Bổ sung" / "BS" (Kế cuối, trước tổng hợp)
+      const isBoSung = title.includes("bổ sung") || titleNorm.includes("bo sung") || title.includes("bs") || titleNorm.includes("bs");
+      if (isBoSung) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 80000 + num;
+      }
+
+      // 3. Các đề có đánh số: Ôn tập 1, 2, 3, 4, 5...
+      let cleanedTitle = titleNorm
+        .replace(/khoi\s*\d+/g, "")
+        .replace(/k\s*\d+/g, "")
+        .replace(/lop\s*\d+/g, "")
+        .replace(/block[_\s]*\d+/g, "");
+
+      const numMatch = cleanedTitle.match(/\d+/);
+      if (numMatch) {
+        return parseInt(numMatch[0], 10);
+      }
+
+      const rawNumMatch = title.match(/\d+/);
+      if (rawNumMatch) {
+        return parseInt(rawNumMatch[0], 10);
+      }
+
+      return 50000;
+    };
+
+    const weightA = getTestSortWeight(a);
+    const weightB = getTestSortWeight(b);
+
+    if (weightA !== weightB) {
+      return weightA - weightB;
+    }
+    return (a.title || a.name || "").localeCompare((b.title || b.name || ""), 'vi');
+  });
 
   if (testsToRender.length === 0) {
     gridEl.innerHTML = `<div class="col-span-full py-8 text-center text-slate-500 text-sm">Chưa có đề thi nào khớp bộ lọc.</div>`;

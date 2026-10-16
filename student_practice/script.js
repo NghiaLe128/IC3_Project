@@ -479,6 +479,131 @@ window.handleTestSearch = function() {
   renderTestsList(blockFilterValue, testSearchQuery);
 };
 
+// Helper: Extract 45 random questions from comprehensive pool for Mock Exam
+function getPracticeMockExamQuestions(blockNum) {
+  const allTests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
+  const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
+  const studentBlock = `block_${blockNum}`;
+
+  const blockTests = allTests.filter(t => {
+    if (t.blockId === studentBlock || t.level === studentBlock) return true;
+    if (t.blockId === `Khối ${blockNum}` || t.level === `Khối ${blockNum}`) return true;
+    const titleLow = (t.title || t.name || "").toLowerCase();
+    if (titleLow.includes(`khối ${blockNum}`) || titleLow.includes(`k${blockNum}`) || titleLow.includes(`lớp ${blockNum}`) || titleLow.includes(`khoi ${blockNum}`)) {
+      return true;
+    }
+    if (t.blockId === "all" || !t.blockId) {
+      const otherGrades = [3, 4, 5, 6, 7, 8].filter(g => g !== parseInt(blockNum));
+      const belongsOther = otherGrades.some(g => titleLow.includes(`khối ${g}`) || titleLow.includes(`k${g}`) || titleLow.includes(`lớp ${g}`) || titleLow.includes(`khoi ${g}`));
+      if (!belongsOther) return true;
+    }
+    return false;
+  });
+
+  const tongHopTests = blockTests.filter(t => {
+    const title = (t.title || t.name || "").toLowerCase().trim();
+    const titleNorm = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    return title.includes("tổng hợp") || titleNorm.includes("tong hop") || title.includes("otth") || titleNorm.includes("otth");
+  });
+
+  let candidateQuestionIds = new Set();
+  tongHopTests.forEach(t => {
+    if (Array.isArray(t.questions)) {
+      t.questions.forEach(qid => candidateQuestionIds.add(qid));
+    }
+  });
+
+  if (candidateQuestionIds.size < 45) {
+    blockTests.forEach(t => {
+      if (Array.isArray(t.questions)) {
+        t.questions.forEach(qid => candidateQuestionIds.add(qid));
+      }
+    });
+  }
+
+  if (candidateQuestionIds.size < 45) {
+    allQuestions.forEach(q => {
+      if (q.blockId === studentBlock || q.blockId === `Khối ${blockNum}`) {
+        candidateQuestionIds.add(q.id);
+      }
+    });
+  }
+
+  let pool = allQuestions.filter(q => candidateQuestionIds.has(q.id));
+  if (pool.length === 0) {
+    pool = [...allQuestions];
+  }
+
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  const targetCount = Math.min(45, shuffled.length);
+  return shuffled.slice(0, targetCount);
+}
+
+window.handleStartMockExam = function(mode = "exam") {
+  let studentBlock = currentStudent?.blockId;
+  if (!studentBlock && currentStudent?.classId) {
+     const classes = window.IC3_CACHE[window.IC3_KEYS.CLASSES] || [];
+     const studentClass = classes.find(c => c.id === currentStudent.classId);
+     if (studentClass && studentClass.blockId) {
+        studentBlock = studentClass.blockId;
+     }
+  }
+  const blockNum = studentBlock ? studentBlock.replace(/\D/g, "") : "3";
+  const selectedQuestions = getPracticeMockExamQuestions(blockNum);
+
+  if (!selectedQuestions || selectedQuestions.length === 0) {
+    Swal.fire('Lỗi', 'Chưa có câu hỏi nào trong ngân hàng bộ đề tổng hợp!', 'warning');
+    return;
+  }
+
+  const count = selectedQuestions.length;
+  const mockTest = {
+    id: "MOCK_EXAM_RANDOM_45",
+    title: `Đề Thi Thử IC3 Chuẩn (${count} Câu Ngẫu Nhiên)`,
+    name: `Đề Thi Thử IC3 Chuẩn (${count} Câu Ngẫu Nhiên)`,
+    description: `Đề thi thử gồm ${count} câu hỏi được bốc ngẫu nhiên từ ngân hàng bộ đề tổng hợp chuẩn IC3 Sparks.`,
+    blockId: studentBlock || `block_${blockNum}`,
+    duration: 45,
+    questions: selectedQuestions.map(q => q.id),
+    rawMockQuestions: selectedQuestions,
+    isMockExam: true
+  };
+
+  const isPractice = mode === "practice";
+  const modeText = isPractice ? "Ôn tập 📖 (Làm từng câu & xem giải thích ngay)" : "Kiểm tra ⏱️ (Bấm giờ 45 phút & tính điểm chuẩn)";
+  const desc = isPractice 
+    ? `Hệ thống đã tự động bốc <b>ngẫu nhiên ${count} câu hỏi</b> từ ngân hàng bộ đề tổng hợp.<br>Bạn có thể làm từng câu và kiểm tra đáp án, lời giải chi tiết tức thì.`
+    : `Thời gian làm bài: <b>45 phút</b> (${count} câu ngẫu nhiên).<br><span class="text-red-500 font-bold">Lưu ý: Hệ thống giám sát chống chuyển tab / rời màn hình thi (tối đa 3 lần nhắc nhở trước khi tự động nộp).</span>`;
+
+  Swal.fire({
+    title: `Bắt đầu Thi Thử IC3?`,
+    html: `<div class="text-left space-y-2.5 text-sm text-gray-600">
+             <div class="flex items-center gap-2">
+               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white uppercase tracking-wider shadow-sm">🔥 THI THỬ CHUẨN</span>
+               <span class="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">${count} câu ngẫu nhiên</span>
+             </div>
+             <p class="font-extrabold text-gray-900 text-base">Đề Thi Thử IC3 Tổng Hợp</p>
+             <p class="font-medium">Chế độ: <span class="${isPractice ? 'text-emerald-600' : 'text-amber-600'} font-bold">${modeText}</span></p>
+             <div class="text-xs bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl leading-relaxed text-amber-900">${desc}</div>
+           </div>`,
+    icon: isPractice ? 'info' : 'question',
+    showCancelButton: true,
+    confirmButtonColor: isPractice ? '#10b981' : '#f59e0b',
+    cancelButtonColor: '#64748B',
+    confirmButtonText: isPractice ? 'Bắt đầu ôn tập thử' : 'Bắt đầu Thi Thử ngay',
+    cancelButtonText: 'Quay lại'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      startPlayingTest(mockTest, mode);
+    }
+  });
+};
+
 function renderTestsList(blockId = "all", query = "") {
   const container = document.getElementById("testsContainerGrid");
   const emptyState = document.getElementById("testsEmptyState");
@@ -496,6 +621,11 @@ function renderTestsList(blockId = "all", query = "") {
         studentBlock = studentClass.blockId;
      }
   }
+  const blockNum = studentBlock ? studentBlock.replace(/\D/g, "") : "3";
+  const blockLabels = {
+    block_3: "Khối 3", block_4: "Khối 4", block_5: "Khối 5", block_6: "Khối 6", block_7: "Khối 7", block_8: "Khối 8"
+  };
+  const currentBlockLabel = blockLabels[studentBlock] || `Khối ${blockNum}`;
   
   // Filter by block
   let filtered = allTests;
@@ -508,11 +638,151 @@ function renderTestsList(blockId = "all", query = "") {
   
   // Filter by query
   if (query) {
-    filtered = filtered.filter(t => t.name && t.name.toLowerCase().includes(query));
+    filtered = filtered.filter(t => (t.title || t.name) && (t.title || t.name).toLowerCase().includes(query));
+  }
+  
+  // Sort tests: Ôn tập 1, 2, 3, 4, 5... -> Bổ sung -> Đề ôn tập tổng hợp
+  filtered.sort((a, b) => {
+    const getTestSortWeight = (test) => {
+      const title = (test.title || test.name || "").toLowerCase().trim();
+      const titleNorm = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+
+      // 1. "Đề ôn tập tổng hợp" / "Tổng hợp" / "OTTH" (Cuối cùng)
+      const isTongHop = title.includes("tổng hợp") || titleNorm.includes("tong hop") || title.includes("otth") || titleNorm.includes("otth");
+      if (isTongHop) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 90000 + num;
+      }
+
+      // 2. "Đề bổ sung" / "Bổ sung" / "BS" (Kế cuối, trước tổng hợp)
+      const isBoSung = title.includes("bổ sung") || titleNorm.includes("bo sung") || title.includes("bs") || titleNorm.includes("bs");
+      if (isBoSung) {
+        const numMatch = title.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+        return 80000 + num;
+      }
+
+      // 3. Các đề có đánh số: Ôn tập 1, 2, 3, 4, 5...
+      let cleanedTitle = titleNorm
+        .replace(/khoi\s*\d+/g, "")
+        .replace(/k\s*\d+/g, "")
+        .replace(/lop\s*\d+/g, "")
+        .replace(/block[_\s]*\d+/g, "");
+
+      const numMatch = cleanedTitle.match(/\d+/);
+      if (numMatch) {
+        return parseInt(numMatch[0], 10);
+      }
+
+      const rawNumMatch = title.match(/\d+/);
+      if (rawNumMatch) {
+        return parseInt(rawNumMatch[0], 10);
+      }
+
+      return 50000;
+    };
+
+    const weightA = getTestSortWeight(a);
+    const weightB = getTestSortWeight(b);
+
+    if (weightA !== weightB) {
+      return weightA - weightB;
+    }
+    return (a.title || a.name || "").localeCompare((b.title || b.name || ""), 'vi');
+  });
+
+  const queryLower = (query || "").trim().toLowerCase();
+  const showMockExam = !queryLower || 
+    queryLower.includes("thi thử") || 
+    queryLower.includes("thithu") || 
+    queryLower.includes("tổng hợp") || 
+    queryLower.includes("tong hop") || 
+    queryLower.includes("ngẫu nhiên") || 
+    queryLower.includes("45");
+
+  if (filtered.length === 0 && !showMockExam) {
+    emptyState.classList.remove("hidden");
+    return;
+  }
+  emptyState.classList.add("hidden");
+
+  // RENDER OPTION "THI THỬ" LÀM NỔI BẬT Ở VỊ TRÍ ĐẦU TIÊN
+  if (showMockExam) {
+    const personalMockAttempts = allScores.filter(s => 
+      (s.testId === "MOCK_EXAM_RANDOM_45" || (s.testTitle || "").toLowerCase().includes("thi thử")) && 
+      s.studentEmail === currentStudent.email
+    );
+    const globalMockAttempts = allScores.filter(s => 
+      s.testId === "MOCK_EXAM_RANDOM_45" || (s.testTitle || "").toLowerCase().includes("thi thử")
+    );
+
+    const mockCard = document.createElement("div");
+    mockCard.className = "relative bg-gradient-to-br from-amber-50/90 via-white to-orange-50/70 rounded-3xl border-2 border-amber-400 p-6 shadow-xl shadow-amber-500/10 hover:shadow-2xl hover:shadow-amber-500/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between gap-5 overflow-hidden ring-4 ring-amber-400/20 group";
+    
+    mockCard.innerHTML = `
+      <!-- Top Special Ribbon -->
+      <div class="absolute -top-3.5 -right-3.5 z-10">
+        <span class="px-4 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white text-[10px] font-black rounded-bl-2xl rounded-tr-3xl shadow-md uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-fire text-yellow-200 animate-pulse"></i> NỔI BẬT • THI THỬ
+        </span>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Badge row -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-crown text-yellow-200"></i> ${currentBlockLabel}
+          </span>
+          <span class="px-2.5 py-1 bg-amber-100/90 text-amber-800 text-[10px] font-black rounded-lg uppercase tracking-wider border border-amber-300/80 flex items-center gap-1">
+            <i class="fa-solid fa-dice text-amber-600"></i> 45 Câu ngẫu nhiên
+          </span>
+          <span class="px-2.5 py-1 bg-rose-50 text-rose-700 text-[10px] font-black rounded-lg uppercase tracking-wider border border-rose-200/80 flex items-center gap-1">
+            <i class="fa-solid fa-stopwatch text-rose-500"></i> 45 phút
+          </span>
+        </div>
+
+        <!-- Header details -->
+        <div>
+          <h4 class="font-black text-gray-900 text-lg leading-tight tracking-tight flex items-center gap-2 group-hover:text-amber-700 transition-colors">
+            <span class="text-xl">🎯</span> ĐỀ THI THỬ IC3 TỔNG HỢP
+          </h4>
+          <p class="text-xs text-gray-600 mt-1.5 line-clamp-2 leading-relaxed">
+            Mô phỏng kỳ thi IC3 chuẩn quốc tế: Hệ thống tự động trích xuất <b>ngẫu nhiên 45 câu hỏi</b> từ ngân hàng bộ đề tổng hợp, bấm giờ 45 phút và chấm điểm tức thì.
+          </p>
+        </div>
+      </div>
+
+      <!-- Attempt statistics counts -->
+      <div class="p-3 bg-white/95 border border-amber-200/80 rounded-2xl flex items-center justify-between text-xs shadow-sm">
+        <div class="text-left">
+          <span class="text-[9px] font-bold text-gray-400 block uppercase">Bạn đã thi thử</span>
+          <span class="font-black text-amber-600 text-sm">${personalMockAttempts.length} lần</span>
+        </div>
+        <div class="h-6 w-px bg-amber-200"></div>
+        <div class="text-right">
+          <span class="text-[9px] font-bold text-gray-400 block uppercase">Hệ thống</span>
+          <span class="font-black text-blue-600 text-sm">${globalMockAttempts.length} lượt thi</span>
+        </div>
+      </div>
+      
+      <!-- Action Buttons footer with Practice and Timed Exam options -->
+      <div class="grid grid-cols-2 gap-2.5 border-t border-amber-200/80 pt-4">
+        <button onclick="handleStartMockExam('practice')" class="py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer">
+          <i class="fa-solid fa-book-open text-[11px]"></i> Ôn tập thử
+        </button>
+        <button onclick="handleStartMockExam('exam')" class="py-2.5 px-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/25 active:scale-95 transition-all cursor-pointer">
+          <i class="fa-solid fa-bolt text-yellow-200 text-[11px]"></i> Vào Thi Thử
+        </button>
+      </div>
+    `;
+    container.appendChild(mockCard);
   }
   
   if (filtered.length === 0) {
-    emptyState.classList.remove("hidden");
+    if (!showMockExam) {
+      emptyState.classList.remove("hidden");
+    }
     return;
   }
   emptyState.classList.add("hidden");
@@ -571,11 +841,98 @@ function renderTestsList(blockId = "all", query = "") {
   });
 }
 
-// 9. Results history table rendering
+// 9. Results history table rendering with pagination
+let historyCurrentPage = 1;
+const HISTORY_ITEMS_PER_PAGE = 8;
+
+window.changeHistoryPage = function(page) {
+  historyCurrentPage = page;
+  renderScoresHistory();
+};
+
+function renderHistoryPagination(totalItems, currentPage, totalPages) {
+  const container = document.getElementById("historyPaginationContainer");
+  const info = document.getElementById("historyPaginationInfo");
+  const btnContainer = document.getElementById("historyPaginationButtons");
+  
+  if (!container || !info || !btnContainer) return;
+  
+  if (totalItems === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  
+  const startIdx = (currentPage - 1) * HISTORY_ITEMS_PER_PAGE + 1;
+  const endIdx = Math.min(currentPage * HISTORY_ITEMS_PER_PAGE, totalItems);
+  info.innerText = `Hiển thị ${startIdx} - ${endIdx} trong tổng số ${totalItems} bài thi đã làm`;
+  
+  btnContainer.innerHTML = "";
+  
+  if (totalPages <= 1) {
+    return;
+  }
+  
+  const btnBase = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border";
+  const normalBtn = `${btnBase} bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900 cursor-pointer shadow-2xs`;
+  const activeBtn = `${btnBase} bg-blue-600 text-white border-blue-600 shadow-sm cursor-default`;
+  const disabledBtn = `${btnBase} bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50`;
+  
+  // Previous button
+  const prevBtn = document.createElement("button");
+  prevBtn.innerHTML = `<i class="fa-solid fa-angle-left mr-1"></i> Trước`;
+  prevBtn.className = currentPage === 1 ? disabledBtn : normalBtn;
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = () => window.changeHistoryPage(currentPage - 1);
+  btnContainer.appendChild(prevBtn);
+  
+  // Dynamic page list
+  const pagesToShow = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+  } else {
+    pagesToShow.push(1);
+    if (currentPage > 3) pagesToShow.push("...");
+    
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) {
+      pagesToShow.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) pagesToShow.push("...");
+    pagesToShow.push(totalPages);
+  }
+  
+  pagesToShow.forEach(p => {
+    if (p === "...") {
+      const span = document.createElement("span");
+      span.className = "px-2 py-1 text-xs text-gray-400 font-bold";
+      span.innerText = "...";
+      btnContainer.appendChild(span);
+    } else {
+      const pageBtn = document.createElement("button");
+      pageBtn.innerText = p;
+      pageBtn.className = p === currentPage ? activeBtn : normalBtn;
+      pageBtn.onclick = () => window.changeHistoryPage(p);
+      btnContainer.appendChild(pageBtn);
+    }
+  });
+  
+  // Next button
+  const nextBtn = document.createElement("button");
+  nextBtn.innerHTML = `Sau <i class="fa-solid fa-angle-right ml-1"></i>`;
+  nextBtn.className = currentPage === totalPages ? disabledBtn : normalBtn;
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = () => window.changeHistoryPage(currentPage + 1);
+  btnContainer.appendChild(nextBtn);
+}
+
 function renderScoresHistory() {
   const tbody = document.getElementById("historyTableBody");
   const emptyState = document.getElementById("historyEmptyState");
   const countBadge = document.getElementById("historyCountBadge");
+  const paginationContainer = document.getElementById("historyPaginationContainer");
   
   tbody.innerHTML = "";
   
@@ -583,12 +940,13 @@ function renderScoresHistory() {
   const allScores = window.IC3_CACHE[window.IC3_KEYS.SCORES] || [];
   
   // Filter for scores belonging to current student
-  const filtered = allScores.filter(s => s.studentEmail === currentStudent.email);
+  const filtered = allScores.filter(s => (s.studentEmail || "").toLowerCase() === (currentStudent?.email || "").toLowerCase());
   
   countBadge.innerText = `${filtered.length} bài đã làm`;
   
   if (filtered.length === 0) {
     emptyState.classList.remove("hidden");
+    if (paginationContainer) paginationContainer.classList.add("hidden");
     return;
   }
   emptyState.classList.add("hidden");
@@ -598,9 +956,17 @@ function renderScoresHistory() {
     return new Date(b.completedAt || 0) - new Date(a.completedAt || 0);
   });
   
-  sorted.forEach((scoreEntry, index) => {
+  const totalPages = Math.ceil(sorted.length / HISTORY_ITEMS_PER_PAGE) || 1;
+  if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+  if (historyCurrentPage < 1) historyCurrentPage = 1;
+  
+  const startIndex = (historyCurrentPage - 1) * HISTORY_ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + HISTORY_ITEMS_PER_PAGE, sorted.length);
+  const pageItems = sorted.slice(startIndex, endIndex);
+  
+  pageItems.forEach((scoreEntry, index) => {
     const matchingTest = allTests.find(t => t.id === scoreEntry.testId);
-    const testTitle = matchingTest ? matchingTest.name : "Đề thi đã bị xóa";
+    const testTitle = matchingTest ? (matchingTest.title || matchingTest.name || scoreEntry.testTitle || "Bộ đề thi") : (scoreEntry.testTitle || "Bộ đề thi");
     const modeLabel = scoreEntry.mode === "exam" ? "Kiểm tra ⏱️" : "Luyện tập 📖";
     const modeClass = scoreEntry.mode === "exam" ? "text-indigo-600 bg-indigo-50 border-indigo-100" : "text-emerald-600 bg-emerald-50 border-emerald-100";
     
@@ -608,7 +974,7 @@ function renderScoresHistory() {
     tr.className = "hover:bg-gray-50 transition-colors";
     
     tr.innerHTML = `
-      <td class="p-5 font-bold text-gray-400 text-xs">${index + 1}</td>
+      <td class="p-5 font-bold text-gray-400 text-xs">${startIndex + index + 1}</td>
       <td class="p-5">
         <span class="font-extrabold text-gray-900 block leading-tight">${testTitle}</span>
         <span class="text-[10px] text-gray-400 block font-medium mt-1">ID: ${scoreEntry.testId}</span>
@@ -624,13 +990,15 @@ function renderScoresHistory() {
       <td class="p-5 font-semibold text-gray-500 text-xs">${scoreEntry.completedAt ? new Date(scoreEntry.completedAt).toLocaleDateString('vi-VN') : "Chưa rõ"}</td>
       <td class="p-5 text-right">
         <button onclick="reviewTest('${scoreEntry.testId}', ${safeStringify(scoreEntry).replace(/"/g, '&quot;')})" 
-                class="px-3.5 py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 text-gray-600 hover:text-blue-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1 inline-flex">
+                class="px-3.5 py-1.5 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 text-gray-600 hover:text-blue-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1 inline-flex cursor-pointer">
           Xem bài <i class="fa-solid fa-eye text-[9px]"></i>
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+  
+  renderHistoryPagination(sorted.length, historyCurrentPage, totalPages);
 }
 
 // 10. Leaderboard rendering
@@ -735,8 +1103,111 @@ function renderLeaderboard() {
   });
 }
 
+// Anti-cheat tracking state
+let cheatViolationCount = 0;
+const MAX_CHEAT_VIOLATIONS = 3;
+let lastViolationTimestamp = 0;
+let isExamSubmitted = false;
+
+// Helper: Kiểm tra chính xác học sinh có ĐANG TRONG LÚC LÀM BÀI ôn tập hay kiểm tra không
+function isCurrentlyTakingTest() {
+  const testingScreen = document.getElementById("screen-testing");
+  if (!testingScreen || testingScreen.classList.contains("hidden")) return false;
+  if (!activePlayingTest) return false;
+  if (isReviewingExam) return false;
+  if (isExamSubmitted) return false;
+  
+  const scoreModal = document.getElementById("scoreReportModal");
+  if (scoreModal && !scoreModal.classList.contains("hidden")) return false;
+  
+  if (currentTestMode !== "exam" && currentTestMode !== "practice") return false;
+  
+  return true;
+}
+
+function handleExamTabViolation(reason) {
+  // Chỉ kích hoạt cảnh báo vi phạm khi học sinh đang trong lúc làm bài ôn tập hoặc kiểm tra
+  if (!isCurrentlyTakingTest()) return;
+  if (typeof Swal !== "undefined" && Swal.isVisible()) return;
+  
+  const now = Date.now();
+  if (now - lastViolationTimestamp < 2500) return; // Debounce 2.5s
+  lastViolationTimestamp = now;
+  
+  cheatViolationCount++;
+  
+  const isPractice = currentTestMode === "practice";
+  const modeTitle = isPractice ? "Ôn tập" : "Kiểm tra";
+  const modeAction = isPractice ? "TỰ ĐỘNG NỘP BÀI ÔN TẬP" : "TỰ ĐỘNG THU BÀI THI";
+  
+  if (cheatViolationCount < MAX_CHEAT_VIOLATIONS) {
+    Swal.fire({
+      icon: 'warning',
+      title: `⚠️ CẢNH BÁO VI PHẠM (Lần ${cheatViolationCount}/${MAX_CHEAT_VIOLATIONS})`,
+      html: `<div class="text-left space-y-2.5 text-sm text-gray-700">
+               <p class="font-bold text-red-600">Phát hiện hành vi: ${reason}!</p>
+               <p class="text-xs leading-relaxed text-gray-600">
+                 Quy chế làm bài <b>${modeTitle}</b>: Học sinh tập trung làm bài, <b>tuyệt đối không được chuyển tab, mở ứng dụng khác hoặc rời khỏi màn hình bài làm</b>.
+               </p>
+               <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-600">
+                 Cảnh báo: Nếu tiếp tục vi phạm thêm ${MAX_CHEAT_VIOLATIONS - cheatViolationCount} lần nữa, hệ thống sẽ <b>${modeAction}</b> ngay lập tức!
+               </div>
+             </div>`,
+      confirmButtonText: 'Tôi hiểu và tiếp tục làm bài',
+      confirmButtonColor: '#0ea5e9',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    });
+  } else {
+    Swal.fire({
+      icon: 'error',
+      title: `🚨 ĐÃ ${modeAction}!`,
+      html: `<div class="text-left space-y-2 text-sm text-gray-700">
+               <p class="font-bold text-red-600">Bạn đã vi phạm quy chế chuyển tab/rời bài làm quá ${MAX_CHEAT_VIOLATIONS} lần!</p>
+               <p class="text-xs text-gray-600">Hệ thống đã tự động khóa bài và lưu điểm số hiện tại của bạn.</p>
+             </div>`,
+      confirmButtonText: 'Xem kết quả',
+      confirmButtonColor: '#ef4444',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(() => {
+      submitFinishedExam();
+    });
+  }
+}
+
+// Anti-Cheat Window & Tab Event Listeners
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    handleExamTabViolation("chuyển sang tab hoặc ứng dụng khác");
+  }
+});
+
+window.addEventListener("blur", () => {
+  handleExamTabViolation("rời khỏi cửa sổ bài làm");
+});
+
+window.addEventListener("beforeunload", (e) => {
+  if (isCurrentlyTakingTest()) {
+    const isPractice = currentTestMode === "practice";
+    e.preventDefault();
+    e.returnValue = `Bạn đang làm bài ${isPractice ? 'ôn tập' : 'kiểm tra'}! Nếu rời đi bài làm sẽ bị hủy/kết thúc.`;
+    return e.returnValue;
+  }
+});
+
+document.addEventListener("contextmenu", (e) => {
+  if (isCurrentlyTakingTest()) {
+    e.preventDefault();
+  }
+});
+
 // 11. Test runner launching logic
 window.handleStartTest = function(testId, mode) {
+  if (testId === "MOCK_EXAM_RANDOM_45") {
+    handleStartMockExam(mode);
+    return;
+  }
   const tests = window.IC3_CACHE[window.IC3_KEYS.TESTS] || [];
   const target = tests.find(t => t.id === testId);
   
@@ -774,20 +1245,36 @@ function startPlayingTest(test, mode) {
   activePlayingTest = test;
   currentTestMode = mode;
   isReviewingExam = false;
+  isExamSubmitted = false;
   activeQuestionIndex = 0;
   correctAnswersCount = 0;
   testStartTime = new Date();
+  
+  // Reset anti-cheat state for new exam or practice
+  cheatViolationCount = 0;
+  lastViolationTimestamp = 0;
   
   // 1. Process questions
   const allQuestions = window.IC3_CACHE[window.IC3_KEYS.QUESTIONS] || [];
   let testQRefs = test.questions || [];
   
   // Filter questions that belong to this test
-  let matchedQuestions = allQuestions.filter(q => testQRefs.includes(q.id));
+  let matchedQuestions = (test.rawMockQuestions && test.rawMockQuestions.length > 0)
+    ? [...test.rawMockQuestions]
+    : allQuestions.filter(q => testQRefs.includes(q.id));
   
   if (matchedQuestions.length === 0) {
     Swal.fire('Lỗi đề thi', 'Giáo viên chưa thêm câu hỏi nào vào bộ đề này!', 'error');
     return;
+  }
+
+  // Shuffle order if exam or mock test
+  if (mode === "exam" || test.isMockExam) {
+    matchedQuestions = [...matchedQuestions];
+    for (let i = matchedQuestions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matchedQuestions[i], matchedQuestions[j]] = [matchedQuestions[j], matchedQuestions[i]];
+    }
   }
   
 function safeStringify(obj) {
@@ -1905,6 +2392,7 @@ window.handleSubmitExam = function() {
 // 15. Formulate score calculations & Sync back to DB
 async function submitFinishedExam() {
   if (testTimerInterval) clearInterval(testTimerInterval);
+  isExamSubmitted = true;
   showGlobalLoader("Đang tổng hợp điểm số và cập nhật học bạ...");
   
   let correctCount = 0;
@@ -1998,7 +2486,16 @@ window.handleCloseScoreReport = function() {
   document.getElementById("scoreReportModal").classList.add("hidden");
   document.getElementById("screen-testing").classList.add("hidden");
   
-  // Refresh views
+  // Clean up testing state completely so violation warnings don't trigger outside tests
+  activePlayingTest = null;
+  currentTestMode = "";
+  isReviewingExam = false;
+  isExamSubmitted = false;
+  cheatViolationCount = 0;
+  lastViolationTimestamp = 0;
+  
+  // Refresh views and show newest results on page 1
+  historyCurrentPage = 1;
   renderStudentDashboard();
   switchTab("tests");
 };
@@ -2115,25 +2612,48 @@ window.toggleMobileNavPanel = function(forceState) {
 };
 
 window.confirmExitPlaying = function() {
+  if (isReviewingExam) {
+    window.handleExitReviewMode();
+    return;
+  }
+  const isPractice = currentTestMode === "practice";
+  const actionWord = isPractice ? "bài ôn tập" : "bài kiểm tra";
   Swal.fire({
-    title: 'Thoát khỏi bài làm?',
+    title: `Thoát khỏi ${actionWord}?`,
     text: 'Các kết quả chưa hoàn thành sẽ không được lưu lại.',
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#EF4444',
     cancelButtonColor: '#64748B',
     confirmButtonText: 'Đồng ý thoát',
-    cancelButtonText: 'Tiếp tục thi'
+    cancelButtonText: 'Tiếp tục làm'
   }).then((result) => {
     if (result.isConfirmed) {
       if (testTimerInterval) clearInterval(testTimerInterval);
       document.getElementById("screen-testing").classList.add("hidden");
+      activePlayingTest = null;
+      currentTestMode = "";
+      isReviewingExam = false;
+      isExamSubmitted = false;
+      cheatViolationCount = 0;
+      lastViolationTimestamp = 0;
     }
   });
 };
 
 window.handleExitPlaying = function() {
   window.confirmExitPlaying();
+};
+
+window.handleExitReviewMode = function() {
+  isReviewingExam = false;
+  activePlayingTest = null;
+  currentTestMode = "";
+  isExamSubmitted = false;
+  cheatViolationCount = 0;
+  lastViolationTimestamp = 0;
+  document.getElementById("screen-testing").classList.add("hidden");
+  renderScoresHistory();
 };
 
 // 18. Detailed Exam Reviewing Mode support

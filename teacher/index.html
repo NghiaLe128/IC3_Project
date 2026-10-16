@@ -331,7 +331,10 @@
 
                 <!-- 4. Danh sách câu hỏi đã tạo bên dưới -->
                 <div id="m-questionsListContainer" class="space-y-2 hidden flex-grow flex flex-col overflow-hidden min-h-[280px]">
-                  <label class="block text-xs font-bold text-indigo-300 uppercase">Danh sách câu hỏi trong bộ đề:</label>
+                  <div class="flex justify-between items-center">
+                    <label class="block text-xs font-bold text-indigo-300 uppercase">Danh sách câu hỏi trong bộ đề:</label>
+                    <button type="button" onclick="openImportQuestionModal()" class="text-[10px] font-bold text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-0.5 rounded cursor-pointer transition-colors" title="Thêm câu hỏi từ bộ đề khác"><i class="fa-solid fa-file-import mr-1"></i>Thêm từ bộ đề khác</button>
+                  </div>
                   <input type="text" id="m-questionSearch" oninput="window.teacherPagination.questions = 1; renderQuestionsList()" placeholder="Tìm kiếm câu hỏi..." class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 text-xs mb-2">
                   <div id="m-questionsList" class="flex-grow overflow-y-auto border border-indigo-500/30 rounded-xl divide-y divide-indigo-500/20 bg-slate-950/20 max-h-[380px]">
                     <!-- Dynamically populated list -->
@@ -352,6 +355,9 @@
                 <div class="flex gap-2" id="question-actions-row">
                   <button onclick="setupNewQuestionForm()" class="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
                     <i class="fa-solid fa-plus"></i> Tạo câu hỏi mới
+                  </button>
+                  <button type="button" onclick="openImportQuestionModal()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-sm cursor-pointer" title="Thêm câu hỏi từ bộ đề khác vào bộ đề này">
+                    <i class="fa-solid fa-file-import"></i> Thêm từ bộ đề khác
                   </button>
                   <button id="btn-edit-question" onclick="enableQuestionEditing()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-all hidden cursor-pointer">
                     <i class="fa-solid fa-pen-to-square"></i> Chỉnh sửa
@@ -412,6 +418,22 @@
                 <form id="question-edit-form" class="hidden space-y-4" onsubmit="handleQuestionFormSubmit(event)">
                   <input type="hidden" id="form-q-id" value="">
                   
+                  <!-- Banner: Lấy câu hỏi từ bộ đề khác -->
+                  <div class="p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 shadow-inner">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-sm shrink-0">
+                        <i class="fa-solid fa-copy text-amber-400"></i>
+                      </div>
+                      <div>
+                        <div class="text-xs font-bold text-indigo-100">Cần lấy câu hỏi từ bộ đề khác?</div>
+                        <div class="text-[11px] text-indigo-300">Bạn có thể chọn câu hỏi từ bộ đề khác để thêm trực tiếp hoặc nạp nội dung vào đây để chỉnh sửa.</div>
+                      </div>
+                    </div>
+                    <button type="button" onclick="openImportQuestionModal()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer shrink-0">
+                      <i class="fa-solid fa-file-import"></i> Chọn từ bộ đề khác
+                    </button>
+                  </div>
+
                   <div class="space-y-6">
                     <div>
                       <label class="block text-[13px] font-bold text-indigo-100 mb-2">Dạng câu hỏi ôn tập:</label>
@@ -588,7 +610,7 @@
 
     <!-- Modal: Create Class -->
     <div id="classModal" class="modal-overlay hidden">
-      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-md p-6 rounded-2xl shadow-xl relative max-h-[90vh] overflow-y-auto">
         <button onclick="closeClassModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-200"><i class="fa-solid fa-xmark text-lg"></i></button>
         <h3 class="font-poppins font-bold text-lg text-indigo-50 mb-4">Tạo lớp học mới</h3>
         
@@ -933,6 +955,117 @@
           <button onclick="closeConfirmModal()" class="flex-1 py-2 bg-indigo-950 hover:bg-indigo-900 text-indigo-200 text-xs font-bold rounded-xl transition-all cursor-pointer">Hủy</button>
           <button onclick="handleConfirmAction()" class="flex-1 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/20 transition-all cursor-pointer">Xác nhận</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal: Thêm câu hỏi từ bộ đề khác (Import Question from Another Test Set) -->
+    <div id="importQuestionModal" class="modal-overlay hidden">
+      <div class="bg-[#1a1c2e] border border-indigo-500/30 w-full max-w-4xl p-6 rounded-2xl shadow-2xl relative flex flex-col max-h-[90vh]">
+        <button onclick="closeImportQuestionModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-indigo-100 transition-colors cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        
+        <!-- Header -->
+        <div class="mb-4 pr-6 shrink-0">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm">
+              <i class="fa-solid fa-file-import"></i>
+            </div>
+            <h3 class="font-poppins font-bold text-lg text-indigo-50">Thêm câu hỏi từ bộ đề khác</h3>
+          </div>
+          <p class="text-[11px] text-indigo-300">
+            Chọn câu hỏi từ các bộ đề đã tạo để bổ sung vào bộ đề đang chọn mà không cần phải nhập lại từ đầu.
+          </p>
+          <div class="mt-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-950/60 border border-indigo-500/20 text-xs">
+            <span class="text-indigo-300">Đang thêm vào bộ đề:</span>
+            <span id="importTargetTestName" class="font-bold text-emerald-400">Chưa chọn bộ đề</span>
+            <span id="importTargetTestBadge" class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-semibold border border-emerald-500/20"></span>
+          </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="space-y-3 shrink-0 mb-3 bg-slate-900/50 p-3.5 rounded-xl border border-indigo-500/15">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- 1. Chọn Khối lớp nguồn -->
+            <div>
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">1. Khối lớp nguồn:</label>
+              <select id="importSourceBlockSelector" onchange="onImportSourceBlockChange()" class="modal-input bg-[#131424]/90 border-indigo-500/30 text-indigo-50 py-1.5 text-xs">
+                <!-- Injected via JS -->
+              </select>
+            </div>
+
+            <!-- 2. Chọn Bộ đề nguồn -->
+            <div>
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">2. Bộ đề nguồn:</label>
+              <select id="importSourceTestSelector" onchange="onImportSourceTestChange()" class="modal-input bg-[#131424]/90 border-indigo-500/30 text-indigo-50 py-1.5 text-xs">
+                <!-- Injected via JS -->
+              </select>
+            </div>
+
+            <!-- 3. Lọc theo dạng câu hỏi -->
+            <div>
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">3. Dạng câu hỏi:</label>
+              <select id="importTypeFilter" onchange="renderImportQuestionsList()" class="modal-input bg-[#131424]/90 border-indigo-500/30 text-indigo-50 py-1.5 text-xs">
+                <option value="">-- Tất cả dạng câu hỏi --</option>
+                <option value="choice">Chọn 1 đáp án (Choice)</option>
+                <option value="multi_choice">Chọn nhiều đáp án (Multi Choice)</option>
+                <option value="image_choice">Chọn bằng hình ảnh (Image Choice)</option>
+                <option value="true_false">Đúng / Sai</option>
+                <option value="drag_text">Kéo thả khớp chữ</option>
+                <option value="drag_image_text">Kéo thả khớp hình</option>
+                <option value="table_match">Ghép nối bảng</option>
+                <option value="hotspot">Xác định trên ảnh (Hotspot)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Search & Select all -->
+          <div class="flex flex-col sm:flex-row gap-2.5 items-center justify-between pt-1">
+            <div class="relative w-full sm:w-80">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 text-xs"></i>
+              <input type="text" id="importSearchInput" oninput="renderImportQuestionsList()" placeholder="Tìm theo nội dung đề bài..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950/70 border border-indigo-500/20 text-xs text-indigo-50 focus:border-indigo-500/50 outline-none transition-all">
+            </div>
+
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-indigo-200 select-none">
+                <input type="checkbox" id="importSelectAllCheckbox" onchange="toggleSelectAllImportQuestions(this.checked)" class="accent-emerald-500 h-4 w-4 rounded cursor-pointer">
+                <span>Chọn tất cả câu khả dụng</span>
+              </label>
+              <span class="text-xs text-indigo-300">
+                Đã chọn: <span id="importSelectedCount" class="text-emerald-400 font-bold">0</span> câu
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Questions List Table / Container -->
+        <div class="flex-grow overflow-hidden flex flex-col border border-indigo-500/20 rounded-xl bg-slate-950/30">
+          <div class="grid grid-cols-12 gap-2 px-4 py-2 border-b border-indigo-500/20 text-[10px] font-bold text-indigo-300 uppercase shrink-0 bg-indigo-950/30">
+            <div class="col-span-1 text-center">Chọn</div>
+            <div class="col-span-1 text-center">STT</div>
+            <div class="col-span-6">Nội dung câu hỏi & Chi tiết</div>
+            <div class="col-span-2 text-center">Dạng câu</div>
+            <div class="col-span-2 text-center">Thao tác</div>
+          </div>
+          <div id="importQuestionsListContainer" class="flex-grow overflow-y-auto divide-y divide-indigo-500/10 p-1">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="shrink-0 flex flex-wrap justify-between items-center gap-3 bg-indigo-950/20 p-3.5 rounded-xl border border-indigo-500/10 mt-3">
+          <div class="text-[11px] text-indigo-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-info text-indigo-400"></i>
+            <span>Câu hỏi được thêm sẽ xuất hiện ngay trong danh sách câu hỏi của bộ đề hiện tại.</span>
+          </div>
+          <div class="flex gap-2.5">
+            <button type="button" onclick="closeImportQuestionModal()" class="px-4 py-2 rounded-lg bg-indigo-950 hover:bg-indigo-900 text-indigo-200 text-xs font-bold transition-all cursor-pointer">
+              Đóng
+            </button>
+            <button type="button" onclick="handleBatchImportQuestions()" class="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-plus"></i> Thêm các câu đã chọn (<span id="importBtnSelectedCount">0</span>)
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
 

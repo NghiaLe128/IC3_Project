@@ -302,14 +302,12 @@
         <div id="tab-content-tests" class="space-y-6 slide-up">
           <!-- Filter and Search Header -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Khối học tập:</span>
-              <div class="flex flex-wrap gap-1.5" id="blockFiltersContainer">
-                <button onclick="filterByBlock('all')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm border border-transparent">Tất cả</button>
-                <button onclick="filterByBlock('block_3')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 3</button>
-                <button onclick="filterByBlock('block_4')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 4</button>
-                <button onclick="filterByBlock('block_5')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 5</button>
-                <button onclick="filterByBlock('block_6')" class="block-filter-btn px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200">Khối 6</button>
+            <div class="flex items-center gap-2.5">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Khối học của bạn:</span>
+              <div id="blockFiltersContainer" class="flex items-center">
+                <span id="studentBlockBadgeDisplay" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5 shadow-sm">
+                  <i class="fa-solid fa-graduation-cap"></i> <span id="studentBlockText">Khối 3</span>
+                </span>
               </div>
             </div>
             <div class="relative w-full sm:w-72">
@@ -365,6 +363,16 @@
               <i class="fa-solid fa-rectangle-list text-gray-300 text-5xl mb-4"></i>
               <h4 class="font-bold text-gray-700 text-base">Chưa làm bài thi nào</h4>
               <p class="text-gray-400 text-sm mt-1">Hãy bắt đầu ôn luyện bằng cách nhấp vào "Luyện tập" hoặc "Kiểm tra" ở thẻ bộ đề.</p>
+            </div>
+
+            <!-- Pagination Container for History -->
+            <div id="historyPaginationContainer" class="p-4 sm:px-6 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+              <div class="flex items-center gap-2">
+                <span id="historyPaginationInfo" class="font-medium text-gray-600">Hiển thị 0 - 0 trên 0 bài thi</span>
+              </div>
+              <div id="historyPaginationButtons" class="flex items-center gap-1.5 flex-wrap">
+                <!-- Dynamic pagination buttons -->
+              </div>
             </div>
           </div>
         </div>
@@ -611,12 +619,17 @@
         
         <!-- Score circle widget -->
         <div class="my-6 w-full py-6 px-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner flex flex-col items-center">
-          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">KẾT QUẢ ĐIỂM SỐ</span>
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">KẾT QUẢ ĐIỂM SỐ (HỆ 10)</span>
           <div class="text-5xl font-black text-gray-900 mt-1">
-            <span id="modalReportScore">0</span><span class="text-2xl text-gray-300 font-medium">/100</span>
+            <span id="modalReportScore10">0.0</span><span class="text-2xl text-gray-400 font-medium">/10</span>
           </div>
-          <div id="modalReportCorrectDetails" class="text-xs text-gray-500 font-semibold bg-gray-200/50 px-3 py-1 rounded-full mt-2.5">
-            0/0 câu trả lời đúng
+          <div class="flex items-center gap-2 mt-2.5">
+            <span id="modalReportCorrectDetails" class="text-xs text-gray-600 font-semibold bg-gray-200/60 px-3 py-1 rounded-full">
+              0/0 câu trả lời đúng
+            </span>
+            <span class="text-xs text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+              <span id="modalReportScore">0</span>%
+            </span>
           </div>
         </div>
 
