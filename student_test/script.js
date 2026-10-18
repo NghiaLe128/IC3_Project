@@ -521,6 +521,7 @@ function getMockExamQuestions(blockNum) {
 
   // 1. Get tests belonging to this student's grade/block
   const blockTests = allTests.filter(t => {
+    if (t.hidden === true || t.isHidden === true || t.visible === false) return false;
     if (t.blockId === studentBlock || t.level === studentBlock) return true;
     if (t.blockId === `Khối ${blockNum}` || t.level === `Khối ${blockNum}`) return true;
     const titleLow = (t.title || t.name || "").toLowerCase();
@@ -666,6 +667,9 @@ function renderTestsList(blockId = "all", query = "") {
 
   // Filter tests ONLY belonging to this student's grade/block
   let filtered = allTests.filter(t => {
+    // Exclude hidden tests
+    if (t.hidden === true || t.isHidden === true || t.visible === false) return false;
+
     // Direct block match
     if (t.blockId === studentBlock || t.level === studentBlock) return true;
     if (t.blockId === `Khối ${blockNum}` || t.level === `Khối ${blockNum}`) return true;
@@ -1272,6 +1276,11 @@ window.handleStartTest = function(testId, mode = "exam") {
   
   if (!target) {
     Swal.fire('Lỗi', 'Không tìm thấy thông tin bộ đề thi!', 'error');
+    return;
+  }
+
+  if (target.hidden === true || target.isHidden === true || target.visible === false) {
+    Swal.fire('Thông báo', 'Bộ đề thi này hiện đang được giáo viên tạm ẩn!', 'warning');
     return;
   }
   
@@ -2441,14 +2450,23 @@ function startTimer() {
   const updateTimer = () => {
     if (remainingSeconds <= 0) {
       clearInterval(testTimerInterval);
+      remainingSeconds = 0;
       Swal.fire({
         title: 'Hết giờ làm bài!',
-        text: 'Hệ thống đang tự động tổng hợp kết quả của bạn.',
+        text: 'Thời gian quy định đã kết thúc. Hệ thống đang tự động nộp bài và tổng hợp kết quả của bạn...',
         icon: 'warning',
-        confirmButtonColor: '#2563EB'
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        timer: 1800
       }).then(() => {
         submitFinishedExam();
       });
+
+      // Failsafe execution
+      setTimeout(() => {
+        submitFinishedExam();
+      }, 2200);
       return;
     }
     

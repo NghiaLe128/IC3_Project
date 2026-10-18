@@ -1112,7 +1112,10 @@ function onBlockSelectionChange() {
     let diffIcon = "🟢 Dễ";
     if (t.difficulty === "medium") diffIcon = "🟡 Trung bình";
     if (t.difficulty === "hard") diffIcon = "🔴 Khó";
-    testSelector.innerHTML += `<option value="${t.id}">[${diffIcon}] ${t.title} (${t.questions.length} câu)</option>`;
+    const isHidden = Boolean(t.hidden || t.isHidden || t.visible === false);
+    const hiddenTag = isHidden ? " [🚫 ĐÃ ẨN]" : "";
+    const qCount = t.questions ? t.questions.length : (t.questionCount || 0);
+    testSelector.innerHTML += `<option value="${t.id}">${hiddenTag}[${diffIcon}] ${t.title} (${qCount} câu)</option>`;
   });
 
   if (previousTestId && Array.from(testSelector.options).some(opt => opt.value === previousTestId)) {
@@ -1130,6 +1133,7 @@ function onTestSelectionChange() {
   if (!testId) {
     questionTypeContainer.classList.add("hidden");
     questionsListContainer.classList.add("hidden");
+    renderCurrentTestPasswordCard("");
     resetQuestionWorkspace();
     return;
   }
@@ -1137,6 +1141,7 @@ function onTestSelectionChange() {
   questionTypeContainer.classList.remove("hidden");
   questionsListContainer.classList.remove("hidden");
 
+  renderCurrentTestPasswordCard(testId);
   renderQuestionsList();
   resetQuestionWorkspace();
 }
@@ -1306,6 +1311,7 @@ async function handleCustomTestFormSubmit(e) {
 
   const id = `test_${Date.now().toString().slice(-8)}`;
   const currentUser = (typeof getTeacherUser === 'function' ? getTeacherUser() : null) || { email: "teacher@gmail.com" };
+  const customPassword = (document.getElementById("customTestPasswordInput")?.value || "").trim();
 
   const testObj = {
     id,
@@ -1317,6 +1323,7 @@ async function handleCustomTestFormSubmit(e) {
     questions: selectedQuestionIds,
     questionCount: selectedQuestionIds.length,
     scoreVal: 100,
+    password: customPassword,
     createdBY: currentUser.email,
     createdAt: new Date().toISOString()
   };
@@ -1364,6 +1371,8 @@ function openCombineTestsModal() {
   document.getElementById("combineTestTitleInput").value = "Đề ôn tập tổng hợp";
   document.getElementById("combineTestDurationInput").value = "45";
   document.getElementById("combineTestDifficultyInput").value = "medium";
+  const passInp = document.getElementById("combineTestPasswordInput");
+  if (passInp) passInp.value = "";
 
   const container = document.getElementById("combineTestsListContainer");
   if (!container) return;
@@ -1440,6 +1449,7 @@ function handleCombineTestsFormSubmit(e) {
 
   const id = `test_${Date.now().toString().slice(-6)}`;
   const currentUser = getTeacherUser() || { email: "teacher@gmail.com" };
+  const combinePassword = (document.getElementById("combineTestPasswordInput")?.value || "").trim();
 
   const testObj = {
     id,
@@ -1451,6 +1461,7 @@ function handleCombineTestsFormSubmit(e) {
     questions: mergedQuestionIds,
     questionCount: mergedQuestionIds.length,
     scoreVal: 100,
+    password: combinePassword,
     createdBY: currentUser.email
   };
 
@@ -1496,6 +1507,8 @@ function openTestSetModal(action) {
     return;
   }
 
+  const passwordInput = document.getElementById("testSetPasswordInput");
+
   if (action === "add") {
     if (actionInput) actionInput.value = "add";
     if (titleEl) titleEl.innerText = "Tạo bộ đề thám hiểm mới";
@@ -1504,6 +1517,9 @@ function openTestSetModal(action) {
     if (titleInput) titleInput.value = "";
     if (durationInput) durationInput.value = "15";
     if (bossPokeInput) bossPokeInput.value = "trevenant";
+    if (passwordInput) passwordInput.value = "";
+    const hiddenInput = document.getElementById("testSetHiddenInput");
+    if (hiddenInput) hiddenInput.checked = false;
     modal.classList.remove("hidden");
   } else if (action === "edit") {
     const selector = document.getElementById("m-testSelector");
@@ -1523,6 +1539,9 @@ function openTestSetModal(action) {
     if (titleInput) titleInput.value = test.title || "";
     if (durationInput) durationInput.value = test.duration || "15";
     if (bossPokeInput) bossPokeInput.value = test.bossPoke || "trevenant";
+    if (passwordInput) passwordInput.value = test.password || "";
+    const hiddenInput = document.getElementById("testSetHiddenInput");
+    if (hiddenInput) hiddenInput.checked = Boolean(test.hidden || test.isHidden || test.visible === false);
     modal.classList.remove("hidden");
   }
 }
@@ -1542,6 +1561,8 @@ function handleTestSetFormSubmit(e) {
   const title = document.getElementById("testSetTitleInput").value.trim();
   const duration = parseInt(document.getElementById("testSetDurationInput").value) || 15;
   const bossPoke = document.getElementById("testSetBossPokeInput").value;
+  const password = (document.getElementById("testSetPasswordInput")?.value || "").trim();
+  const isHidden = document.getElementById("testSetHiddenInput") ? document.getElementById("testSetHiddenInput").checked : false;
 
   if (!title) {
     if (window.showToast) window.showToast("Vui lòng điền đầy đủ tiêu đề!", "error");
@@ -1577,6 +1598,10 @@ function handleTestSetFormSubmit(e) {
       questionCount: 0,
       scoreVal: 100,
       bossPoke,
+      password,
+      hidden: isHidden,
+      isHidden: isHidden,
+      visible: !isHidden,
       createdBY: currentUser.email
     };
     tests.push(testObj);
@@ -1589,7 +1614,11 @@ function handleTestSetFormSubmit(e) {
         title,
         difficulty,
         duration,
-        bossPoke
+        bossPoke,
+        password,
+        hidden: isHidden,
+        isHidden: isHidden,
+        visible: !isHidden
       };
       tests[existingIndex] = testObj;
     } else {
@@ -1604,6 +1633,10 @@ function handleTestSetFormSubmit(e) {
         questionCount: 0,
         scoreVal: 100,
         bossPoke,
+        password,
+        hidden: isHidden,
+        isHidden: isHidden,
+        visible: !isHidden,
         createdBY: currentUser.email
       };
       tests.push(testObj);
@@ -1625,6 +1658,7 @@ function handleTestSetFormSubmit(e) {
         testSelector.value = id;
         onTestSelectionChange();
       }
+      renderCurrentTestPasswordCard(id);
     })
     .catch((err) => {
       console.error("Error saving test: ", err);
@@ -3506,6 +3540,8 @@ function openCustomTestGeneratorModal() {
     if (rangeStart) rangeStart.value = "";
     const rangeEnd = document.getElementById("rangeEnd");
     if (rangeEnd) rangeEnd.value = "";
+    const passInput = document.getElementById("customTestPasswordInput");
+    if (passInput) passInput.value = "";
     renderCustomTestQuestionsList();
   }
 }
@@ -3946,10 +3982,267 @@ function copyQuestionToEditor(qId) {
   }
 }
 
+// ================= TEST PASSWORD MANAGEMENT =================
+window._isTestPasswordVisible = false;
+
+function renderCurrentTestPasswordCard(testId) {
+  const card = document.getElementById("m-testPasswordCard");
+  const btnHide = document.getElementById("btnToggleHideTest");
+
+  if (!testId) {
+    if (card) card.classList.add("hidden");
+    if (btnHide) {
+      btnHide.innerHTML = '<i class="fa-solid fa-eye-slash mr-1"></i>Ẩn đề';
+      btnHide.className = "text-[10px] font-bold bg-slate-800 text-slate-500 px-2 py-1 rounded cursor-not-allowed";
+    }
+    return;
+  }
+
+  const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+  const test = tests.find(t => t.id === testId);
+  if (!test) {
+    if (card) card.classList.add("hidden");
+    return;
+  }
+
+  if (card) card.classList.remove("hidden");
+
+  // 1. Manage Visibility Status (Student view)
+  const isHidden = Boolean(test.hidden || test.isHidden || test.visible === false);
+
+  if (btnHide) {
+    if (isHidden) {
+      btnHide.innerHTML = '<i class="fa-solid fa-eye text-emerald-400 mr-1"></i>Hiện đề';
+      btnHide.className = "text-[10px] font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded cursor-pointer transition-colors";
+      btnHide.title = "Bộ đề này đang bị ẩn. Bấm để hiển thị lại cho học sinh";
+    } else {
+      btnHide.innerHTML = '<i class="fa-solid fa-eye-slash text-purple-400 mr-1"></i>Ẩn đề';
+      btnHide.className = "text-[10px] font-bold bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 px-2 py-1 rounded cursor-pointer transition-colors";
+      btnHide.title = "Bấm để ẩn bộ đề này khỏi giao diện học sinh";
+    }
+  }
+
+  const visIcon = document.getElementById("currentTestVisibilityIcon");
+  const visBadge = document.getElementById("currentTestVisibilityBadge");
+  const cardBtnHide = document.getElementById("btnCardToggleHide");
+
+  if (visIcon) {
+    visIcon.className = isHidden ? "fa-solid fa-eye-slash text-purple-400" : "fa-solid fa-eye text-emerald-400";
+  }
+  if (visBadge) {
+    if (isHidden) {
+      visBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[11px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded border border-purple-500/30"><i class="fa-solid fa-eye-slash text-[10px]"></i> Đang ẩn với học sinh</span>';
+    } else {
+      visBadge.innerHTML = '<span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/25"><i class="fa-solid fa-eye text-[10px]"></i> Đang hiển thị học sinh</span>';
+    }
+  }
+  if (cardBtnHide) {
+    if (isHidden) {
+      cardBtnHide.innerHTML = '<i class="fa-solid fa-eye mr-1"></i>Hiện đề';
+      cardBtnHide.className = "px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 hover:text-emerald-200 text-[11px] font-bold border border-emerald-500/30 transition-colors flex items-center gap-1 cursor-pointer";
+      cardBtnHide.title = "Mở lại hiển thị cho học sinh";
+    } else {
+      cardBtnHide.innerHTML = '<i class="fa-solid fa-eye-slash mr-1"></i>Ẩn đề';
+      cardBtnHide.className = "px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 hover:text-purple-200 text-[11px] font-bold border border-purple-500/30 transition-colors flex items-center gap-1 cursor-pointer";
+      cardBtnHide.title = "Ẩn bộ đề này khỏi học sinh";
+    }
+  }
+
+  // 2. Manage Exam Password
+  const textEl = document.getElementById("currentTestPasswordText");
+  const eyeBtn = document.getElementById("btnToggleTestPasswordEye");
+
+  const pass = (test.password || "").trim();
+  if (!pass) {
+    if (textEl) {
+      textEl.innerText = "Chưa đặt mã";
+      textEl.className = "font-sans font-medium text-slate-400 text-xs italic";
+    }
+    if (eyeBtn) eyeBtn.classList.add("hidden");
+  } else {
+    if (eyeBtn) eyeBtn.classList.remove("hidden");
+    if (window._isTestPasswordVisible) {
+      if (textEl) {
+        textEl.innerText = pass;
+        textEl.className = "font-mono font-bold text-amber-300 text-xs tracking-wider bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30";
+      }
+      if (eyeBtn) eyeBtn.innerHTML = '<i class="fa-regular fa-eye-slash text-amber-400"></i>';
+    } else {
+      if (textEl) {
+        textEl.innerText = "••••••";
+        textEl.className = "font-mono font-bold text-amber-300 text-xs tracking-widest bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30";
+      }
+      if (eyeBtn) eyeBtn.innerHTML = '<i class="fa-regular fa-eye"></i>';
+    }
+  }
+}
+
+async function toggleCurrentTestVisibility() {
+  const testSelector = document.getElementById("m-testSelector");
+  const testId = testSelector ? testSelector.value : "";
+  if (!testId) {
+    if (window.showToast) window.showToast("Vui lòng chọn bộ đề trước!", "error");
+    return;
+  }
+
+  const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+  const test = tests.find(t => t.id === testId);
+  if (!test) return;
+
+  const currentHidden = Boolean(test.hidden || test.isHidden || test.visible === false);
+  const nextHidden = !currentHidden;
+
+  test.hidden = nextHidden;
+  test.isHidden = nextHidden;
+  test.visible = !nextHidden;
+
+  try {
+    if (window.saveData) {
+      await window.saveData(window.IC3_KEYS.TESTS, tests, testId);
+    }
+    if (window.fStore && window.db) {
+      await window.fStore.setDoc(
+        window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId),
+        { hidden: nextHidden, isHidden: nextHidden, visible: !nextHidden },
+        { merge: true }
+      );
+    }
+
+    if (window.showToast) {
+      if (nextHidden) {
+        window.showToast(`Đã ẨN bộ đề "${test.title || test.id}". Học sinh sẽ không thấy bộ đề này trên hệ thống!`, "info");
+      } else {
+        window.showToast(`Đã MỞ HIỂN THỊ bộ đề "${test.title || test.id}" cho học sinh!`, "success");
+      }
+    }
+
+    // Refresh block tests dropdown while keeping selected test
+    onBlockSelectionChange();
+    const sel = document.getElementById("m-testSelector");
+    if (sel) {
+      sel.value = testId;
+    }
+    renderCurrentTestPasswordCard(testId);
+  } catch (err) {
+    console.error("Error toggling test visibility:", err);
+    if (window.showToast) window.showToast("Lỗi khi cập nhật trạng thái ẩn/hiện: " + err.message, "error");
+  }
+}
+
+function toggleTestPasswordEye() {
+  window._isTestPasswordVisible = !window._isTestPasswordVisible;
+  const testId = document.getElementById("m-testSelector")?.value;
+  renderCurrentTestPasswordCard(testId);
+}
+
+function copyCurrentTestPassword() {
+  const testId = document.getElementById("m-testSelector")?.value;
+  if (!testId) return;
+
+  const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+  const test = tests.find(t => t.id === testId);
+  const pass = (test && test.password ? test.password.trim() : "");
+
+  if (!pass) {
+    if (window.showToast) window.showToast("Bộ đề này chưa được đặt mật khẩu! Bạn có thể nhấn 'Đổi mã' để tạo.", "info");
+    return;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(pass).then(() => {
+      if (window.showToast) window.showToast(`Đã sao chép mật khẩu: ${pass}`, "success");
+    }).catch(() => {
+      prompt("Mật khẩu bộ đề:", pass);
+    });
+  } else {
+    prompt("Mật khẩu bộ đề:", pass);
+  }
+}
+
+async function quickEditTestPassword() {
+  const testId = document.getElementById("m-testSelector")?.value;
+  if (!testId) {
+    if (window.showToast) window.showToast("Vui lòng chọn bộ đề trước!", "error");
+    return;
+  }
+
+  const tests = (window.IC3_CACHE && window.IC3_CACHE[window.IC3_KEYS.TESTS]) || [];
+  const test = tests.find(t => t.id === testId);
+  if (!test) return;
+
+  const currentPass = (test.password || "").trim();
+
+  if (typeof Swal !== "undefined") {
+    const { value: newPassword, isConfirmed } = await Swal.fire({
+      title: "Mật khẩu vào bộ đề",
+      html: `
+        <div class="text-left text-xs text-indigo-200 space-y-2 mb-3">
+          <p>Thiết lập mã bảo vệ riêng biệt cho: <b class="text-amber-400">${test.title || test.id}</b>.</p>
+          <p class="text-indigo-400">Học sinh khi vào folder <b>Kiểm tra</b> sẽ bắt buộc phải nhập đúng mật khẩu này để làm bài.</p>
+        </div>
+      `,
+      input: "text",
+      inputValue: currentPass,
+      inputPlaceholder: "Để trống nếu không muốn đặt mật khẩu...",
+      inputAttributes: {
+        autocapitalize: "off",
+        autocorrect: "off",
+        class: "modal-input text-center font-mono text-base tracking-wider"
+      },
+      showCancelButton: true,
+      confirmButtonText: '<i class="fa-solid fa-floppy-disk mr-1"></i> Lưu mật khẩu',
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#475569",
+      background: "#1a1c2e",
+      color: "#f8fafc"
+    });
+
+    if (isConfirmed) {
+      const cleanPass = (newPassword || "").trim();
+      test.password = cleanPass;
+
+      try {
+        await window.saveData(window.IC3_KEYS.TESTS, tests, testId);
+        if (window.fStore && window.db) {
+          await window.fStore.setDoc(window.fStore.doc(window.db, window.IC3_KEYS.TESTS, testId), { password: cleanPass }, { merge: true });
+        }
+        renderCurrentTestPasswordCard(testId);
+        if (window.showToast) {
+          window.showToast(cleanPass ? `Đã lưu mật khẩu bộ đề: ${cleanPass}` : "Đã gỡ bỏ mật khẩu bộ đề thành công!", "success");
+        }
+      } catch (err) {
+        console.error("Error updating test password:", err);
+        if (window.showToast) window.showToast("Lưu mật khẩu thất bại, vui lòng thử lại!", "error");
+      }
+    }
+  } else {
+    const newPass = prompt(`Nhập mật khẩu cho bộ đề "${test.title || test.id}" (để trống để gỡ bỏ):`, currentPass);
+    if (newPass !== null) {
+      const cleanPass = newPass.trim();
+      test.password = cleanPass;
+      await window.saveData(window.IC3_KEYS.TESTS, tests, testId);
+      renderCurrentTestPasswordCard(testId);
+      if (window.showToast) window.showToast("Đã cập nhật mật khẩu bộ đề!", "success");
+    }
+  }
+}
+
+function generateRandomTestSetPassword() {
+  const pin = Math.floor(100000 + Math.random() * 900000).toString();
+  const input = document.getElementById("testSetPasswordInput");
+  if (input) {
+    input.value = pin;
+    if (window.showToast) window.showToast(`Đã tạo mã ngẫu nhiên: ${pin}`);
+  }
+}
+
 // EXPOSE TO WINDOW FOR HTML EVENT HANDLERS
 Object.assign(window, {
   clearResultsTimeFilters, adjustFormQuestionOptions, cancelQuestionEditing, changeActiveSelectedClass, checkTeacherAuth, closeAddStudentToClassModal, closeBlockModal, closeClassModal, closeCombineTestsModal, closeStudentDetailsModal, closeTestSetModal, convertDriveUrl, deleteCurrentBlock, deleteCurrentQuestion, deleteCurrentTestSet, enableQuestionEditing, getBlocks, getBossHuntDayKey, handleBlockFormSubmit, handleClassSubmit, handleCombineTestsFormSubmit, handleQuestionFormSubmit, handleStudentToClassSubmit, handleTestSetFormSubmit, importStudentsExcel, initClassSelector, initClock, initManageTestsTab, logoutTeacher, onBlockSelectionChange, onTestSelectionChange, openAddStudentToClassModal, openBlockModal, openClassModal, openCombineTestsModal, openStudentDetailsModal, openTestSetModal, populateSchoolClassFilter, readFileAsBase64, removeStudentFromClass, renderClassesGrid, renderClassRanking, renderClassStudentsTable, renderDynamicFormFields, renderOverview, renderOverviewProgressTable, renderQuestionsList, renderResultsTable, renderTeacherRewards, resetQuestionWorkspace, saveBlocks, selectActiveQuestion, selectSpecificClass, setupNewQuestionForm, startTeacherApp, switchTab, showConfirmModal, closeConfirmModal, handleConfirmAction,
   openCustomTestGeneratorModal, closeCustomTestGeneratorModal, renderCustomTestQuestionsList, updateCustomTestSelectedCount, handleSelectRange, handleCustomTestFormSubmit,
   renderLockTabsTab, toggleTabLockState,
-  openImportQuestionModal, closeImportQuestionModal, onImportSourceBlockChange, onImportSourceTestChange, renderImportQuestionsList, updateImportSelectedCount, toggleSelectAllImportQuestions, addSingleQuestionToCurrentTest, handleBatchImportQuestions, copyQuestionToEditor
+  openImportQuestionModal, closeImportQuestionModal, onImportSourceBlockChange, onImportSourceTestChange, renderImportQuestionsList, updateImportSelectedCount, toggleSelectAllImportQuestions, addSingleQuestionToCurrentTest, handleBatchImportQuestions, copyQuestionToEditor,
+  renderCurrentTestPasswordCard, toggleTestPasswordEye, copyCurrentTestPassword, quickEditTestPassword, generateRandomTestSetPassword,
+  toggleCurrentTestVisibility
 });

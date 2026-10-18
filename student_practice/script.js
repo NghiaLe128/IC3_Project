@@ -486,6 +486,7 @@ function getPracticeMockExamQuestions(blockNum) {
   const studentBlock = `block_${blockNum}`;
 
   const blockTests = allTests.filter(t => {
+    if (t.hidden === true || t.isHidden === true || t.visible === false) return false;
     if (t.blockId === studentBlock || t.level === studentBlock) return true;
     if (t.blockId === `Khối ${blockNum}` || t.level === `Khối ${blockNum}`) return true;
     const titleLow = (t.title || t.name || "").toLowerCase();
@@ -628,7 +629,7 @@ function renderTestsList(blockId = "all", query = "") {
   const currentBlockLabel = blockLabels[studentBlock] || `Khối ${blockNum}`;
   
   // Filter by block
-  let filtered = allTests;
+  let filtered = allTests.filter(t => !t.hidden && !t.isHidden && t.visible !== false);
   if (blockId !== "all") {
     filtered = allTests.filter(t => t.blockId === blockId || t.level === blockId);
   } else if (studentBlock) {
@@ -1213,6 +1214,11 @@ window.handleStartTest = function(testId, mode) {
   
   if (!target) {
     Swal.fire('Lỗi', 'Không tìm thấy thông tin bộ đề thi!', 'error');
+    return;
+  }
+
+  if (target.hidden === true || target.isHidden === true || target.visible === false) {
+    Swal.fire('Thông báo', 'Bộ đề thi này hiện đang được giáo viên tạm ẩn!', 'warning');
     return;
   }
   

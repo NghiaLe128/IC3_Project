@@ -819,6 +819,15 @@ function openTestModeSelection(testId) {
   const test = tests.find(t => t.id === testId);
   if (!test) return;
 
+  if (test.hidden === true || test.isHidden === true || test.visible === false) {
+    if (typeof Swal !== "undefined") {
+      Swal.fire("Thông báo", "Bộ đề thi này hiện đang được giáo viên tạm ẩn!", "warning");
+    } else if (window.showToast) {
+      window.showToast("Bộ đề thi này hiện đang được giáo viên tạm ẩn!", "warning");
+    }
+    return;
+  }
+
   // Set test title in the modal
   const modalTitle = document.getElementById("test-mode-modal-title");
   if (modalTitle) {
@@ -1716,13 +1725,13 @@ function startBossHunt(bossId) {
   const studentBlockId = currentStudent.blockId || "block_3";
   
   // Try to find tests specifically for review, or use all tests in block as fallback
-  const reviewTests = tests.filter(t => t.blockId === studentBlockId && (t.title.toLowerCase().includes("ôn tập") || t.title.toLowerCase().includes("tổng hợp")));
+  const reviewTests = tests.filter(t => t.blockId === studentBlockId && !t.hidden && !t.isHidden && t.visible !== false && (t.title.toLowerCase().includes("ôn tập") || t.title.toLowerCase().includes("tổng hợp")));
   
   let poolQIds = [];
   if (reviewTests.length > 0) {
     reviewTests.forEach(t => { poolQIds = poolQIds.concat(t.questions || []); });
   } else {
-    const blockTests = tests.filter(t => t.blockId === studentBlockId);
+    const blockTests = tests.filter(t => t.blockId === studentBlockId && !t.hidden && !t.isHidden && t.visible !== false);
     blockTests.forEach(t => { poolQIds = poolQIds.concat(t.questions || []); });
   }
   

@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Tailwind CSS Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -299,12 +301,64 @@
                       <button onclick="openCustomTestGeneratorModal()" class="text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-2 py-1 rounded cursor-pointer" title="Tạo bộ đề từ danh sách câu hỏi hiện có"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Tạo đề tự chọn</button>
                       <button onclick="openCombineTestsModal()" class="text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded cursor-pointer" title="Gộp nhiều bộ đề thành bộ đề tổng hợp"><i class="fa-solid fa-object-group mr-1"></i>Tạo đề tổng hợp</button>
                       <button onclick="openTestSetModal('edit')" class="text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-1 rounded cursor-pointer" title="Sửa bộ đề"><i class="fa-solid fa-pen"></i></button>
+                      <button type="button" id="btnToggleHideTest" onclick="toggleCurrentTestVisibility()" class="text-[10px] font-bold bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 px-2 py-1 rounded cursor-pointer transition-colors" title="Ẩn hoặc hiện bộ đề này với học sinh"><i class="fa-solid fa-eye-slash mr-1"></i>Ẩn đề</button>
                       <button onclick="deleteCurrentTestSet()" class="text-[10px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded cursor-pointer" title="Xóa bộ đề"><i class="fa-solid fa-trash"></i></button>
                     </div>
                   </div>
                   <select id="m-testSelector" onchange="onTestSelectionChange()" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50">
                     <!-- Dynamically populated -->
                   </select>
+
+                  <!-- Password info & Visibility status card for currently selected test -->
+                  <div id="m-testPasswordCard" class="hidden p-2.5 rounded-xl bg-slate-950/60 border border-indigo-500/20 text-xs space-y-2.5 shadow-inner">
+                    <!-- Row 1: Visibility with students -->
+                    <div class="flex items-center justify-between gap-2 pb-2 border-b border-indigo-500/20">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-6 h-6 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center text-xs shrink-0">
+                          <i class="fa-solid fa-eye" id="currentTestVisibilityIcon"></i>
+                        </span>
+                        <div class="min-w-0">
+                          <span class="text-[10px] text-indigo-300 uppercase font-bold block leading-tight">Giao diện học sinh:</span>
+                          <div id="currentTestVisibilityBadge" class="mt-0.5">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/25">
+                              <i class="fa-solid fa-eye text-[10px]"></i> Đang hiển thị học sinh
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="toggleCurrentTestVisibility()" id="btnCardToggleHide" class="px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 hover:text-purple-200 text-[11px] font-bold border border-purple-500/30 transition-colors flex items-center gap-1 cursor-pointer" title="Ẩn bộ đề này khỏi giao diện học sinh">
+                          <i class="fa-solid fa-eye-slash"></i> Ẩn đề
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Row 2: Exam Password -->
+                    <div class="flex items-center justify-between gap-2 pt-0.5">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-xs shrink-0">
+                          <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <div class="min-w-0">
+                          <span class="text-[10px] text-indigo-300 uppercase font-bold block leading-tight">Mật khẩu vào đề (Kiểm tra):</span>
+                          <div class="flex items-center gap-1.5 mt-0.5">
+                            <span id="currentTestPasswordText" class="font-mono font-bold text-amber-300 text-xs truncate">Chưa đặt</span>
+                            <button type="button" id="btnToggleTestPasswordEye" onclick="toggleTestPasswordEye()" class="text-indigo-400 hover:text-indigo-200 text-[11px] cursor-pointer" title="Ẩn/Hiện mật khẩu">
+                              <i class="fa-regular fa-eye"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="copyCurrentTestPassword()" class="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-white text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer" title="Sao chép mật khẩu">
+                          <i class="fa-regular fa-copy"></i> Copy
+                        </button>
+                        <button type="button" onclick="quickEditTestPassword()" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 text-[11px] font-bold border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer" title="Đổi hoặc đặt mật khẩu">
+                          <i class="fa-solid fa-pen-to-square"></i> Đổi mã
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Information banner if no block is selected -->
@@ -672,7 +726,7 @@
         </div>
 
         <form id="customTestForm" onsubmit="handleCustomTestFormSubmit(event)" class="space-y-4 flex-grow flex flex-col overflow-hidden">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 shrink-0">
             <div class="md:col-span-2">
               <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Tên bộ đề mới</label>
               <input type="text" id="customTestTitleInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 py-1.5 h-auto text-xs" placeholder="Ví dụ: Đề kiểm tra 15 phút - Chương 1">
@@ -680,6 +734,13 @@
             <div>
               <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1">Thời gian (phút)</label>
               <input type="number" id="customTestDurationInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 py-1.5 h-auto text-xs" value="45">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-indigo-300 uppercase mb-1 flex items-center justify-between">
+                <span>Mật khẩu</span>
+                <span class="text-[9px] text-amber-400 lowercase">tùy chọn</span>
+              </label>
+              <input type="text" id="customTestPasswordInput" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 py-1.5 h-auto text-xs font-mono" placeholder="Mã PIN vào đề...">
             </div>
           </div>
 
@@ -894,6 +955,30 @@
               <option value="venusaur">🌿 Venusaur (Hệ Cỏ/Độc)</option>
             </select>
           </div>
+          <div>
+            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1 flex items-center justify-between">
+              <span>Mật khẩu vào bài thi (Tùy chọn)</span>
+              <span class="text-[10px] text-amber-400 font-semibold lowercase">để trống nếu không cần mã</span>
+            </label>
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input type="text" id="testSetPasswordInput" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 tracking-wider font-mono text-xs" placeholder="VD: 123456 hoặc K6THCS">
+              </div>
+              <button type="button" onclick="generateRandomTestSetPassword()" class="px-3 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 text-xs font-bold rounded-xl border border-indigo-500/30 transition-colors shrink-0 cursor-pointer" title="Tạo mã ngẫu nhiên 6 số">
+                <i class="fa-solid fa-dice mr-1"></i>Tạo mã
+              </button>
+            </div>
+            <p class="text-[10px] text-indigo-400 mt-1">Khi học sinh truy cập mục "Kiểm tra", cần nhập đúng mật khẩu này mới có thể bắt đầu làm bài.</p>
+          </div>
+          <div class="p-3 bg-purple-950/40 border border-purple-500/30 rounded-xl">
+            <label class="flex items-start gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" id="testSetHiddenInput" class="w-4 h-4 mt-0.5 rounded text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer">
+              <div>
+                <span class="text-xs font-bold text-purple-200 block">Ẩn bộ đề này với học sinh</span>
+                <span class="text-[10px] text-purple-300/80 block mt-0.5">Khi ẩn, bộ đề sẽ không xuất hiện bên giao diện làm bài, ôn tập và kiểm tra của học sinh. Giáo viên vẫn xem và quản lý đầy đủ.</span>
+              </div>
+            </label>
+          </div>
           <div class="pt-4 border-t border-indigo-500/30 flex justify-end gap-3">
             <button type="button" onclick="closeTestSetModal()" class="px-4 py-2 rounded-lg bg-indigo-950 text-indigo-200 text-xs font-bold cursor-pointer">Hủy bỏ</button>
             <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm cursor-pointer">Xác nhận</button>
@@ -920,9 +1005,18 @@
             <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Tiêu đề bài thi tổng hợp</label>
             <input type="text" id="combineTestTitleInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" value="Đề ôn tập tổng hợp" placeholder="Ví dụ: Ôn tập tổng hợp Học kỳ I">
           </div>
-          <div>
-            <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Thời gian làm bài (Phút)</label>
-            <input type="number" id="combineTestDurationInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" value="45" min="5" max="120">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-indigo-300 uppercase mb-1">Thời gian (Phút)</label>
+              <input type="number" id="combineTestDurationInput" required class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50" value="45" min="5" max="120">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-indigo-300 uppercase mb-1 flex items-center justify-between">
+                <span>Mật khẩu</span>
+                <span class="text-[9px] text-amber-400 lowercase">tùy chọn</span>
+              </label>
+              <input type="text" id="combineTestPasswordInput" class="modal-input bg-[#131424]/80 border-indigo-500/30 text-indigo-50 font-mono text-xs" placeholder="Mã PIN vào đề...">
+            </div>
           </div>
           
           <div class="space-y-2">

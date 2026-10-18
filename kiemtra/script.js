@@ -316,6 +316,11 @@ function renderTestsCatalog() {
 
   // Filter tests
   let filtered = allTests.filter(t => {
+    // 0. Exclude Hidden Tests
+    if (t.hidden === true || t.isHidden === true || t.visible === false) {
+      return false;
+    }
+
     // 1. Block Filter
     if (activeBlockFilter !== "all") {
       const blockNum = activeBlockFilter.replace(/\D/g, "");
@@ -363,6 +368,7 @@ function renderTestsCatalog() {
     const duration = test.duration || 45;
     const title = test.title || test.name || "Bài kiểm tra IC3";
     const blockLabel = test.blockId ? test.blockId.replace("block_", "Khối ") : "Khối học";
+    const hasPassword = Boolean(test.password && test.password.trim());
 
     card.innerHTML = `
       <div class="space-y-4">
@@ -370,9 +376,14 @@ function renderTestsCatalog() {
           <span class="px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
             ${blockLabel}
           </span>
-          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Sẵn sàng
-          </span>
+          ${hasPassword 
+            ? `<span class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                <i class="fa-solid fa-lock text-[10px]"></i> Có mật khẩu
+              </span>`
+            : `<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Sẵn sàng
+              </span>`
+          }
         </div>
 
         <div>
@@ -426,11 +437,31 @@ window.onSearchInput = function(query) {
   renderTestsCatalog();
 };
 
+// ================= TOGGLE PASSWORD VISIBILITY =================
+window.toggleExamPasswordVisibility = function() {
+  const input = document.getElementById("inputExamPassword");
+  const icon = document.getElementById("toggleExamPasswordIcon");
+  if (!input || !icon) return;
+
+  if (input.type === "password") {
+    input.type = "text";
+    icon.className = "fa-regular fa-eye-slash text-blue-600";
+  } else {
+    input.type = "password";
+    icon.className = "fa-regular fa-eye text-slate-400";
+  }
+};
+
 // ================= MODAL: CANDIDATE INFO =================
 window.openCandidateModal = function(testId) {
   selectedTest = allTests.find(t => t.id === testId);
   if (!selectedTest) {
     Swal.fire("Lỗi", "Không tìm thấy thông tin đề kiểm tra này!", "error");
+    return;
+  }
+
+  if (selectedTest.hidden === true || selectedTest.isHidden === true || selectedTest.visible === false) {
+    Swal.fire("Thông báo", "Bộ đề thi này hiện đang được giáo viên tạm ẩn!", "warning");
     return;
   }
 
@@ -443,6 +474,28 @@ window.openCandidateModal = function(testId) {
 
   if (modalTitle) modalTitle.innerText = selectedTest.title || selectedTest.name || "Bộ đề thi";
   if (modalMeta) modalMeta.innerText = `Thời gian làm bài: ${duration} phút • Số lượng: ${qCount} câu hỏi`;
+
+  // Manage password requirement
+  const pwWrapper = document.getElementById("testPasswordWrapper");
+  const pwInput = document.getElementById("inputExamPassword");
+  const eyeIcon = document.getElementById("toggleExamPasswordIcon");
+
+  if (pwInput) {
+    pwInput.value = "";
+    pwInput.type = "password";
+  }
+  if (eyeIcon) {
+    eyeIcon.className = "fa-regular fa-eye text-slate-400";
+  }
+
+  const hasPassword = Boolean(selectedTest.password && selectedTest.password.trim());
+  if (hasPassword) {
+    if (pwWrapper) pwWrapper.classList.remove("hidden");
+    if (pwInput) pwInput.required = true;
+  } else {
+    if (pwWrapper) pwWrapper.classList.add("hidden");
+    if (pwInput) pwInput.required = false;
+  }
 
   if (modal) modal.classList.remove("hidden");
 };
@@ -473,6 +526,32 @@ window.handleStartExamSubmit = function(e) {
   if (!name) {
     Swal.fire("Chưa nhập họ tên", "Vui lòng nhập Họ và tên của học sinh!", "warning");
     return;
+  }
+
+  // Validate test password if configured by teacher
+  if (selectedTest && selectedTest.password && selectedTest.password.trim()) {
+    const enteredPass = (document.getElementById("inputExamPassword")?.value || "").trim();
+    const correctPass = selectedTest.password.trim();
+    if (!enteredPass) {
+      Swal.fire({
+        title: "Chưa nhập mật khẩu!",
+        text: "Bộ đề này yêu cầu mật khẩu để vào thi. Vui lòng nhập mật khẩu do giáo viên cung cấp!",
+        icon: "warning",
+        confirmButtonColor: "#2563eb",
+        confirmButtonText: "Đã hiểu"
+      });
+      return;
+    }
+    if (enteredPass !== correctPass) {
+      Swal.fire({
+        title: "Mật khẩu không đúng!",
+        text: "Mật khẩu vào bộ đề không chính xác. Vui lòng kiểm tra lại hoặc liên hệ giáo viên để nhận mật khẩu đúng!",
+        icon: "error",
+        confirmButtonColor: "#ef4444",
+        confirmButtonText: "Nhập lại"
+      });
+      return;
+    }
   }
 
   currentCandidate = {
@@ -560,16 +639,39 @@ function startExamTimer() {
 
     if (examRemainingSeconds <= 0) {
       clearInterval(examTimerInterval);
+      examRemainingSeconds = 0;
+      updateTimerDisplay();
+
+      // Lock interactions so student cannot alter answers after time is up
+      const examArea = document.getElementById("screen-exam");
+      if (examArea) {
+        examArea.style.pointerEvents = "none";
+        examArea.style.opacity = "0.75";
+      }
+
+      // Close any active modal (confirmations, reviews, etc.)
+      if (typeof Swal !== "undefined" && Swal.isVisible()) {
+        Swal.close();
+      }
+
       Swal.fire({
         title: "HẾT GIỜ LÀM BÀI!",
-        text: "Thời gian làm bài đã kết thúc. Hệ thống đang tự động nộp bài và đồng bộ điểm số...",
-        icon: "info",
+        text: "Thời gian làm bài quy định đã kết thúc. Hệ thống đang tự động nộp bài và đồng bộ điểm số...",
+        icon: "warning",
         allowOutsideClick: false,
-        timer: 2000,
+        allowEscapeKey: false,
+        timer: 1800,
         showConfirmButton: false
       }).then(() => {
         executeSubmitExam();
       });
+
+      // Failsafe auto-submit in case modal resolution is blocked
+      setTimeout(() => {
+        if (!isExamSubmitted) {
+          executeSubmitExam();
+        }
+      }, 2200);
     }
   }, 1000);
 }
@@ -1488,6 +1590,12 @@ async function executeSubmitExam() {
   if (isExamSubmitted) return;
   isExamSubmitted = true;
   if (examTimerInterval) clearInterval(examTimerInterval);
+
+  const examArea = document.getElementById("screen-exam");
+  if (examArea) {
+    examArea.style.pointerEvents = "auto";
+    examArea.style.opacity = "1";
+  }
 
   Swal.fire({
     title: "Đang chấm điểm & nạp Google Sheet...",
